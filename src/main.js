@@ -196,5 +196,5 @@ window.__turtle = {
   state: () => state, G: () => G, save, start: startLevel, map: () => { enterMap(); },
   face: (f) => setFace(f, 99), boost: () => { G.boost = 100; tryBoost(); }, fever: () => startFever(), item: (k) => { G.item = k; useItem(); },
   bless: () => openBless(), boss: () => { G.dist = G.cfg.length; }, die: () => { G.p.inv = 0; G.shield = 0; hitPlayer({ type: 'test' }); },
-  win: () => levelClear(), set: (k, v) => { save[k] = v; persist(); }, spawn: (t) => spawnEnemy(t),
+  win: () => levelClear(), special: (t) => { spawnEnemy(t); const e = G.enemies[G.enemies.length - 1]; if (e) { e.x = W * 0.62; e.sp = { t: 0, wind: 0.75, done: false }; } }, set: (k, v) => { save[k] = v; persist(); }, spawn: (t) => spawnEnemy(t),
 };
