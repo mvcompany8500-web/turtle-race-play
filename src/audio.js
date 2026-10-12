@@ -26,6 +26,7 @@ function initAudio() {
   }
   applyVolumes();
   if (ac.state === 'suspended') ac.resume();
+  loadSamples();
 }
 function applyVolumes() {
   if (!ac) return;
@@ -177,9 +178,59 @@ function playStep(s, t, st) {
   if (curTrack.lead && i % 2 === 0) { const tok = curTrack.lead[(bar * 8 + i / 2) % curTrack.lead.length]; if (tok && tok !== '-') leadNote(t, m(tok) + (musicFever ? 12 : 0), st * 3, curTrack.leadType || 'square'); }
 }
 setInterval(() => {
-  if (!ac || !curTrack || save.muted || save.musicOff) { mNext = 0; return; }
+  if (!ac || !curTrack || save.muted || save.musicOff || SAMPLES['bgm_' + trackName]) { mNext = 0; return; }
   if (['pause', 'revive', 'dead', 'bless'].includes(state)) { mNext = 0; return; }
   if (mNext < ac.currentTime) mNext = ac.currentTime + 0.06;
   const st = 60 / (curTrack.bpm * (musicFever ? 1.1 : 1)) / 4;
   while (mNext < ac.currentTime + 0.18) { playStep(mStep, mNext, st); mStep++; mNext += st; }
 }, 25);
+
+// ───────── 일레븐랩스 소리 파일 (assets/audio/list.json 에 있는 것만) — 있으면 파일, 없으면 위 합성음 ─────────
+const SAMPLES = {};
+let samplesLoading = false, bgmSrc = null, bgmName = '', bgmGain = null;
+async function loadSamples() {
+  if (samplesLoading || !ac) return; samplesLoading = true;
+  let list = [];
+  try { const r = await fetch('assets/audio/list.json', { cache: 'no-cache' }); if (r.ok) list = await r.json(); } catch (e) { /* 파일 없음 = 합성음만 */ }
+  // 효과음 먼저(작음), 음악은 나중에
+  list.sort((a, b) => (a.startsWith('bgm_') ? 1 : 0) - (b.startsWith('bgm_') ? 1 : 0));
+  for (const n of list) {
+    try { const r = await fetch(`assets/audio/${n}.mp3`); if (!r.ok) continue; SAMPLES[n] = await ac.decodeAudioData(await r.arrayBuffer()); } catch (e) { /* 하나 깨져도 나머지는 */ }
+  }
+}
+function playSample(name, vol = 1, rate = 1) {
+  const buf = SAMPLES[name]; if (!buf || !ac) return false;
+  const s = ac.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
+  const g = ac.createGain(); g.gain.value = vol;
+  s.connect(g); g.connect(sfxBus); s.start();
+  return true;
+}
+// 효과음: 파일이 있으면 파일로 바꿔 낀다
+for (const k of Object.keys(sfx)) {
+  const synth = sfx[k];
+  sfx[k] = (...a) => {
+    if (k === 'egg') { if (playSample('sfx_egg', 0.7, 1 + Math.min(a[0] || 0, 14) * 0.045)) return; }
+    else if (k === 'star') { if (a[1] ? playSample('sfx_star', 1, 1 + a[0] * 0.12) : false) return; }
+    else if (playSample('sfx_' + k)) return;
+    synth(...a);
+  };
+}
+// 배경음악: 파일이 있으면 반복 재생(합성 음악은 멈춤)
+function bgmTick() {
+  if (!ac) return;
+  const want = curTrack && SAMPLES['bgm_' + trackName] ? trackName : '';
+  const paused = save.muted || save.musicOff || ['pause', 'revive', 'dead', 'bless'].includes(state);
+  if (want !== bgmName) {
+    if (bgmSrc) { const old = bgmSrc, og = bgmGain; og.gain.setTargetAtTime(0.0001, ac.currentTime, 0.25); setTimeout(() => { try { old.stop(); } catch (e) { /* 이미 멈춤 */ } }, 1200); }
+    bgmSrc = null; bgmName = want;
+    if (want) {
+      bgmGain = ac.createGain(); bgmGain.gain.value = 0.0001; bgmGain.connect(musicBus);
+      bgmSrc = ac.createBufferSource(); bgmSrc.buffer = SAMPLES['bgm_' + want]; bgmSrc.loop = true; bgmSrc.connect(bgmGain); bgmSrc.start();
+    }
+  }
+  if (bgmSrc) {
+    bgmGain.gain.setTargetAtTime(paused ? 0.0001 : 0.9, ac.currentTime, 0.2);
+    bgmSrc.playbackRate.setTargetAtTime(musicFever ? 1.08 : 1, ac.currentTime, 0.3);
+  }
+}
+setInterval(bgmTick, 100);

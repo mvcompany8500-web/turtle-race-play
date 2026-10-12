@@ -1,6 +1,13 @@
 'use strict';
 // 터틀 레이스 — 한 판: 바다·적·보스·알·피버·아이템·상성·펫·산호 쉼터·이어하기·별
 
+const HERO_H = 112, ES = 1.2; // 큼직하게: 주인공 키, 적 크기 배율
+let cutin = null; // 화면을 가로지르는 컷인(질주·큰 적 등장·마무리)
+function startCutin(kind, title, sub, dur = 0.85) {
+  if (REDUCE) return;
+  cutin = { kind, title, sub, t: 0, dur };
+  freeze = Math.max(freeze, dur * 0.85);
+}
 const isDark = (n) => n !== ENDLESS && !!STAGES[n].dark;
 function levelCfg(n) {
   const D = DIFFS[save.diff];
@@ -12,8 +19,8 @@ function levelCfg(n) {
     const e = ENEMIES[k];
     if (e.intro <= n && (!e.darkOnly || st.dark)) { pool.push(k); if (st.fresh === k) pool.push(k, k, k); }
   }
-  const speed = Math.max(220, 600 - (n - 1) * 12.5) * slow * D.speed;
-  return { n, speed, pool, endless: false, length: speed * (36 + n * 0.8), gap: Math.max(0.36, 1.1 - n * 0.022) * D.gap, boostRate: (5 + n * 0.55) * boostMul, boss: st.boss || null, dark: !!st.dark, D };
+  const speed = Math.max(220, 600 - (n - 1) * 8) * slow * D.speed;
+  return { n, speed, pool, endless: false, length: speed * (46 + n * 0.6), gap: Math.max(0.34, 1.1 - n * 0.015) * D.gap, boostRate: (5 + n * 0.35) * boostMul, boss: st.boss || null, dark: !!st.dark, D };
 }
 const stageMusic = (n) => (n === ENDLESS ? 'w3' : worldOf(n).music);
 const boostDur = () => 3.2 + (petIs('penguin') ? petLv() * 0.3 : 0);
@@ -28,7 +35,7 @@ function startLevel(n) {
     shield: save.up.shield + (petIs('whale') ? (petLv() >= 4 ? 2 : 1) : 0),
     enemies: [], eggsArr: [], shots: [], warns: [], inks: [], boxes: [], sweeps: [],
     spawnT: 1.8, eggT: 0.9, boxT: 4, boss: null, bossDone: !cfg.boss, bossWarnT: null, goal: null,
-    p: { x: -90, y: H / 2, vx: 0, vy: 0, tx: null, ty: null, r: 20, inv: 1.2, dead: false, rot: 0, trail: [],
+    p: { x: -90, y: H / 2, vx: 0, vy: 0, tx: null, ty: null, r: 23, inv: 1.2, dead: false, rot: 0, trail: [],
          ph: 0, blinkT: 2, face: 'normal', faceT: 0, scared: false, wakeT: 0, flip: 0, scale: 1 },
     pet: save.pet ? { x: -150, y: H / 2 - 50, t: 0, zapT: 3 } : null,
     enterT: 0.8, won: false, winT: 0,
@@ -72,7 +79,7 @@ function bank(cleared) {
     G.starGot = [true, G.eggsGot >= Math.ceil(G.eggsSpawned * 0.7), G.hits === 0];
     save.stars[G.n] = Math.max(save.stars[G.n] || 0, G.starGot.filter(Boolean).length);
     if (save.diff === 2) save.crown[G.n] = true;
-    if (G.n < LAST) save.unlocked = Math.max(save.unlocked, G.n + 1);
+    if (G.n < LAST && save.unlocked < G.n + 1) { save.unlocked = G.n + 1; G.newUnlock = true; }
     track('clear');
   }
   persist();
@@ -103,6 +110,7 @@ function updateFx(dt) {
       if (f.k === 'confetti') { f.rot += dt * 6; f.vx += Math.sin(T * 3 + f.y * 0.02) * 30 * dt; }
       else { f.vx *= 1 - dt * 3; f.vy *= 1 - dt * 3; }
       if (f.k === 'flame') f.vy -= 60 * dt;
+      if (f.k === 'chunk') { f.vy += 900 * dt; f.rot += f.vr * dt; f.vx *= 1 + dt * 2.2; f.vy *= 1 + dt * 2.2; }
       if (f.k === 'bub') f.vy -= 90 * dt;
     }
   }
@@ -142,6 +150,8 @@ function spawnEnemy(type) {
     case 'ray': { const by = rand(CEIL + 140, SEABED - 140); e = { x: W + 60, y: by, baseY: by, amp: rand(70, 115), r: 22, vx: -240 }; break; }
     case 'crab': { const top = Math.random() < 0.3; e = { x: W + 40, y: top ? CEIL + 18 : SEABED - 16, floor: top ? CEIL + 18 : SEABED - 16, top, r: 18, vx: -40, vy: 0, jumped: false }; break; }
     case 'mine': e = { x: W + 40, y, baseY: y, r: 16, vx: 0, armed: false, armT: 0, beepT: 0 }; break;
+    case 'swordfish': G.warns.push({ kind: 'sword', y: clamp(p.y + rand(-40, 40), CEIL + 40, SEABED - 40), t: 1.0, max: 1.0, elite }); sfx.warn(); return;
+    case 'phantom': e = { x: W + 40, y, baseY: y, r: 20, amp: rand(40, 80), vx: -50, vis: 1 }; break;
   }
   if (!e) return;
   Object.assign(e, base);
@@ -149,16 +159,18 @@ function spawnEnemy(type) {
   G.enemies.push(e);
 }
 function enemyHits(e, x, y, r) {
+  const k = ES * 0.92; // 그림은 1.2배, 판정은 살짝 너그럽게
   switch (e.type) {
-    case 'shark': return circ(e.x - 20, e.y, 19, x, y, r) || circ(e.x + 16, e.y, 15, x, y, r);
-    case 'ray': return circ(e.x - 12, e.y, 18, x, y, r) || circ(e.x + 12, e.y, 13, x, y, r);
+    case 'shark': return circ(e.x - 20 * k, e.y, 19 * k, x, y, r) || circ(e.x + 16 * k, e.y, 15 * k, x, y, r);
+    case 'ray': return circ(e.x - 12 * k, e.y, 18 * k, x, y, r) || circ(e.x + 12 * k, e.y, 13 * k, x, y, r);
+    case 'swordfish': return circ(e.x, e.y, 18 * k, x, y, r) || circ(e.x - 40 * k, e.y, 7 * k, x, y, r) || circ(e.x + 28 * k, e.y, 12 * k, x, y, r);
     case 'eel':
-      for (let i = 0; i <= e.len; i += 18) if (circ(e.x + i, e.y + Math.sin(e.t * 12 + i * 0.05) * 6, e.r, x, y, r)) return true;
+      for (let i = 0; i <= e.len; i += 18) if (circ(e.x + i, e.y + Math.sin(e.t * 12 + i * 0.05) * 6, e.r * k, x, y, r)) return true;
       return false;
-    default: return circ(e.x, e.y, e.r, x, y, r);
+    default: return circ(e.x, e.y, e.r * k, x, y, r);
   }
 }
-const harmless = (e) => (e.frozen && ['shark', 'eel', 'ray', 'jelly'].includes(e.type)) || (G.eff.lamp > 0 && (e.type === 'octopus' || e.type === 'angler'));
+const harmless = (e) => (e.frozen && ['shark', 'eel', 'ray', 'jelly', 'swordfish'].includes(e.type)) || (G.eff.lamp > 0 && ['octopus', 'angler', 'phantom'].includes(e.type));
 function weakHit(e, item) {
   G.eggs += 3; G.weak++;
   pop(e.x, e.y - 50, '딱 맞았어요! +3', C.yellow, 24);
@@ -169,16 +181,17 @@ function weakHit(e, item) {
 function killEnemy(e, cause = 'boost') {
   if (e.dead) return;
   e.dead = true;
-  freeze = Math.max(freeze, 0.05); shake = Math.max(shake, e.elite ? 14 : 9); zoomTo(1.025);
+  freeze = Math.max(freeze, 0.075); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035);
   const col = (ENEMIES[e.type] || {}).color || '#fff';
-  burst(e.x, e.y, col, 24, 460); burst(e.x, e.y, '#ffffff', 8, 300);
-  ring(e.x, e.y, C.yellow, 80);
+  burst(e.x, e.y, col, 34, 620); burst(e.x, e.y, '#ffffff', 12, 420);
+  for (let i = 0; i < 7; i++) { const a = Math.random() * Math.PI * 2, sp = rand(200, 560); fx.push({ k: 'chunk', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, life: 0.7, max: 0.7, size: rand(6, 12), color: col, rot: rand(0, 6), vr: rand(-14, 14) }); }
+  ring(e.x, e.y, '#ffffff', 120, 0.35, 10); ring(e.x, e.y, C.yellow, 90);
   G.kills++;
   if (cause === 'boost') track('boostKill');
   dexKill(e.type);
   if (cause === 'boost' || cause === 'whirl' || cause === 'giant') chainKill(e);
   if (e.elite) pop(e.x, e.y - 50, '정예 처치!', C.yellow, 28);
-  else pop(e.x, e.y - 34, pick(['펑!', '쾅!', '퍽!', '뿅!']), C.yellow, 30);
+  else pop(e.x, e.y - 40, pick(['펑!', '쾅!', '퍽!', '뿅!', '콰앙!']), C.yellow, 40);
   if (ENEMIES[e.type] && ENEMIES[e.type].weak === cause) weakHit(e, true);
   sfx.smash(); haptic(25);
   const drops = e.elite ? 4 : 2;
@@ -231,7 +244,7 @@ function tryBoost() {
   G.boost = 0; G.boosting = boostDur();
   freeze = 0.09; flash = 0.5; flashColor = '#b48bff'; shake = 14; timeScale = 0.35; zoomTo(1.08);
   ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12); ring(G.p.x, G.p.y, '#5fd4ff', 150, 0.45, 6);
-  pop(W / 2, H / 2 - 70, '질주!', '#d9c6ff', 64, true);
+  startCutin('boost', '질주!!', '앞을 막는 건 다 들이받아!', 0.7);
   sfx.boost(); haptic([30, 30, 70]);
   track('boost');
 }
@@ -343,12 +356,16 @@ const BOSS_DEF = {
   octopus: { name: '대왕 문어', hp: 5, kind: 'octopus', s: 3.2, spd: 1 },
   octopus2: { name: '대왕 문어', hp: 7, kind: 'octopus', s: 3.4, spd: 1.3 },
   angler: { name: '아귀 대왕', hp: 5, kind: 'angler', s: 3, spd: 1 },
-  king: { name: '상어왕', hp: 8, kind: 'shark', c1: '#8a6bd6', c2: '#3f2a7a', s: 2.8, spd: 1.2, king: true },
+  king1: { name: '상어왕', hp: 7, kind: 'shark', c1: '#8a6bd6', c2: '#3f2a7a', s: 2.8, spd: 1.15, king: true, flee: true },
+  octopus3: { name: '해적 문어 선장', hp: 8, kind: 'octopus', s: 3.5, spd: 1.4, triple: true },
+  angler2: { name: '아귀 여왕', hp: 7, kind: 'angler', s: 3.2, spd: 1.3 },
+  shark3: { name: '상어 대장', hp: 8, kind: 'shark', c1: '#d8b06a', c2: '#6a4a1a', s: 2.8, spd: 1.45 },
+  king: { name: '상어왕', hp: 11, kind: 'shark', c1: '#8a6bd6', c2: '#3f2a7a', s: 3.1, spd: 1.35, king: true },
 };
 function spawnBoss() {
   const d = BOSS_DEF[G.cfg.boss];
   G.boss = { def: d, kind: d.kind, x: W + 260, y: H / 2, hp: d.hp, maxHp: d.hp, st: 'enter', t: 0, cd: 2.4, shoot: 1.4, hurt: 0, ihit: 0, stun: 0, dead: false, deadT: 0, cycle: 0, s: d.s };
-  pop(W / 2, H / 2 - 40, `${d.name}이(가) 나타났어요!`, C.danger, 44, true);
+  startCutin('boss', d.name, G.n === LAST ? '최후의 결전!' : d.flee ? '공주님을 돌려줘!' : '질주로 들이받아야 아파해요!', 1.3);
   shake = 18; zoomTo(1.05);
   setMusic('boss');
   sfx.roar(); haptic([80, 50, 120]);
@@ -409,7 +426,8 @@ function updateBoss(dt) {
         if (b.cd <= 0) { // 다리 휘두르기: 위·가운데·아래 중 한 줄 미리 표시
           const lane = pick([0, 1, 2]), lh = (SEABED - CEIL) / 3, y0 = CEIL + 10 + lane * lh;
           G.sweeps.push({ y0, y1: y0 + lh - 10, t: 0.95, x: W + 60, on: false });
-          if (d.spd > 1 || b.hp <= 2) { const l2 = (lane + 1 + ((Math.random() * 2) | 0)) % 3, y2 = CEIL + 10 + l2 * lh; G.sweeps.push({ y0: y2, y1: y2 + lh - 10, t: 1.5, x: W + 60, on: false }); }
+          if (d.triple) { for (const l3 of [0, 1, 2]) if (l3 !== lane) G.sweeps.push({ y0: CEIL + 10 + l3 * lh, y1: CEIL + lh * (l3 + 1), t: 1.2 + l3 * 0.35, x: W + 60, on: false }); }
+          else if (d.spd > 1 || b.hp <= 2) { const l2 = (lane + 1 + ((Math.random() * 2) | 0)) % 3, y2 = CEIL + 10 + l2 * lh; G.sweeps.push({ y0: y2, y1: y2 + lh - 10, t: 1.5, x: W + 60, on: false }); }
           b.cd = rand(2.6, 3.6); sfx.warn(); haptic(25);
         }
         break;
@@ -442,7 +460,7 @@ function bossDamage() {
   const b = G.boss, p = G.p;
   b.hp--; b.ihit = 0.7; b.hurt = 0.3; b.st = 'knock'; b.t = 0; b.x += 70;
   p.x -= 90; p.vx = -320;
-  freeze = 0.16; shake = 26; flash = 0.4; flashColor = '#ffffff'; zoomTo(1.1);
+  freeze = 0.22; shake = 30; flash = 0.45; flashColor = '#ffffff'; zoomTo(1.12);
   burst(b.x - 50, b.y, '#ffe36b', 30, 560); burst(b.x - 50, b.y, '#ffffff', 14, 400);
   ring(b.x - 50, b.y, '#ffe36b', 180, 0.5, 12);
   pop(b.x - 40, b.y - 90, '크게 한 방!', C.yellow, 44, true);
@@ -450,8 +468,9 @@ function bossDamage() {
   if (b.hp <= 0) {
     b.dead = true; b.deadT = 2.2; timeScale = 0.12; freeze = 0.5; zoom = 1.3; G.zoomAt = { x: b.x - 40, y: b.y };
     flash = 0.9; flashColor = '#ffffff'; shake = 34;
+    startCutin('finish', '마무리!!', '', 0.6);
     pop(clamp(b.x - 60, 260, W - 260), clamp(b.y - 120, 120, H - 160), '마무리!!', '#ffffff', 70, true);
-    setTimeout(() => { if (G && state === 'play') { pop(W / 2, H / 2 - 20, `${b.def.name}을(를) 이겼어요!`, C.yellow, 50, true); sfx.clear(); } }, 900);
+    setTimeout(() => { if (G && state === 'play') { pop(W / 2, H / 2 - 20, b.def.flee ? '상어왕이 도망쳤어요! 쫓아가요!' : `${b.def.name}을(를) 이겼어요!`, C.yellow, b.def.flee ? 40 : 50, true); sfx.clear(); } }, 900);
     for (let k = 0; k < 5; k++) setTimeout(() => { if (G && G.boss) { boom(0.9); noise(0.5, 0.5, 3000); } }, 150 + k * 220);
     for (let i = 0; i < 26; i++) G.eggsArr.push({ x: b.x, y: b.y, vx: rand(-420, 120), vy: rand(-300, 300), loose: true, gold: i % 9 === 0, t: 0 });
     G.kills++; G.sweeps = []; G.inks.forEach((k) => { k.fade = true; });
@@ -562,6 +581,7 @@ function updatePlay(dt) {
   // 등장
   if (G.enterT > 0) {
     G.enterT -= dt;
+    if (G.enterT <= 0) { pop(W / 2, H / 2 - 30, '출발!', C.yellow, 76, true); sfx.ready(); boom(0.5); haptic([20, 30, 50]); zoomTo(1.04); }
     const k = 1 - Math.max(0, G.enterT) / 0.8;
     p.x = lerp(-90, 170 + SAFE, 1 - (1 - k) * (1 - k)); p.ph += dt * 18;
   }
@@ -597,9 +617,12 @@ function updatePlay(dt) {
   else if (!p.dead) {
     let ix = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
     let iy = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
-    if (drag && p.tx != null) {
-      p.vx = clamp((p.tx - p.x) * 14, -760, 760);
-      p.vy = clamp((p.ty - p.y) * 14, -760, 760);
+    if (drag) {
+      const dx = drag.kx - drag.bx, dy = drag.ky - drag.by, d = Math.hypot(dx, dy), JR = 62;
+      const m = d < 6 ? 0 : Math.min(1, d / JR);
+      ix = d ? dx / d * m : 0; iy = d ? dy / d * m : 0;
+      const sp = 470 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1), a = Math.min(1, dt * 20);
+      p.vx += (ix * sp - p.vx) * a; p.vy += (iy * sp - p.vy) * a;
     } else {
       if (ix && iy) { ix *= 0.7071; iy *= 0.7071; }
       const sp = 440 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1), a = Math.min(1, dt * 16);
@@ -662,8 +685,9 @@ function updatePlay(dt) {
     if (w.t <= 0) {
       w.done = true;
       const e = w.kind === 'shark'
-        ? { type: 'shark', x: W + 80, y: w.y, r: 20, vx: -230 - (cfg.endless ? 60 : G.n * 4), t: 0, elite: w.elite }
-        : { type: 'eel', x: W + 40, y: w.y, r: 12, vx: -950, len: 150, t: 0, elite: w.elite };
+        ? { type: 'shark', x: W + 80, y: w.y, r: 20, vx: -230 - (cfg.endless ? 60 : Math.min(G.n, 30) * 4), t: 0, elite: w.elite }
+        : w.kind === 'sword' ? { type: 'swordfish', x: W + 60, y: w.y, r: 18, vx: -1050, t: 0, elite: w.elite }
+          : { type: 'eel', x: W + 40, y: w.y, r: 12, vx: -950, len: 150, t: 0, elite: w.elite };
       if (e.elite) { e.r *= 1.2; e.vx *= 1.2; }
       G.enemies.push(e);
     }
@@ -693,6 +717,13 @@ function updatePlay(dt) {
         if (e.lunge) e.y += (e.vy || 0) * edt;
         break;
       case 'ray': e.y = e.baseY + Math.sin(e.t * 2.5 + e.ph) * e.amp; break;
+      case 'phantom': {
+        const cyc = (e.t + e.ph) % 2.4, show = cyc < 1.3;
+        if (!show && e.vis > 0.5) e.baseY = clamp(e.baseY + rand(-90, 90), CEIL + 60, SEABED - 60); // 사라질 때 자리 옮김
+        e.vis = lerp(e.vis, show || E.lamp > 0 ? 1 : 0.08, Math.min(1, edt * 8));
+        e.y = e.baseY + Math.sin(e.t * 2 + e.ph) * e.amp * 0.5;
+        break;
+      }
       case 'crab':
         if (!e.jumped && e.x - p.x < 250 && e.x > p.x) { e.jumped = true; e.vy = e.top ? 560 : -580; sfx.crab(); }
         if (e.jumped) {
@@ -733,7 +764,7 @@ function updatePlay(dt) {
       else if (whirling) killEnemy(e, 'whirl');
       else if (E.giant > 0) killEnemy(e, 'giant');
       else if (harmless(e)) killEnemy(e, e.frozen && ENEMIES[e.type].weak === 'freeze' ? 'freeze' : 'lamp');
-      else if (e.type === 'jelly' && G.jellySafe > 0) killEnemy(e, 'bubble');
+      else if ((e.type === 'jelly' || e.type === 'swordfish') && G.jellySafe > 0) killEnemy(e, 'bubble');
       else if (e.type !== 'mine') hitPlayer(e);
     } else if (G.boosting <= 0 && !harmless(e)) {
       if (enemyHits(e, p.x, p.y, pr + 10)) e.wasClose = true;
@@ -888,7 +919,7 @@ function drawWorld() {
   if (G.goal) drawGoal(G.goal.x);
   for (const b of G.boxes) drawItemBox(b);
   for (const e of G.eggsArr) drawEgg(e);
-  for (const e of G.enemies) drawEnemy(e, p.x, p.y);
+  for (const e of G.enemies) { ctx.save(); ctx.translate(e.x, e.y); ctx.scale(ES, ES); ctx.translate(-e.x, -e.y); drawEnemy(e, p.x, p.y); ctx.restore(); }
   if (G.boss) drawBoss(G.boss, p.x, p.y);
   for (const s of G.shots) {
     if (s.fake) { drawImg(silhouette('egg', '#ffc93a'), s.x, s.y, 26, s.t * 6); continue; }
@@ -909,7 +940,7 @@ function drawWorld() {
   }
   // 질주·회오리 잔상과 기운
   if (G.boosting > 0 || E.whirl > 0) {
-    for (let i = p.trail.length - 1; i >= 1; i--) { const tr = p.trail[i]; drawHero(tr.x - 6, tr.y + 4, 92 * p.scale, tr.rot, { ghost: E.whirl > 0 ? '#7cf0ff' : i % 2 ? '#8b5cff' : '#4fb8ff', alpha: 0.4 * (1 - i / p.trail.length), ph: p.ph, boost: true, stretch: 1.1 }); }
+    for (let i = p.trail.length - 1; i >= 1; i--) { const tr = p.trail[i]; drawHero(tr.x - 6, tr.y + 4, HERO_H * p.scale, tr.rot, { ghost: E.whirl > 0 ? '#7cf0ff' : i % 2 ? '#8b5cff' : '#4fb8ff', alpha: 0.4 * (1 - i / p.trail.length), ph: p.ph, boost: true, stretch: 1.1 }); }
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(p.x, p.y, 8, p.x, p.y, 100 * p.scale);
     g.addColorStop(0, E.whirl > 0 ? 'rgba(124,240,255,.6)' : 'rgba(160,110,255,.65)'); g.addColorStop(0.5, 'rgba(80,170,255,.25)'); g.addColorStop(1, 'rgba(80,170,255,0)');
@@ -932,7 +963,7 @@ function drawWorld() {
   const face = p.dead ? 'dead' : G.boosting > 0 || E.giant > 0 ? 'boost' : p.faceT > 0 ? p.face : p.scared ? 'scared' : 'normal';
   const bob = p.dead ? 0 : Math.sin(p.ph * 0.5) * 2.5;
   if (E.giant > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 110); g.addColorStop(0, 'rgba(120,255,160,.35)'); g.addColorStop(1, 'rgba(120,255,160,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 110, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-  drawHero(p.x - 6 * p.scale, p.y + (4 + bob) * p.scale, 92 * p.scale, p.rot + p.flip, {
+  drawHero(p.x - 6 * p.scale, p.y + (4 + bob) * p.scale, HERO_H * p.scale, p.rot + p.flip, {
     ph: p.ph, boost: G.boosting > 0, face, blink: p.blinkT < 0,
     alpha: blink ? 0.35 : 1, stretch: G.boosting > 0 ? 1.1 : 1,
   });
@@ -947,6 +978,7 @@ function drawWorld() {
   for (const f of fx) {
     const a = Math.max(0, f.life / f.max);
     if (f.k === 'spark') { ctx.globalAlpha = a; ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x, f.y, f.size * (0.4 + a * 0.6), 0, Math.PI * 2); ctx.fill(); }
+    else if (f.k === 'chunk') { ctx.globalAlpha = a; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.fillStyle = f.color; ctx.fillRect(-f.size / 2, -f.size / 2, f.size, f.size); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.strokeRect(-f.size / 2, -f.size / 2, f.size, f.size); ctx.restore(); }
     else if (f.k === 'ring') { ctx.globalAlpha = a; ctx.strokeStyle = f.color; ctx.lineWidth = f.lw * a + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.stroke(); }
     else if (f.k === 'laser') {
       ctx.globalAlpha = a; ctx.strokeStyle = f.color || '#7cf0ff'; ctx.lineWidth = 8 * a + 2; ctx.lineCap = 'round';
@@ -972,8 +1004,8 @@ function drawWorld() {
   // 경고는 어둠 위에
   for (const w of G.warns) {
     const blinkOn = Math.sin(T * 30) > 0;
-    if (w.kind === 'eel') {
-      ctx.strokeStyle = `rgba(255,50,80,${blinkOn ? 0.7 : 0.3})`; ctx.lineWidth = 3; ctx.setLineDash([16, 10]);
+    if (w.kind === 'eel' || w.kind === 'sword') {
+      ctx.strokeStyle = w.kind === 'sword' ? `rgba(255,213,74,${blinkOn ? 0.8 : 0.35})` : `rgba(255,50,80,${blinkOn ? 0.7 : 0.3})`; ctx.lineWidth = 3; ctx.setLineDash([16, 10]);
       ctx.beginPath(); ctx.moveTo(0, w.y); ctx.lineTo(W, w.y); ctx.stroke(); ctx.setLineDash([]);
     }
     if (blinkOn || w.t > w.max * 0.5) {
@@ -1032,8 +1064,8 @@ function drawHUD() {
   const eh = eggHud();
   eggBadge(eh.x, eh.y, save.eggs + G.eggs, 28 * (1 + hudPulse * 1.6));
   if (isTouch) button(W - SAFE - 60, 52, 46, 40, 'II', () => { if (!G.p.dead) state = 'pause'; }, { size: 17, color: '#cfd8ff' });
-  // 질주 게이지
-  const gx = L, gy = H - 46, gw = 270, gh = 20, full = G.boost >= 100;
+  // 질주 게이지 (폰은 왼쪽 아래가 조이스틱 자리라 위로)
+  const gx = L, gy = isTouch ? 104 : H - 46, gw = isTouch ? 190 : 270, gh = isTouch ? 14 : 20, full = G.boost >= 100;
   icon('e_rocket', gx + 10, gy - 16, 24);
   text('질주', gx + 28, gy - 16, 16, C.text, { align: 'left', body: true });
   ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(gx, gy, gw, gh, 10); ctx.fill();
@@ -1044,7 +1076,7 @@ function drawHUD() {
   ctx.fillStyle = gg; rr(gx, gy, Math.max(gh, gw * v), gh, 10); ctx.fill(); ctx.restore();
   if (full && G.boosting <= 0 && !isTouch && Math.sin(T * 8) > -0.3) text('스페이스!', gx + gw + 14, gy + 10, 20, '#fff', { align: 'left' });
   // 알 소나기 게이지
-  const fy = gy + 28, fw = 180;
+  const fy = gy + (isTouch ? 24 : 28), fw = isTouch ? 150 : 180;
   ctx.fillStyle = 'rgba(0,0,0,.45)'; rr(gx + 24, fy - 5, fw, 10, 5); ctx.fill();
   icon('e_fire', gx + 10, fy, 20);
   if (G.feverT > 0) {
@@ -1053,6 +1085,21 @@ function drawHUD() {
     ctx.fillStyle = rg; rr(gx + 24, fy - 5, fw * (G.feverT / 6), 10, 5); ctx.fill();
     text('알 소나기 2배', gx + 32 + fw, fy, 14, C.yellow, { align: 'left' });
   } else { ctx.fillStyle = C.yellow; rr(gx + 24, fy - 5, Math.max(10, fw * G.fever / 100), 10, 5); ctx.fill(); }
+  // 조이스틱: 반투명 원 + 손잡이
+  if (isTouch) {
+    const JR = 62, idle = !drag;
+    const bx = idle ? L + 96 : drag.bx, by = idle ? H - 104 : drag.by;
+    let kx = bx, ky = by;
+    if (!idle) { const dx = drag.kx - drag.bx, dy = drag.ky - drag.by, d = Math.hypot(dx, dy) || 1, m = Math.min(d, JR); kx = bx + dx / d * m; ky = by + dy / d * m; }
+    ctx.save(); ctx.globalAlpha = idle ? 0.35 : 0.85;
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(bx, by, JR + 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 3; ctx.stroke();
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.moveTo(bx + Math.cos(a) * (JR + 2), by + Math.sin(a) * (JR + 2)); ctx.lineTo(bx + Math.cos(a + 0.18) * (JR - 10), by + Math.sin(a + 0.18) * (JR - 10)); ctx.lineTo(bx + Math.cos(a - 0.18) * (JR - 10), by + Math.sin(a - 0.18) * (JR - 10)); ctx.fill(); }
+    const kg = ctx.createRadialGradient(kx - 8, ky - 8, 4, kx, ky, 30); kg.addColorStop(0, 'rgba(255,255,255,.95)'); kg.addColorStop(1, 'rgba(200,215,240,.75)');
+    ctx.fillStyle = kg; ctx.beginPath(); ctx.arc(kx, ky, 28, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (idle && save.runs <= 3) text('끌어서 이동', bx, by - JR - 22, 15, C.text, { body: true });
+  }
   // 아이템 칸
   const ib = isTouch ? ITEM_BTN() : { x: gx + gw + 150, y: H - 44, r: 30 };
   ctx.save();
@@ -1088,8 +1135,9 @@ function drawHUD() {
     }
     text(`${BOSS_DEF[G.cfg.boss].name}이(가) 와요!`, W / 2, H / 2 - 10, 50, '#ffffff', { stroke: 'rgba(240,68,82,.9)', lw: 9 });
   }
+  if (G.enterT > 0) { const k = 1 - G.enterT / 0.8, s = 0.6 + easeOutBack(Math.min(1, k * 1.6)) * 0.5; ctx.save(); ctx.translate(W / 2, H / 2 - 30); ctx.scale(s, s); text('준비…', 0, 0, 64, '#ffffff', { lw: 9 }); ctx.restore(); }
   // 시작 안내
-  if (G.intro > 0 && !(G.bossWarnT > 0)) {
+  if (G.intro > 0 && G.enterT <= 0 && !(G.bossWarnT > 0)) {
     const a = Math.min(1, G.intro / 0.4, (2.8 - G.intro) / 0.3);
     ctx.save(); ctx.globalAlpha = a;
     text(endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, W / 2, H / 2 - 54, 38, '#ffffff');
@@ -1115,4 +1163,39 @@ function drawBoostOverlay() {
   ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 2;
   for (let i = 0; i < 16; i++) { const y = rand(0, H), x = rand(0, W), l = rand(60, 200); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - l, y); ctx.stroke(); }
+}
+
+// ───────── 컷인: 화면을 사선으로 가로지르는 띠 + 큰 그림 + 큰 글자 ─────────
+function updateCutin(dt) { if (cutin) { cutin.t += dt; if (cutin.t >= cutin.dur) cutin = null; } }
+function drawCutin() {
+  if (!cutin) return;
+  const c = cutin, k = c.t / c.dur;
+  const inK = easeOutBack(Math.min(1, k / 0.25)), outK = k > 0.8 ? (k - 0.8) / 0.2 : 0;
+  const col = c.kind === 'boss' ? ['#2a0610', '#ff3355'] : c.kind === 'finish' ? ['#ffffff', '#ffd54a'] : ['#160a3a', '#7c4dff'];
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${0.45 * (1 - outK)})`; ctx.fillRect(0, 0, W, H);
+  ctx.translate(W / 2, H / 2); ctx.rotate(-0.12);
+  const bandH = c.kind === 'boss' ? 200 : 160, slideX = (1 - inK) * -W + outK * W;
+  ctx.translate(slideX, 0);
+  const g = ctx.createLinearGradient(-W, 0, W, 0); g.addColorStop(0, col[0]); g.addColorStop(0.5, col[1]); g.addColorStop(1, col[0]);
+  ctx.fillStyle = g; ctx.fillRect(-W, -bandH / 2, W * 2, bandH);
+  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(-W, -bandH / 2 - 8, W * 2, 6); ctx.fillRect(-W, bandH / 2 + 2, W * 2, 6);
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3;
+  for (let i = 0; i < 18; i++) { const y = -bandH / 2 + ((i * 37 + c.t * 900) % bandH); ctx.beginPath(); ctx.moveTo(-W, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // 큰 그림
+  if (c.kind === 'boss' && G && G.cfg.boss) {
+    const d = BOSS_DEF[G.cfg.boss];
+    ctx.save(); ctx.translate(W * 0.22, 10);
+    if (d.kind === 'shark') drawShark(0, 0, 2.2, d.c1, d.c2, true, false, !!d.king, Math.sin(T * 10) * 0.3, 1);
+    else if (d.kind === 'octopus') drawOctopus(0, 10, 3, T, -200, 0, true);
+    else drawAngler(0, 0, 3, T, 1, true);
+    ctx.restore();
+  } else drawHero(-W * 0.24, 10, c.kind === 'finish' ? 210 : 190, -0.15, { face: 'boost', boost: true, ph: T * 20 });
+  const tx = c.kind === 'boss' ? -W * 0.12 : W * 0.08;
+  const s = 1 + Math.max(0, 0.3 - c.t) * 1.5;
+  ctx.save(); ctx.translate(tx, -14); ctx.scale(s, s);
+  text(c.title, 0, 0, c.kind === 'boss' ? 64 : 76, c.kind === 'finish' ? '#191F28' : '#ffffff', { stroke: c.kind === 'finish' ? '#ffffff' : 'rgba(0,0,0,.6)', lw: 10 });
+  ctx.restore();
+  if (c.sub) text(c.sub, tx, 50, 22, c.kind === 'finish' ? '#191F28' : C.yellow, { body: true, stroke: false });
+  ctx.restore();
 }

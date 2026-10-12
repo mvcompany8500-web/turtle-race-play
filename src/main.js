@@ -25,8 +25,6 @@ function onKey(c) {
       if (map.overlay) { if (c === 'Escape' || go) map.overlay = null; break; }
       if (c === 'ArrowLeft' || c === 'KeyA') mapStep(-1);
       else if (c === 'ArrowRight' || c === 'KeyD') mapStep(1);
-      else if (c === 'PageUp' || c === 'BracketLeft') mapPage(-1);
-      else if (c === 'PageDown' || c === 'BracketRight') mapPage(1);
       else if (go) mapPlay();
       else if (c === 'KeyS') openShop(map.cur === 0 ? ENDLESS : map.cur);
       else if (c === 'KeyQ') { map.overlay = 'missions'; sfx.click(); }
@@ -76,24 +74,18 @@ cvs.addEventListener('pointerdown', (e) => {
   const lx = pt.x - OX(); // 메뉴 화면 좌표(가운데 960)
   if (state === 'title') { if (lx > 100 && lx < 400 && pt.y > 130 && pt.y < 450) buddyAct(); else startGame(); }
   else if (state === 'intro') introAdvance();
-  else if (state === 'map' && !map.overlay) {
-    const base = (map.world - 1) * 10;
-    for (let i = 0; i <= 10; i++) {
-      if (i === 0 && map.world !== 1) continue;
-      const s = i === 0 ? 0 : base + i, n = NODES[i];
-      if ((lx - n.x) ** 2 + (pt.y - n.y) ** 2 < 36 * 36 && nodeOpen(s)) { if (s === map.cur && !map.path.length) mapPlay(); else mapGo(s); return; }
-    }
-  } else if (state === 'play' && !G.p.dead) {
-    drag = { id: e.pointerId, sx: pt.x, sy: pt.y, px: G.p.x, py: G.p.y };
-    G.p.tx = G.p.x; G.p.ty = G.p.y;
+  else if (state === 'map' && !map.overlay) mapDown(pt);
+  else if (state === 'play' && !G.p.dead) {
+    drag = { id: e.pointerId, bx: pt.x, by: pt.y, kx: pt.x, ky: pt.y }; // 엄지가 닿은 자리가 조이스틱 중심
     try { cvs.setPointerCapture(e.pointerId); } catch (_) { /* 무시 */ }
   } else if (state === 'dead' && G.deadT > 0.35) startLevel(G.n);
 });
 cvs.addEventListener('pointermove', (e) => {
   const pt = toGame(e); mouse = pt;
-  if (drag && drag.id === e.pointerId && G) { G.p.tx = drag.px + (pt.x - drag.sx) * 1.5; G.p.ty = drag.py + (pt.y - drag.sy) * 1.5; }
+  if (drag && drag.id === e.pointerId) { drag.kx = pt.x; drag.ky = pt.y; }
+  if (state === 'map') mapMove(pt);
 });
-const endDrag = (e) => { press.down = false; if (drag && drag.id === e.pointerId) { drag = null; if (G) G.p.tx = null; } };
+const endDrag = (e) => { press.down = false; if (drag && drag.id === e.pointerId) drag = null; if (state === 'map' && map.drag) mapUp(toGame(e)); };
 cvs.addEventListener('pointerup', endDrag);
 cvs.addEventListener('pointercancel', endDrag);
 
@@ -132,6 +124,7 @@ function update(dt) {
   if (state === 'map') updateMap(dt);
   if (state === 'shop') updateShop(dt);
   if (state === 'title') setMusic('title');
+  updateCutin(dt);
   if (freeze > 0) { freeze -= dt; return; }
   const sdt = dt * timeScale;
   updateFx(state === 'play' ? sdt : dt);
@@ -167,6 +160,7 @@ function render() {
     ctx.restore();
     drawBoostOverlay();
     if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawHUD(); }
+    if (state === 'play') drawCutin();
   } else if (state === 'map' || state === 'intro') {
     if (state === 'intro') drawBackground(1, T * 20);
   } else {

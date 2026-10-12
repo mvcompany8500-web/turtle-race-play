@@ -7,8 +7,10 @@ const WORLDS = [
   { id: 1, name: '산호 바다', music: 'w1', pal: { top: ['#35c8f0', '#1a6fb8'], bot: ['#0a4f9e', '#06244f'], sand: ['#e9d193', '#b89a62'], weed: '#2fb36c', rock: ['#1b6fae', '#0d3566'] } },
   { id: 2, name: '깊은 바다', music: 'w2', pal: { top: ['#2a4fa8', '#150a3c'], bot: ['#0b1440', '#03020f'], sand: ['#5a5f8a', '#2b2542'], weed: '#2f8f8a', rock: ['#1d2a6a', '#0a0b26'] } },
   { id: 3, name: '얼음 불꽃 바다', music: 'w3', pal: { top: ['#8fdcf2', '#4a1c34'], bot: ['#1a4f7a', '#1a0508'], sand: ['#e4f2ff', '#3a2a2a'], weed: '#5fb6c4', rock: ['#5e8fb5', '#2a0f18'] } },
+  { id: 4, name: '노을 보물섬 바다', music: 'w1', pal: { top: ['#ffb36b', '#7a2f5a'], bot: ['#c2456a', '#2a0a26'], sand: ['#f2c48a', '#7a4a3a'], weed: '#ff8a5a', rock: ['#a04a6a', '#3a1030'] } },
+  { id: 5, name: '심연의 왕궁', music: 'w2', pal: { top: ['#3a2a6a', '#0a0418'], bot: ['#14082e', '#000000'], sand: ['#8a6aa8', '#2a1a3a'], weed: '#b48bff', rock: ['#4a2a7a', '#12051f'] } },
 ];
-const LAST = 30, ENDLESS = 99;
+const LAST = 50, ENDLESS = 99;
 const worldOf = (n) => (n === ENDLESS ? WORLDS[0] : WORLDS[Math.floor((n - 1) / 10)]);
 const STAGES = [null,
   // 1. 산호 바다
@@ -42,8 +44,30 @@ const STAGES = [null,
   { name: '불꽃 협곡', tip: '모든 적이 다 나와요. 아이템을 아끼지 마세요' },
   { name: '얼음 동굴', tip: '깜깜한 얼음 동굴. 등불이 최고예요', dark: true },
   { name: '폭풍 바다', tip: '기뢰와 소용돌이가 같이 와요!' },
-  { name: '상어왕의 문', tip: '거의 다 왔어요. 포기만 하지 마세요' },
-  { name: '상어왕의 성', tip: '공주 거북이가 기다려요. 마지막 바다!', boss: 'king' },
+  { name: '상어왕의 문', tip: '상어왕의 성이 코앞이에요!' },
+  { name: '상어왕의 성', tip: '상어왕과 첫 대결! 공주님을 데리고 도망칠지도...', boss: 'king1' },
+  // 4. 노을 보물섬 바다
+  { name: '노을 산호 해변', tip: '상어왕이 공주님을 데리고 노을 바다로 도망쳤어요!' },
+  { name: '청새치 항로', tip: '청새치는 긴 부리로 일직선 돌진! 거품 방패로 튕겨 내요', fresh: 'swordfish' },
+  { name: '해적선 무덤', tip: '보물 상자처럼 생긴 ? 상자가 더 자주 나와요' },
+  { name: '황금 동굴', tip: '황금알이 반짝반짝! 욕심내다 부딪히지 않게', dark: true },
+  { name: '해적 문어 선장', tip: '보물을 지키는 문어 선장! 다리가 세 줄로 와요', boss: 'octopus3' },
+  { name: '폭풍 보물섬', tip: '기뢰와 청새치가 같이 와요' },
+  { name: '노을 소용돌이', tip: '회오리를 아껴 두세요' },
+  { name: '산호 미로', tip: '좁은 길, 침착하게' },
+  { name: '보물섬 동굴', tip: '깜깜한 동굴 속 아귀를 조심!', dark: true },
+  { name: '아귀 여왕의 보물고', tip: '아귀 여왕이 가짜 황금알을 잔뜩 뿌려요', boss: 'angler2', dark: true },
+  // 5. 심연의 왕궁
+  { name: '심연의 입구', tip: '마지막 세계! 공주님이 이 깊은 곳에 있어요' },
+  { name: '유령 해파리 정원', tip: '유령 해파리는 사라졌다 나타나요. 등불이면 다 보여요', fresh: 'phantom' },
+  { name: '무너진 기둥 길', tip: '모든 적이 다 나와요' },
+  { name: '빛 없는 회랑', tip: '등불, 등불, 등불!', dark: true },
+  { name: '상어 대장의 마지막 결투', tip: '상어 대장이 마지막으로 덤벼요!', boss: 'shark3' },
+  { name: '심연의 소용돌이', tip: '소용돌이가 셋 넷!' },
+  { name: '얼어붙은 왕좌', tip: '느려도 괜찮아요. 포기만 하지 마세요' },
+  { name: '불타는 회랑', tip: '정예 몬스터가 많아요' },
+  { name: '왕궁의 문', tip: '공주님 목소리가 들려요!' },
+  { name: '상어왕의 왕좌', tip: '최후의 결전! 공주 거북이를 구해요!', boss: 'king' },
 ];
 STAGES[ENDLESS] = { name: '끝없는 바다', tip: '얼마나 멀리 갈 수 있을까요? 갈수록 붐벼요' };
 
@@ -60,6 +84,8 @@ const ENEMIES = {
   ray: { name: '가오리', intro: 16, trait: '크게 물결치며 빨라요', weak: 'freeze', color: '#6f8fd8' },
   crab: { name: '게', intro: 21, trait: '뛰어올라요, 번개가 안 들어요', weak: 'giant', color: '#ff6a4d', armored: true },
   mine: { name: '기뢰', intro: 23, trait: '깜빡이다 펑 터져요', weak: 'whirl', color: '#ff5470' },
+  swordfish: { name: '청새치', intro: 32, trait: '긴 부리로 일직선 돌진', weak: 'bubble', color: '#5fa8ff' },
+  phantom: { name: '유령 해파리', intro: 42, trait: '사라졌다 나타나요', weak: 'lamp', color: '#c9b8ff' },
 };
 const ENEMY_KEYS = Object.keys(ENEMIES);
 

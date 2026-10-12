@@ -304,6 +304,29 @@ function drawEnemy(e, px = 0, py = H / 2) {
   switch (e.type) {
     case 'octopus': drawOctopus(e.x, e.y, e.r / 22, e.t, px, py, false); break;
     case 'angler': drawAngler(e.x, e.y, e.r / 22, e.t, e.lunge ? 1 : 0.25 + 0.15 * Math.sin(e.t * 3), false); break;
+    case 'swordfish': {
+      ctx.translate(e.x, e.y);
+      ctx.strokeStyle = '#2a5a9a'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-18, -2); ctx.lineTo(-58, -4); ctx.stroke();
+      ctx.fillStyle = '#2a5a9a'; ctx.beginPath(); ctx.moveTo(-6, -14); ctx.quadraticCurveTo(10, -46, 30, -16); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(52, -18 + Math.sin(e.t * 20) * 3); ctx.lineTo(44, 0); ctx.lineTo(52, 18 + Math.sin(e.t * 20) * 3); ctx.fill();
+      const g = ctx.createLinearGradient(0, -14, 0, 14); g.addColorStop(0, '#6fb8ff'); g.addColorStop(1, '#e8f4ff');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(6, 0, 34, 13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-14, -3, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c4002e'; ctx.beginPath(); ctx.arc(-15, -3, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(60 + i * 18, -6 + i * 6); ctx.lineTo(100 + i * 24, -6 + i * 6); ctx.stroke(); }
+      break;
+    }
+    case 'phantom': {
+      ctx.translate(e.x, e.y); ctx.globalAlpha *= e.vis == null ? 1 : e.vis;
+      ctx.strokeStyle = 'rgba(210,200,255,.8)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 7, 2); for (let k = 1; k <= 6; k++) ctx.lineTo(i * 7 + Math.sin(e.t * 4 + k + i) * 6, 2 + k * 8); ctx.stroke(); }
+      const g = ctx.createRadialGradient(-4, -10, 2, 0, -4, e.r * 1.5); g.addColorStop(0, '#ffffff'); g.addColorStop(1, 'rgba(160,140,255,.75)');
+      ctx.fillStyle = g; ctx.shadowColor = '#b48bff'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.ellipse(0, 4, e.r * 1.25, e.r * 1.15, 0, Math.PI, Math.PI * 2); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#2a1a4a'; ctx.beginPath(); ctx.ellipse(-7, -6, 3, 4.5, 0, 0, Math.PI * 2); ctx.ellipse(7, -6, 3, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, 1, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
     case 'whirlpool': {
       ctx.translate(e.x, e.y);
       for (let k = 0; k < 4; k++) {
