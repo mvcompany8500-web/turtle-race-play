@@ -156,3 +156,40 @@ const UPS = [
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
   'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
   'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock'];
+
+// ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
+const LV_PERKS = {
+  2: { k: 'heart', name: '하트 +1', desc: '하트가 하나 늘어요', icon: 'heart' },
+  3: { k: 'stompEgg', name: '밟기 보너스', desc: '밟을 때마다 알 +1', icon: 'egg' },
+  4: { k: 'boostStart', name: '질주 예열', desc: '질주 게이지 25로 시작', icon: 'e_rocket' },
+  5: { k: 'triple', name: '삼단 점프', desc: '공중에서 한 번 더 뛰어요', icon: 'e_sparkles' },
+  6: { k: 'magnet', name: '알 끌어오기', desc: '가까운 알이 붙어 와요', icon: 'magnet' },
+  7: { k: 'heart2', name: '하트 +1', desc: '하트가 또 하나 늘어요', icon: 'heart' },
+  8: { k: 'itemTime', name: '아이템 오래', desc: '아이템이 30% 오래가요', icon: 'e_gift' },
+  9: { k: 'shockStomp', name: '쿵 충격파', desc: '밟으면 주변 적도 날아가요', icon: 'bolt' },
+  10: { k: 'shieldStart', name: '거품 출발', desc: '판마다 방패 하나 들고 시작', icon: 'e_shield' },
+  12: { k: 'heart3', name: '하트 +1', desc: '하트가 또또 하나!', icon: 'heart' },
+  14: { k: 'letterLuck', name: '글자 자석', desc: '알·소·나·기 글자가 끌려와요', icon: 'magnet' },
+  16: { k: 'feverLong', name: '긴 알 소나기', desc: '알 소나기 3초 더', icon: 'e_fire' },
+  18: { k: 'reviveCheap', name: '씩씩한 마음', desc: '이어하기 알 반값', icon: 'e_sparkles' },
+  20: { k: 'legend', name: '전설의 거북', desc: '모든 알 +20%', icon: 'e_crown' },
+};
+
+// ───────── 공주님 편지 (큰 적을 이길 때마다 한 통) ─────────
+const PRINCESS_LETTERS = {
+  5: '터틀아, 여기까지 와 줬구나. 사실 나도 무서워. 그래도 멀리서 네 발소리가 들리는 것 같아서 힘이 나.',
+  10: '깊은 바다는 춥고 깜깜해. 그런데 이상하지? 네가 오고 있다고 생각하면 마음이 따뜻해져.',
+  15: '아귀 대왕까지 이겼다고? 다들 느림보라고 놀리던 그 터틀이 맞니? 정말 멋있어.',
+  20: '상어 대장이 투덜대더라. 「저 거북이는 넘어져도 또 일어나」래. 응, 그게 내가 아는 터틀이야.',
+  25: '오늘 창밖으로 알 소나기가 반짝이는 걸 봤어. 혹시 너였니? 혼자 웃었어.',
+  30: '미안해, 상어왕이 나를 또 데려가. 그래도 이번엔 안 울 거야. 네가 꼭 올 거니까.',
+  35: '노을 바다 정말 예쁘다. 나중에 같이 보자. 꼭, 같이.',
+  40: '이제 조금만 더. 빨리 오지 않아도 돼. 멈추지만 마. 나 여기서 기다릴게.',
+  45: '바다 친구들이 다 네 이름을 불러. 터틀! 터틀! 나도 제일 크게 부르고 있어.',
+};
+const ENDING_TALK = [
+  { who: 'princess', text: '정말 왔구나... 느림보 터틀.' },
+  { who: 'hero', text: '늦어서 미안해요. 넘어지고, 또 넘어지고... 그래도 포기는 안 했어요!' },
+  { who: 'princess', text: '알아. 편지 쓸 때마다 네가 어디쯤 왔을지 생각했어. 고마워, 터틀.' },
+  { who: 'hero', text: '이제 같이 집에 가요. 천천히, 노을 바다도 보면서요!' },
+];

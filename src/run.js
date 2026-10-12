@@ -1,0 +1,480 @@
+'use strict';
+// 터틀 레이스 — 점프 달리기 (쿠키런·마리오 런식 타이밍)
+// 왼쪽 톡 = 점프(꾹 = 높이, 공중에서 한 번 더 = 이단 점프) · 오른쪽 꾹 = 숙이기(공중이면 급강하)
+// 위에서 밟으면 처치(가시 달린 건 빼고) · 발판 · ? 조개 · 「알·소·나·기」 글자 · 코스 패턴 · 첫 판 연습
+
+const GROUND = SEABED - 2;                 // 발이 닿는 바닥
+const PX = () => 230 + SAFE;               // 거북이 가로 자리(고정)
+const GRAV = 2700, JUMP_V = 900, JUMP2_V = 800, FALL_MAX = 1050;
+const STAND_R = 28, SLIDE_R = 16;          // 서 있을 때·숙였을 때 몸 판정
+const HEAD_Y = GROUND - 66;                // 머리 높이 줄(숙여야 피함)
+const runMode = () => save.ctrl !== 'swim';
+const LETTERS = ['알', '소', '나', '기'];
+const STOMP_NO = { urchin: '가시가 있어요!', mine: '펑!', whirlpool: '' };
+
+const hasPerk = (k) => Object.keys(LV_PERKS).some((lv) => LV_PERKS[lv].k === k && save.lv >= +lv);
+const maxJumps = () => (hasPerk('triple') ? 3 : 2);
+const maxHearts = () => [4, 3, 2][save.diff] + ['heart', 'heart2', 'heart3'].filter(hasPerk).length;
+const xpNeed = (lv) => Math.round(50 + 40 * Math.pow(lv, 1.3));
+
+function runInit() {
+  const p = G.p;
+  G.run = true;
+  G.hp = G.maxHp = maxHearts();
+  G.obs = []; G.letters = [0, 0, 0, 0]; G.stomps = 0; G.stompChain = 0; G.bumps = 0;
+  G.courseAt = G.dist + W * 0.95; G.pats = 0; G.lastPat = '';
+  G.letterAt = [0.14, 0.36, 0.58, 0.8].map((k) => G.cfg.length * k);
+  G.touch = { j: null, s: null };
+  if (hasPerk('boostStart')) G.boost = Math.max(G.boost, 25);
+  if (hasPerk('shieldStart')) G.shield++;
+  Object.assign(p, { fy: GROUND, vy: 0, onG: true, jumps: 0, slide: false, slideHold: false, holdJ: false, buf: 0, coyote: 0, land: 0, spin: 0, r: STAND_R, airT: 0 });
+  p.y = GROUND - STAND_R;
+  // 첫 판 연습: 정해진 순서로 하나씩 배우기
+  G.tut = !save.tutRun && G.n === 1 ? { seq: ['eggs', 'hop', 'eggs', 'duck', 'hop', 'wide', 'stomp', 'duck', 'stairs'], hint: null, slow: 0 } : null;
+  G.bestFlag = null;
+  const bd = G.cfg.endless ? (save.endlessBest || 0) * 40 : ((save.best[G.n] || 0) / 100) * G.cfg.length;
+  if (bd > W && (G.cfg.endless || (save.best[G.n] || 0) < 100)) G.bestFlag = { d: bd, x: null, passed: false };
+}
+
+// ───────── 입력 ─────────
+const canAct = () => G && G.run && state === 'play' && !G.p.dead && !G.won && G.enterT <= 0;
+function jumpDown() {
+  if (!canAct()) return;
+  const p = G.p;
+  p.holdJ = true; p.buf = 0.13;
+  if (G.tut) G.tut.did = 'jump';
+}
+function jumpUp() {
+  if (!G || !G.run) return;
+  const p = G.p;
+  p.holdJ = false;
+  if (p.vy < -330 && !p.bounced) p.vy *= 0.55; // 짧게 톡 = 낮게
+}
+function slideDown() {
+  if (!canAct()) return;
+  const p = G.p;
+  p.slideHold = true;
+  if (!p.onG && p.vy < 700) { p.vy = 760; p.dive = 0.3; if (ac) sfx.swoosh(); }
+  if (G.tut) G.tut.did = 'slide';
+}
+function slideUp() { if (G && G.run) G.p.slideHold = false; }
+function releaseRunInput() { if (G && G.run) { G.p.holdJ = false; G.p.slideHold = false; G.touch = { j: null, s: null }; } }
+
+function doJump(first) {
+  const p = G.p;
+  const k = (G.grabT > 0 ? 0.72 : 1) * (G.eff.giant > 0 ? 1.06 : 1);
+  p.vy = -(first ? JUMP_V : JUMP2_V) * k * (p.holdJ ? 1 : 0.62);
+  p.jumps = first ? 1 : Math.max(2, p.jumps + 1); // 발판에서 떨어진 뒤 공중 점프는 두 번째로 셈
+  p.onG = false; p.coyote = 0; p.buf = 0; p.slide = false; p.bounced = false;
+  if (first) {
+    sfx.jump(); haptic(8);
+    for (let i = 0; i < 6; i++) fx.push({ k: 'bub', x: p.x + rand(-20, 20), y: GROUND - 4, vx: rand(-120, 40), vy: rand(-80, -20), life: 0.5, max: 0.5, size: rand(2, 5) });
+  } else {
+    p.spin = 1; sfx.jump2(); haptic(12);
+    ring(p.x, p.fy - 10, '#bff3ff', 60, 0.3, 5);
+    for (let i = 0; i < 10; i++) { const a = Math.PI * (0.2 + i / 12); fx.push({ k: 'bub', x: p.x, y: p.fy - 6, vx: Math.cos(a) * 180, vy: Math.sin(a) * 120, life: 0.5, max: 0.5, size: rand(2, 5) }); }
+  }
+}
+function land(vy) {
+  const p = G.p;
+  p.land = 0.14; p.jumps = 0; p.bounced = false;
+  if (G.stompChain >= 2) { const b = G.stompChain * 2; G.eggs += b; pop(p.x, p.y - 70, `밟기 ${G.stompChain}연속! 알 +${b}`, C.yellow, 26, true); sfx.mission(); }
+  G.stompChain = 0;
+  if (vy > 500) {
+    shake = Math.max(shake, p.dive > 0 ? 8 : 3); sfx.land();
+    for (let i = 0; i < 8; i++) fx.push({ k: 'spark', x: p.x + rand(-26, 26), y: p.fy - 2, vx: rand(-200, 200), vy: rand(-140, -30), life: 0.35, max: 0.35, size: rand(2, 4), color: '#e9d9a8' });
+  }
+}
+
+// ───────── 움직임 ─────────
+function runMove(dt) {
+  const p = G.p, E = G.eff;
+  const bossOn = G.boss && !G.boss.dead && G.boss.x < W + 40;
+  // 질주: 큰 적이 있으면 그쪽으로 돌진해서 들이받음(점프 달리기는 앞뒤로 못 가니까)
+  const tx = G.boosting > 0 && bossOn ? G.boss.x - 70 : E.whirl > 0 ? 520 + SAFE : G.boosting > 0 ? PX() + 70 : PX();
+  const follow = G.boosting > 0 && bossOn ? 9 : 5;
+  p.x = lerp(p.x, tx, Math.min(1, dt * follow));
+  if (p.coyote > 0) p.coyote -= dt;
+  if (p.dive > 0) p.dive -= dt;
+  if (p.land > 0) p.land -= dt;
+  if (p.spin > 0) p.spin = Math.max(0, p.spin - dt * 2.6);
+  if (p.buf > 0) {
+    if (p.onG || p.coyote > 0) doJump(true);
+    else if (p.jumps < maxJumps()) doJump(false);
+    else p.buf -= dt;
+  }
+  // 중력: 꾹 누르고 올라가는 중엔 살짝 덜 당김(높이 조절), 질주 중엔 사뿐
+  const g = GRAV * (p.vy < 0 && p.holdJ ? 0.8 : 1) * (G.boosting > 0 ? 0.85 : 1);
+  p.vy = Math.min(FALL_MAX * (p.slideHold ? 1.3 : 1), p.vy + g * dt);
+  const prevF = p.fy, vyNow = p.vy;
+  p.fy += p.vy * dt;
+  const sc = p.scale, topNow = p.fy - STAND_R * 2 * sc;
+  if (topNow < CEIL + 4) { p.fy = CEIL + 4 + STAND_R * 2 * sc; if (p.vy < 0) p.vy = 0; }
+  let onNow = false;
+  if (p.fy >= GROUND) { p.fy = GROUND; onNow = true; }
+  else if (p.vy >= 0) {
+    for (const o of G.obs) {
+      if (o.k !== 'plat' || o.dead) continue;
+      if (p.x > o.x - 16 && p.x < o.x + o.w + 16 && prevF <= o.y + 3 && p.fy >= o.y) { p.fy = o.y; onNow = true; break; }
+    }
+  }
+  if (onNow) { if (!p.onG) land(vyNow); p.vy = 0; p.onG = true; p.jumps = 0; }
+  else { if (p.onG) p.coyote = 0.09; p.onG = false; }
+  // 숙이기
+  const wasSlide = p.slide;
+  p.slide = p.slideHold && p.onG;
+  if (p.slide && !wasSlide) { sfx.slide(); for (let i = 0; i < 6; i++) fx.push({ k: 'spark', x: p.x + rand(-10, 30), y: p.fy - 3, vx: rand(-260, -80), vy: rand(-80, -10), life: 0.3, max: 0.3, size: rand(2, 4), color: '#e9d9a8' }); }
+  if (p.slide && Math.random() < dt * 30) fx.push({ k: 'spark', x: p.x - 20, y: p.fy - 2, vx: rand(-260, -120), vy: rand(-60, -10), life: 0.25, max: 0.25, size: rand(1.5, 3), color: '#e9d9a8' });
+  p.r = p.slide ? SLIDE_R : STAND_R;
+  p.y = p.fy - p.r * sc;
+  p.vx = 0;
+  p.airT = p.onG ? 0 : p.airT + dt;
+  p.rot = lerp(p.rot, p.onG ? 0 : clamp(p.vy * 0.0005, -0.3, 0.35), Math.min(1, dt * 12));
+  p.ph += dt * (p.onG ? 14 : 6);
+}
+
+// ───────── 밟기 ─────────
+function canStomp(e) {
+  const p = G.p;
+  if (p.vy < 60 || p.onG) return false;
+  return p.y < e.y - 6 && p.fy < e.y + e.r * 0.6;
+}
+function stomp(e) {
+  const p = G.p;
+  if (STOMP_NO[e.type] != null || (e.type === 'puffer' && e.r > 24)) {
+    const msg = STOMP_NO[e.type] || '빵빵해서 못 밟아요!';
+    if (msg && !e.toldNo && G.p.inv <= 0) { e.toldNo = true; pop(e.x, e.y - 44, msg, '#ff9aa8', 22); }
+    return false;
+  }
+  G.stomps++; G.stompChain++;
+  p.vy = -(p.holdJ ? 860 : 640); p.jumps = Math.min(p.jumps, 1); p.bounced = true; p.onG = false;
+  freeze = Math.max(freeze, 0.05); shake = Math.max(shake, 10);
+  ring(e.x, e.y - 10, '#ffffff', 90, 0.3, 8);
+  sfx.stomp(); haptic([15, 10, 30]);
+  const c = G.stompChain;
+  pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속!` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
+  if (c === 3) reaction(1, '3단 밟기!');
+  if (c === 5) reaction(3, '밟기 장인!!');
+  if (hasPerk('stompEgg')) G.eggs += 1;
+  if (e.type === 'jelly') { p.vy = -1000; pop(p.x, p.y - 60, '통통!', '#ff8fd0', 24); } // 해파리는 트램펄린
+  killEnemy(e, 'stomp');
+  if (hasPerk('shockStomp')) for (const o of G.enemies) if (!o.dead && o !== e && Math.hypot(o.x - e.x, o.y - e.y) < 150 && STOMP_NO[o.type] == null) killEnemy(o, 'stomp');
+  track('stomp');
+  return true;
+}
+function stompBoss(b) {
+  const p = G.p;
+  p.vy = -(p.holdJ ? 920 : 720); p.jumps = Math.min(p.jumps, 1); p.bounced = true;
+  G.stomps++;
+  pop(p.x, p.y - 80, '머리 밟기!!', '#ffffff', 40, true);
+  bossDamage(10);
+  p.x = PX(); // 밟기는 뒤로 안 밀림
+}
+
+// ───────── 코스: 패턴을 이어 붙인다 (곡의 마디처럼 — 쉬운 곳·몰아치는 곳이 번갈아) ─────────
+const runSpd = () => G.cfg.speed * G.slowMul;
+const jumpW = () => runSpd() * 0.74;            // 한 번 점프로 날아가는 가로 길이
+const GC = () => GROUND - STAND_R;               // 서 있을 때 몸 가운데 높이
+function egg(x, y, gold = false) { G.eggsArr.push({ x, y, gold, t: rand(0, 6) }); G.eggsSpawned++; }
+function eggLine(x, n, y, gap = 46) { for (let i = 0; i < n; i++) egg(x + i * gap, y); return n * gap; }
+function eggArc(x, w, h = 140, n = 7, goldMid = false) { // 점프 길을 알로 그려 줌(어디서 뛸지 알려 주는 선)
+  for (let i = 0; i < n; i++) { const u = i / (n - 1); egg(x + u * w, GC() - 4 * h * u * (1 - u), goldMid && i === (n >> 1)); }
+}
+function spike(x, y = GROUND - 22) { return addEnemy({ type: 'urchin', x, y, baseY: y, r: 20, vx: 0, t: 0, ph: rand(0, 6), elite: false, run: true, noSp: true }); }
+function mon(type, x, y, extra = {}) {
+  const elite = Math.random() < G.D.elite;
+  // 필살기는 읽기 쉬운 것만(문어 먹물·게 집게·가오리·유령·아귀) — 점프 달리기에선 갑자기 날아드는 건 불공평
+  const e = Object.assign({ type, x, y, baseY: y, r: 20, vx: 0, t: 0, ph: rand(0, 6), elite, run: true, noSp: !['octopus', 'crab', 'ray', 'phantom', 'angler'].includes(type) }, extra);
+  if (elite) { e.r *= 1.15; }
+  return addEnemy(e);
+}
+function pillar(x, w = 64) { G.obs.push({ k: 'pillar', x, w, y1: GROUND - 46, t: 0 }); }
+function plat(x, w, y) { G.obs.push({ k: 'plat', x, w, y, t: 0 }); }
+function qblock(x, y = GROUND - 196) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
+function letter(x, y) {
+  const i = G.letters.indexOf(0); if (i < 0) return;
+  if (G.obs.some((o) => o.k === 'letter' && o.i === i)) return;
+  G.obs.push({ k: 'letter', x, y, i, t: 0 });
+}
+function rockAt(x, k = 'rock') { const d = BREAK[k]; G.breaks.push({ k, x, y: GROUND - d.r, r: d.r, hp: d.hp, maxHp: d.hp, t: 0, hitT: 0, wob: 0, run: true }); }
+function warnLane(kind, y, t = 0.9) { G.warns.push({ kind, y, t, max: t, elite: Math.random() < G.D.elite, run: true }); sfx.warn(); }
+const has = (k) => G.cfg.pool.includes(k);
+
+// 패턴: [이름, 처음 나오는 바다, 무게, 만들기(x) → 길이]
+const PATS = [
+  ['eggs', 1, 1, (x) => eggLine(x, 6, GC())],
+  ['hop', 1, 4, (x) => { const w = jumpW(); spike(x + w * 0.5); eggArc(x, w); return w; }],
+  ['hop2', 1, 3, (x) => { const w = jumpW(); spike(x + w * 0.5); spike(x + w * 1.55); eggArc(x, w); eggArc(x + w * 1.05, w); return w * 2.1; }],
+  ['wide', 1, 3, (x) => { const w = jumpW(); for (let i = 0; i < 3; i++) spike(x + w * 0.32 + i * 44); eggArc(x - 10, w * 1.05, 165, 8, true); return w * 1.1; }],
+  ['duck', 1, 4, (x) => { pillar(x + 40, 70); eggLine(x, 5, GROUND - 16, 40); return 220; }],
+  ['stomp', 1, 3, (x) => { mon('jelly', x + 140, GC() - 6, { amp: 6, vx: -30 }); eggArc(x - 60, jumpW(), 150, 5); return 260; }],
+  ['stairs', 1, 3, (x) => {
+    plat(x, 210, GROUND - 118); plat(x + 290, 230, GROUND - 228);
+    eggLine(x + 20, 4, GROUND - 118 - 30); eggLine(x + 310, 4, GROUND - 228 - 30); egg(x + 500, GROUND - 228 - 30, true);
+    spike(x + 120); spike(x + 330); spike(x + 380);
+    return 560;
+  }],
+  ['qblock', 2, 2, (x) => { qblock(x + 120); eggLine(x, 6, GC()); return 300; }],
+  ['jumpDuck', 3, 3, (x) => { const w = jumpW(); spike(x + w * 0.5); eggArc(x, w); pillar(x + w + 90, 70); eggLine(x + w + 60, 3, GROUND - 16, 40); return w + 220; }],
+  ['shortHop', 4, 2, (x) => { const w = jumpW() * 0.62; spike(x + w * 0.5); mon('mine', x + w * 0.5, GROUND - 190, { r: 16, noSp: true }); eggArc(x, w, 60, 5); return w + 60; }],
+  ['duckLong', 5, 2, (x) => { pillar(x + 30, 260); eggLine(x + 10, 7, GROUND - 16, 44); return 340; }],
+  ['highRoad', 4, 2, (x) => { // 위로 가면 황금알, 아래는 가시 — 고르기
+    plat(x, 520, GROUND - 150); eggLine(x + 30, 9, GROUND - 150 - 30, 52); egg(x + 480, GROUND - 180, true);
+    for (let i = 0; i < 4; i++) spike(x + 80 + i * 120);
+    return 560;
+  }],
+  ['shark', 2, 3, (x) => { warnLane('shark', GROUND - 24); eggArc(x + 60, jumpW(), 160, 6); return 240; }, 'shark'],
+  ['sharkHead', 6, 3, (x) => { warnLane('shark', HEAD_Y); eggLine(x + 40, 5, GROUND - 16, 44); return 240; }, 'shark'],
+  ['puffer', 3, 2, (x) => { mon('puffer', x + 200, GROUND - 26, { r: 15 }); eggArc(x + 40, jumpW() * 1.1, 175, 7); return 330; }, 'puffer'],
+  ['eel', 4, 3, (x) => { warnLane('eel', GROUND - 16, 1.0); eggArc(x + 60, jumpW(), 130, 6); return 230; }, 'eel'],
+  ['octo', 7, 2, (x) => { mon('octopus', x + 220, GROUND - 170, { r: 22, inkT: 2.5 }); eggArc(x + 20, jumpW() * 1.2, 190, 7); return 360; }, 'octopus'],
+  ['angler', 8, 2, (x) => { mon('angler', x + 260, GROUND - 30, { r: 22 }); return 320; }, 'angler'],
+  ['ray', 16, 3, (x) => { mon('ray', x + 200, GROUND - 120, { r: 22, amp: 70, vx: -160 }); eggLine(x, 4, GROUND - 16, 44); return 300; }, 'ray'],
+  ['crab', 21, 3, (x) => { mon('crab', x + 220, GROUND - 18, { r: 18, vx: -60, floor: GROUND - 18, top: false, jumped: false, vy: 0 }); eggArc(x + 120, jumpW(), 150, 6); return 320; }, 'crab'],
+  ['sword', 32, 3, (x) => { warnLane('sword', HEAD_Y + 2, 1.0); eggLine(x + 30, 5, GROUND - 16, 44); return 240; }, 'swordfish'],
+  ['phantom', 42, 2, (x) => { mon('phantom', x + 220, HEAD_Y, { r: 20, amp: 6, vx: -40, vis: 1 }); eggLine(x, 5, GROUND - 16, 44); return 300; }, 'phantom'],
+  ['rock', 2, 2, (x) => { rockAt(x + 150); eggArc(x + 20, jumpW() * 1.05, 175, 7); return 330; }],
+  ['chest', 3, 1, (x) => { rockAt(x + 120, 'chest'); eggLine(x, 3, GC()); return 260; }],
+  ['jellyBridge', 10, 2, (x) => { // 긴 가시밭 — 해파리를 밟고 통통
+    for (let i = 0; i < 6; i++) spike(x + 120 + i * 56);
+    mon('jelly', x + 290, GROUND - 150, { amp: 10, vx: -10, noSp: true });
+    eggArc(x + 20, 300, 230, 7, true);
+    return 520;
+  }],
+  ['gauntlet', 14, 2, (x) => { const w = jumpW(); spike(x + w * 0.5); pillar(x + w + 70, 64); spike(x + w + 300); eggArc(x, w); eggLine(x + w + 50, 3, GROUND - 16, 40); eggArc(x + w + 300 - w * 0.5, w); return w * 1.5 + 330; }],
+  ['box', 1, 1, (x) => { G.boxes.push({ x: x + 140, y: GROUND - 150, t: 0 }); eggArc(x + 20, jumpW(), 150, 5); return 260; }],
+];
+const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
+function choosePat() {
+  const n = G.cfg.endless ? Math.min(50, 8 + Math.floor(G.dist / 1500)) : G.n;
+  const list = PATS.filter(([id, from, , , need]) => from <= n && id !== G.lastPat && (!need || has(need)));
+  // 새 몬스터 판이면 그 몬스터 패턴을 자주
+  const fresh = !G.cfg.endless && STAGES[G.n].fresh;
+  let sum = 0;
+  const ws = list.map((p) => { const w = p[2] * (fresh && p[4] === fresh ? 4 : 1) * (p[1] > n - 4 && p[1] > 1 ? 1.4 : 1); sum += w; return w; });
+  let r = Math.random() * sum;
+  for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
+  return list[0];
+}
+function runCourse() {
+  const cfg = G.cfg;
+  const finishing = !cfg.endless && G.dist >= cfg.length;
+  const bossFight = G.boss && !G.boss.dead;
+  if (finishing || bossFight || G.bossWarnT != null) return;
+  while (G.courseAt - G.dist < W + 160) {
+    const x = G.courseAt - G.dist;
+    let pat;
+    if (G.tut && G.tut.seq.length) pat = PAT_BY[G.tut.seq.shift()];
+    else pat = choosePat();
+    const len = pat[3](x);
+    G.lastPat = pat[0]; G.pats++;
+    // 글자는 정해진 거리마다 높은 곳에
+    if (!cfg.endless && G.letterAt.length && G.dist + x >= G.letterAt[0]) { G.letterAt.shift(); letter(x + len * 0.5, GROUND - 230 - rand(0, 30)); }
+    if (cfg.endless && Math.random() < 0.06) letter(x + len * 0.5, GROUND - 240);
+    const n = cfg.endless ? Math.min(50, 8 + G.dist / 1500) : G.n;
+    const gapSec = clamp(0.6 - n * 0.006, 0.28, 0.6) * G.D.gap * (G.tut ? 2.2 : 1); // 쿠키런처럼 1초에 한 번쯤 할 일
+    G.courseAt += len + runSpd() * gapSec * rand(0.8, 1.25);
+  }
+}
+
+// ───────── 코스 물건 (기둥·발판·? 조개·글자) ─────────
+function smashPillar(o) {
+  o.dead = true;
+  for (let i = 0; i < 12; i++) fx.push({ k: 'chunk', x: o.x + rand(0, o.w), y: rand(CEIL, o.y1), vx: rand(100, 500), vy: rand(-300, 100), life: 0.8, max: 0.8, size: rand(8, 16), color: i % 2 ? '#c06a9a' : '#5a3a6a', rot: rand(0, 6), vr: rand(-12, 12) });
+  pop(o.x + o.w / 2, o.y1 - 30, '와장창!', '#ffffff', 34, true); shake = Math.max(shake, 14); sfx.smash(); haptic(30);
+}
+function bumpBlock(o) {
+  const p = G.p;
+  o.hit = true; o.bumpT = 0.25; p.vy = 160; G.bumps++;
+  sfx.bump(); haptic(20); shake = Math.max(shake, 6);
+  ring(o.x, o.y, C.yellow, 80, 0.35, 6);
+  if (Math.random() < 0.45 && !G.item) G.boxes.push({ x: o.x, y: o.y - 60, t: 0, pop: 0.4 });
+  else { for (let i = 0; i < 6; i++) G.eggsArr.push({ x: o.x, y: o.y - 20, vx: rand(-120, 200), vy: rand(-420, -200), loose: true, gold: i === 0, t: 0 }); pop(o.x, o.y - 50, '알이 우수수!', C.yellow, 24); }
+}
+function getLetter(o) {
+  o.dead = true; G.letters[o.i] = 1;
+  sfx.letter(); haptic([10, 20, 30]);
+  burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
+  pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
+  if (G.letters.every(Boolean)) {
+    G.letters = [0, 0, 0, 0];
+    G.fever = 100; startFever(); G.feverT = 8 + (hasPerk('feverLong') ? 3 : 0);
+    reaction(4, '알 소나기 완성!!');
+    fireworks(4);
+  }
+}
+function updateObs(dt, scroll) {
+  const p = G.p, E = G.eff, mighty = G.boosting > 0 || E.giant > 0 || E.whirl > 0;
+  const magL = hasPerk('letterLuck') ? 160 : 0;
+  for (const o of G.obs) {
+    o.t += dt; o.x -= scroll * dt;
+    if (o.bumpT > 0) o.bumpT -= dt;
+    if (o.dead || p.dead) continue;
+    if (o.k === 'pillar') {
+      const cx = clamp(p.x, o.x, o.x + o.w), cy = clamp(p.y, CEIL, o.y1);
+      if ((p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.r * p.scale) ** 2) { if (mighty) smashPillar(o); else hitPlayer({ type: 'rock' }); }
+      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide) { G.boost = Math.min(100, G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }
+    } else if (o.k === 'qb') {
+      const head = p.fy - STAND_R * 2 * p.scale;
+      if (!o.hit && p.vy < 0 && Math.abs(p.x - o.x) < 40 && head < o.y + 24 && head > o.y - 10) bumpBlock(o);
+    } else if (o.k === 'letter') {
+      if (magL && Math.hypot(p.x - o.x, p.y - o.y) < magL) { o.x = lerp(o.x, p.x, dt * 6); o.y = lerp(o.y, p.y, dt * 6); }
+      if (Math.hypot(p.x - o.x, p.y - o.y) < p.r * p.scale + 26) getLetter(o);
+    }
+  }
+  G.obs = G.obs.filter((o) => !o.dead && o.x + (o.w || 0) > -120);
+  // 지난 기록 깃발
+  const f = G.bestFlag;
+  if (f && !f.passed) {
+    if (f.x == null && G.dist + W + 100 >= f.d) f.x = W + 100;
+    if (f.x != null) { f.x -= scroll * dt; if (f.x < p.x && !p.dead) { f.passed = true; reaction(3, '기록 돌파!!'); sfx.fever(); fireworks(3); G.recordBroke = true; } }
+  }
+}
+
+// ───────── 첫 판 연습: 막히기 직전에 천천히 + 큰 안내 ─────────
+const NEED_TXT = { jump: ['점프!', isTouch ? '왼쪽 화면을 톡!' : '스페이스 / ↑'], slide: ['숙이기!', isTouch ? '오른쪽 화면을 꾹~' : '↓ 를 꾹~'], stomp: ['밟기!', '점프해서 위에서 쿵!'] };
+function updateTutor() {
+  const tu = G.tut; if (!tu) return;
+  const p = G.p;
+  let need = null;
+  if (p.onG && !p.dead) {
+    for (const o of G.obs) if (o.k === 'pillar' && !o.taught && o.x - p.x < 230 && o.x - p.x > 40) { need = 'slide'; tu.obj = o; break; }
+    if (!need) for (const e of G.enemies) {
+      if (e.taught || e.dead || e.x - p.x > 250 || e.x - p.x < 60) continue;
+      need = e.type === 'jelly' ? 'stomp' : 'jump'; tu.obj = e; break;
+    }
+  }
+  if (need && tu.did === (need === 'slide' ? 'slide' : 'jump')) { tu.obj.taught = true; need = null; }
+  if (need !== tu.hint) { tu.hint = need; tu.did = null; if (need) { sfx.ready(); G.intro = 0; } }
+  if (tu.hint) { // 가까워질수록 느려지다가 바로 앞에서 멈춰 기다림
+    const o = tu.obj, dx = (o.x || 0) - p.x;
+    timeScale = Math.min(timeScale, dx < 150 ? 0 : 0.3);
+  }
+}
+
+// ───────── 그리기 ─────────
+function drawRunObs() {
+  for (const o of G.obs) {
+    if (o.k === 'pillar') {
+      const x = o.x, w = o.w, y1 = o.y1;
+      const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, '#3a2350'); g.addColorStop(0.5, '#6a3f86'); g.addColorStop(1, '#3a2350');
+      ctx.fillStyle = g; rr(x, CEIL - 30, w, y1 - CEIL + 18, 14); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#ff6fa8';
+      for (let yy = CEIL + 30; yy < y1 - 40; yy += 46) { ctx.beginPath(); ctx.arc(x + w * (0.3 + 0.4 * hash(yy + x * 0.01)), yy, 7, 0, Math.PI * 2); ctx.fill(); }
+      // 아래 가시: 빨갛게 깜빡 — 「여기 닿으면 아파요」
+      const n = Math.max(2, Math.round(w / 22));
+      ctx.fillStyle = `rgb(255,${80 + 40 * Math.sin(T * 8)},${100})`;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) { const a = x + (i / n) * w, b = x + ((i + 1) / n) * w; ctx.moveTo(a, y1 - 12); ctx.lineTo((a + b) / 2, y1 + 4); ctx.lineTo(b, y1 - 12); }
+      ctx.fill();
+      if (G.tut && G.tut.hint === 'slide' && G.tut.obj === o) { ctx.strokeStyle = `rgba(255,213,74,${0.6 + 0.4 * Math.sin(T * 10)})`; ctx.lineWidth = 4; ctx.setLineDash([10, 8]); ctx.strokeRect(x - 8, y1 - 2, w + 16, GROUND - y1); ctx.setLineDash([]); }
+    } else if (o.k === 'plat') {
+      const g = ctx.createLinearGradient(0, o.y, 0, o.y + 26); g.addColorStop(0, '#ffb3c8'); g.addColorStop(1, '#b5527a');
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(o.x + 6, o.y + 8, o.w, 24, 12); ctx.fill();
+      ctx.fillStyle = g; rr(o.x, o.y, o.w, 24, 12); ctx.fill();
+      ctx.fillStyle = '#ffe1ea'; rr(o.x + 6, o.y + 3, o.w - 12, 6, 3); ctx.fill();
+      ctx.fillStyle = '#ff7fa6'; for (let i = 14; i < o.w - 10; i += 36) { ctx.beginPath(); ctx.arc(o.x + i, o.y + 22, 5, 0, Math.PI); ctx.fill(); }
+    } else if (o.k === 'qb') {
+      const by = o.y - (o.bumpT > 0 ? Math.sin(o.bumpT / 0.25 * Math.PI) * 14 : 0) + Math.sin(o.t * 3) * 2;
+      ctx.save(); ctx.translate(o.x, by);
+      if (!o.hit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(0, 0, 4, 0, 0, 46); gg.addColorStop(0, 'rgba(255,220,90,.45)'); gg.addColorStop(1, 'rgba(255,220,90,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+      ctx.fillStyle = o.hit ? '#8a7a66' : '#ffc93a'; rr(-24, -24, 48, 48, 12); ctx.fill();
+      ctx.strokeStyle = o.hit ? '#5a4a3a' : '#a26a00'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = o.hit ? 'rgba(0,0,0,.2)' : '#fff6cf'; rr(-18, -19, 36, 8, 4); ctx.fill();
+      if (!o.hit) text('?', 0, 4, 28, '#7a4a00', { stroke: '#fff3c0', lw: 4 });
+      ctx.restore();
+    } else if (o.k === 'letter') {
+      const y = o.y + Math.sin(o.t * 4) * 6, s = 1 + Math.sin(o.t * 6) * 0.06;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const gg = ctx.createRadialGradient(o.x, y, 4, o.x, y, 44); gg.addColorStop(0, 'rgba(255,230,120,.55)'); gg.addColorStop(1, 'rgba(255,230,120,0)');
+      ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(o.x, y, 44, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(o.x, y); ctx.scale(s, s);
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = C.yellow; ctx.lineWidth = 4; ctx.stroke();
+      text(LETTERS[o.i], 0, 1, 24, '#ff6a3d', { stroke: false });
+      ctx.restore();
+    }
+  }
+  const f = G.bestFlag;
+  if (f && f.x != null && !f.passed) {
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(f.x, GROUND); ctx.lineTo(f.x, GROUND - 170); ctx.stroke();
+    const wv = Math.sin(T * 6) * 5;
+    ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(f.x, GROUND - 170); ctx.lineTo(f.x + 70, GROUND - 158 + wv); ctx.lineTo(f.x, GROUND - 140); ctx.fill();
+    text('지난 기록', f.x + 4, GROUND - 190, 15, C.yellow, { body: true });
+  }
+}
+// 땅 그림자(점프 높이를 읽기 쉽게)
+function drawRunShadow() {
+  const p = G.p; if (p.dead) return;
+  const h = GROUND - p.fy, k = clamp(1 - h / 300, 0.3, 1);
+  ctx.fillStyle = `rgba(0,10,30,${0.32 * k})`;
+  ctx.beginPath(); ctx.ellipse(p.x, GROUND + 2, 34 * k * p.scale, 7 * k, 0, 0, Math.PI * 2); ctx.fill();
+}
+function drawRunHero(face, blink, alpha) {
+  const p = G.p, h = HERO_H * p.scale;
+  let rot = p.rot, stretch = 1;
+  if (p.dead) { drawHero(p.x, p.y, h, rot, { ph: p.ph, face, stand: true }); return; }
+  if (p.slide) rot = 1.15;
+  else if (p.land > 0) stretch = 1 + p.land / 0.14 * 0.16;
+  else if (!p.onG && p.vy < -200) stretch = 0.9;
+  if (p.spin > 0) rot += Math.PI * 2 * easeInOutCubic(1 - p.spin); // 이단 점프: 앞으로 한 바퀴
+  const cy = p.fy - h * 0.43 + (p.slide ? h * 0.3 : 0);
+  const opts = { ph: p.onG && !p.slide ? p.ph : p.ph * 0.4, boost: G.boosting > 0, face, blink, alpha, stretch: G.boosting > 0 ? 1.1 : stretch, stand: true };
+  if (G.boosting > 0 && !REDUCE) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    drawHero(p.x - 8, cy, h, rot, { ...opts, ghost: '#ff3355', alpha: 0.5 });
+    drawHero(p.x + 8, cy, h, rot, { ...opts, ghost: '#33aaff', alpha: 0.5 });
+    ctx.restore();
+  }
+  drawHero(p.x, cy, h, rot, opts);
+}
+function drawRunPads() {
+  if (!isTouch) return;
+  const tu = G.tut, jh = tu && (tu.hint === 'jump' || tu.hint === 'stomp'), sh = tu && tu.hint === 'slide';
+  const pads = [[SAFE + 66, H - 62, '점프', 'e_rocket', jh, !!G.touch.j], [W - SAFE - 66, H - 62, '숙이기', null, sh, !!G.touch.s]];
+  for (const [x, y, label, , hi, on] of pads) {
+    ctx.save();
+    ctx.globalAlpha = hi ? 0.95 : on ? 0.55 : save.runs <= 6 ? 0.32 : 0.18;
+    const r = hi ? 58 + Math.sin(T * 10) * 6 : 46;
+    ctx.fillStyle = hi ? C.yellow : 'rgba(255,255,255,.28)'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.globalAlpha = Math.min(1, ctx.globalAlpha * 2.2);
+    ctx.fillStyle = hi ? '#191F28' : '#ffffff';
+    ctx.beginPath();
+    if (label === '점프') { ctx.moveTo(x, y - 30); ctx.lineTo(x - 18, y - 10); ctx.lineTo(x + 18, y - 10); }
+    else { ctx.moveTo(x, y - 6); ctx.lineTo(x - 18, y - 26); ctx.lineTo(x + 18, y - 26); }
+    ctx.fill();
+    text(label, x, y + 16, 17, hi ? '#191F28' : '#ffffff', { stroke: false });
+    ctx.restore();
+  }
+}
+function drawRunHud(L) {
+  // 하트
+  let hx = L + 14;
+  for (let i = 0; i < G.maxHp; i++) {
+    const full = i < G.hp, s = full && i === G.hp - 1 && G.p.inv > 0 ? 1 + Math.sin(T * 20) * 0.12 : 1;
+    drawItemIcon('heart', hx, 60, 26 * s);
+    if (!full) { ctx.fillStyle = 'rgba(16,16,18,.7)'; ctx.beginPath(); ctx.arc(hx, 60, 12, 0, Math.PI * 2); ctx.fill(); }
+    hx += 28;
+  }
+  for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, 60, 24); hx += 28; }
+  if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, 60, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
+  // 알·소·나·기 글자
+  const lx = W / 2 - 66, ly = 52;
+  LETTERS.forEach((c, i) => {
+    const on = G.letters[i];
+    ctx.fillStyle = on ? C.yellow : 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(lx + i * 44, ly, 16, 0, Math.PI * 2); ctx.fill();
+    if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+    text(c, lx + i * 44, ly + 1, 15, on ? '#7a3a00' : 'rgba(255,255,255,.5)', { stroke: false });
+  });
+  // 연습 안내
+  const tu = G.tut;
+  if (tu && tu.hint) {
+    const [big, small] = NEED_TXT[tu.hint];
+    const s = 1 + Math.sin(T * 10) * 0.05;
+    ctx.save(); ctx.translate(W / 2, H / 2 - 70); ctx.scale(s, s); text(big, 0, 0, 64, C.yellow, { lw: 10 }); ctx.restore();
+    text(small, W / 2, H / 2 - 18, 24, '#ffffff', { lw: 6 });
+  }
+  drawRunPads();
+}

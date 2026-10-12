@@ -175,6 +175,7 @@ const save = (() => {
     skins: ['basic'], skin: 'basic', face: 'basic', pets: [], pet: null, petLv: {}, cleared: false,
     muted: false, musicOff: false, sfxOff: false, haptics: true, runs: 0, diff: 1, world: 1,
     introSeen: false, missions: [], giftAt: 0, streak: { day: 0, last: '' }, endlessBest: 0, dex: {}, chests: 0,
+    ctrl: 'run', xp: 0, lv: 1, tutRun: false, letters: {},
   };
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));

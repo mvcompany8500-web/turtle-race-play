@@ -12,6 +12,7 @@ const MISSION_TYPES = [
   { type: 'gold', goals: [3, 6, 10], text: (n) => `황금알 ${n}개 먹기` },
   { type: 'runs', goals: [3, 5, 8], text: (n) => `${n}판 도전하기` },
   { type: 'boost', goals: [3, 6, 10], text: (n) => `질주 ${n}번 쓰기` },
+  { type: 'stomp', goals: [5, 10, 20], text: (n) => `몬스터 ${n}마리 밟기` },
 ];
 function newMission(exclude) {
   const m = pick(MISSION_TYPES.filter((t) => !exclude.includes(t.type)));
@@ -353,6 +354,7 @@ function drawMap() {
   // 위쪽: 알·별 상자 / 둥근 버튼
   const L = SAFE + 14, R = W - SAFE - 14;
   eggBadge(L + 34, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
+  drawLvBadge(L + 6, 64);
   const cr = chestReady();
   button(L + 130, 14, 156, 42, `별 ${totalStars()} · ${cr ? '상자 열기!' : '상자 ' + chestGoal()}`, openChest, { size: 14, kind: cr ? 'yellow' : 'soft' });
   if (save.streak.day) text(`출석 ${save.streak.day}일째`, L + 300, 35, 14, C.yellow, { align: 'left', body: true });
@@ -467,20 +469,22 @@ function goFullscreen() {
   } else toast('아이폰은 공유 → 「홈 화면에 추가」로 꽉 차게 볼 수 있어요', C.blueD);
 }
 function drawSettings() {
-  overlayBase(280, 80, 400, 390, '설정', null);
+  overlayBase(280, 40, 400, 470, '설정', null);
   const rows = [
+    ['조작', save.ctrl !== 'swim', () => { save.ctrl = save.ctrl === 'swim' ? 'run' : 'swim'; persist(); sfx.click(); }, ['점프 달리기', '자유 헤엄']],
     ['배경 음악', !save.musicOff, () => { save.musicOff = !save.musicOff; persist(); initAudio(); }],
     ['효과음', !save.sfxOff, () => { save.sfxOff = !save.sfxOff; persist(); initAudio(); sfx.tap(); }],
     ['진동', save.haptics, () => { save.haptics = !save.haptics; persist(); haptic(30); }],
   ];
-  rows.forEach(([label, on, fn], i) => withRise(i, () => {
-    const y = 140 + i * 62;
+  rows.forEach(([label, on, fn, names], i) => withRise(i, () => {
+    const y = 96 + i * 58;
     text(label, 312, y + 22, 18, C.text, { align: 'left', stroke: false });
-    button(520, y, 130, 44, on ? '켜짐' : '꺼짐', fn, { size: 15, kind: on ? 'primary' : 'soft' });
+    button(names ? 490 : 520, y, names ? 160 : 130, 44, names ? names[on ? 0 : 1] : on ? '켜짐' : '꺼짐', fn, { size: 15, kind: on ? 'primary' : 'soft' });
   }));
-  button(312, 330, 338, 44, '꽉 찬 화면으로 보기', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
-  button(312, 382, 338, 44, '첫 이야기 다시 보기', startIntro, { size: 15, kind: 'soft' });
-  text('거북알은 현금이 아니에요 · 게임 안에서만 써요', 480, 448, 13, C.sub, { body: true, stroke: false });
+  text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', 480, 340, 14, C.sub, { body: true, stroke: false });
+  button(312, 366, 338, 44, '꽉 찬 화면으로 보기', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
+  button(312, 418, 338, 44, '첫 이야기 다시 보기', startIntro, { size: 15, kind: 'soft' });
+  text('거북알은 현금이 아니에요 · 게임 안에서만 써요', 480, 486, 13, C.sub, { body: true, stroke: false });
 }
 
 // ───────── 첫 이야기: 공주 납치 ─────────
@@ -836,13 +840,14 @@ function drawDead() {
   eggBadge(540, by + 150, `+${G.eggs}  (모은 알 ${save.eggs})`, 26);
   const need = cheapestNext(), m = closestMission();
   const hint = need === Infinity ? '상점을 다 채웠어요!' : save.eggs >= need ? '상점에서 키울 수 있어요!' : `다음 키우기까지 알 ${need - save.eggs}개`;
-  text(hint, 600, by + 186, 16, C.sub, { body: true, stroke: false });
+  drawXpRow(430, by + 186, 340);
   if (m) text(`도전 「${missionText(m)}」 ${m.prog}/${m.goal}`, 600, by + 210, 15, C.blueD, { body: true, stroke: false });
   text('느려도 괜찮아요, 포기만 하지 마세요', 600, by + 244, 20, '#ffffff', { body: true });
   ctx.restore();
   button(420, 392, 360, 56, '다시 하기', () => startLevel(G.n), { size: 21 });
   button(420, 460, 174, 44, '상점', () => openShop(G.n), { size: 16, kind: 'soft' });
   button(606, 460, 174, 44, '지도로', () => enterMap(), { size: 16, kind: 'soft' });
+  drawResultOverlay();
 }
 const CLEAR_LINES = ['공주님 왕관 조각을 찾았어요!', '상어왕의 발자국이 이어져요...', '바다 친구들이 응원해요!', '조금씩, 그래도 앞으로!', '공주님 목소리가 들려요!', '거의 다 왔어요!', '상어왕의 성이 보여요!'];
 const BOSS_LINES = {
@@ -885,17 +890,18 @@ function drawClear() {
     if (details[i]) text(details[i], x, y + 72, 13, C.mute, { body: true, stroke: false });
   }
   const cur = levelCfg(G.n), nxt = levelCfg(Math.min(LAST, G.n + 1));
-  systemWindow(400, 214, 420, [
+  drawXpRow(440, 212, 340);
+  systemWindow(400, 232, 420, [
     '다음 바다는 물살이 더 느려요.',
-    `· 물살 빠르기  ${Math.round(cur.speed)} → ${Math.round(nxt.speed)}`,
-    `· 질주 차는 속도  ${cur.boostRate.toFixed(1)} → ${nxt.boostRate.toFixed(1)}`,
+    `· 물살 ${Math.round(cur.speed)} → ${Math.round(nxt.speed)} · 질주 차는 속도 ${cur.boostRate.toFixed(1)} → ${nxt.boostRate.toFixed(1)}`,
   ]);
-  drawFish(430, 378, 0.7, true);
-  text(BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], 460, 378, 15, '#ffd1ef', { align: 'left', body: true });
-  if (fs(14) < 18) text(`알 +${G.eggShown || 0}${G.diffBonus ? ` (난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus})` : ''} · 물리친 적 ${G.kills} · 최고 연속 ${G.chainBest} · 딱 맞은 아이템 ${G.weak}`, 610, 404, 14, C.sub, { body: true, stroke: false });
+  drawFish(430, 384, 0.7, true);
+  text(BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], 460, 384, 15, '#ffd1ef', { align: 'left', body: true });
+  if (fs(14) < 18) text(`알 +${G.eggShown || 0}${G.stomps ? ` · 밟기 ${G.stomps}` : ''}${G.diffBonus ? ` (난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus})` : ''} · 물리친 적 ${G.kills} · 최고 연속 ${G.chainBest} · 딱 맞은 아이템 ${G.weak}`, 610, 404, 14, C.sub, { body: true, stroke: false });
   button(430, 426, 360, 56, '다음 바다로', () => enterMap(G.n), { size: 21 });
   button(430, 490, 174, 40, '상점', () => openShop(G.n + 1), { size: 15, kind: 'soft' });
   button(616, 490, 174, 40, '다시 하기', () => startLevel(G.n), { size: 15, kind: 'soft' });
+  drawResultOverlay();
 }
 function drawEnding() {
   ctx.fillStyle = 'rgba(40,10,40,.35)'; ctx.fillRect(-OX(), 0, W, H);
@@ -908,8 +914,21 @@ function drawEnding() {
     ctx.globalAlpha = 1 - t; text('♥', 485 + Math.sin(t * 9 + i) * 40, 220 - t * 160, 26 + i * 3, '#ff6fa8', { stroke: '#fff', lw: 3 }); ctx.globalAlpha = 1;
   }
   text('공주 거북이 구출 성공!', 480, 60, 48, C.yellow, { lw: 8 });
+  const ti = G.talkI || 0;
+  if (endT > 1.8 && ti < ENDING_TALK.length) { // 대화 상자
+    const ln = ENDING_TALK[ti];
+    G.talkShown = Math.min(ln.text.length, (G.talkShown || 0) + 0.45);
+    panel(60, 394, 840, 120, { fill: 'rgba(27,28,31,.94)' });
+    ctx.save(); ctx.beginPath(); ctx.arc(130, 454, 46, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.clip();
+    drawImg(ln.who === 'princess' ? IMG.princess : IMG.hello, 130, 468, 116); ctx.restore();
+    text(WHO[ln.who], 196, 414, 18, ln.who === 'princess' ? '#ffd1ef' : C.yellow, { align: 'left', stroke: false });
+    wrapText(ln.text.slice(0, Math.floor(G.talkShown)), 660, 21).forEach((l, k) => text(l, 196, 448 + k * 30, 21, '#ffffff', { align: 'left', body: true, stroke: false }));
+    if (G.talkShown >= ln.text.length && Math.sin(T * 8) > 0) text('▼', 870, 494, 16, C.yellow, { stroke: false });
+    if (G.talkShown >= ln.text.length && endT - (G.talkAt || 1.8) > ln.text.length / 27 + 3.2) endingTap();
+    return;
+  }
   text('다섯 바다를 건넜어요. 느려도 괜찮았죠? 포기하지 않았으니까요.', 480, 114, 20, '#ffffff', { body: true });
-  if (endT > 2) {
+  if (endT > 2 && ti >= ENDING_TALK.length) {
     text('끝없는 바다·어려움 왕관에 도전해 보세요!', 480, 430, 16, C.text, { body: true, stroke: false });
     button(330, 452, 300, 56, '지도로', () => enterMap(), { size: 22 });
   }
@@ -960,4 +979,101 @@ function drawToasts() {
     text(t.s, W / 2 + 8, y, 18, C.text, { body: true, stroke: false });
     ctx.restore();
   });
+}
+
+// ───────── 거북 레벨 · 결과 위에 뜨는 창(공주님 편지 → 레벨 업) ─────────
+function drawLvBadge(x, y) {
+  const need = xpNeed(save.lv), k = clamp(save.xp / need, 0, 1);
+  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(x, y, 150, 30, 15); ctx.fill();
+  ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x + 15, y + 15, 15, 0, Math.PI * 2); ctx.fill();
+  text(String(save.lv), x + 15, y + 15, 14, '#fff', { stroke: false });
+  text('거북 레벨', x + 36, y + 9, 13, C.sub, { align: 'left', body: true, stroke: false });
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(x + 36, y + 18, 104, 6, 3); ctx.fill();
+  ctx.fillStyle = C.yellow; rr(x + 36, y + 18, Math.max(6, 104 * k), 6, 3); ctx.fill();
+}
+function drawXpRow(x, y, w) {
+  if (G.xpGain == null) return;
+  const need = xpNeed(save.lv), k = clamp(save.xp / need, 0, 1);
+  ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x + 14, y, 14, 0, Math.PI * 2); ctx.fill();
+  text(String(save.lv), x + 14, y + 1, 14, '#fff', { stroke: false });
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(x + 36, y - 5, w - 130, 10, 5); ctx.fill();
+  ctx.fillStyle = C.yellow; rr(x + 36, y - 5, Math.max(10, (w - 130) * k), 10, 5); ctx.fill();
+  text(`경험치 +${G.xpGain}`, x + w - 86, y, 14, C.yellow, { align: 'left', body: true, stroke: false });
+}
+function resultOverlay() {
+  if (!G || (state !== 'clear' && state !== 'dead')) return null;
+  if (G.letterShow && state === 'clear' && endT > 1.2) return 'letter';
+  if (G.lvUps && G.lvUps.length && (state === 'dead' ? G.deadT > 0.7 : endT > (G.letterDone ? 0.3 : 2.4))) return 'lvup';
+  return null;
+}
+function closeResultOverlay() {
+  const o = resultOverlay();
+  if (o === 'letter') {
+    const full = PRINCESS_LETTERS[G.n];
+    if (G.letterShow.shown < full.length) { G.letterShow.shown = full.length; return; }
+    G.letterShow = null; G.letterDone = true; endT = Math.max(endT, 3); save.letters[G.n] = 1; persist();
+  } else if (o === 'lvup') G.lvUps.shift();
+  G.ovKey = null; sfx.click();
+}
+function drawResultOverlay() {
+  const o = resultOverlay(); if (!o) return;
+  const key = o + (o === 'lvup' ? G.lvUps[0] : '');
+  if (G.ovKey !== key) { G.ovKey = key; G.ovStart = T; if (o === 'lvup') { sfx.lvup(); fireworks(4, 200 + OX(), 760 + OX()); haptic([30, 30, 60, 30, 120]); shake = 10; } else sfx.harp(); }
+  const t = T - G.ovStart;
+  buttons.length = 0;
+  buttons.push({ x: 0, y: 0, w: W, h: H, on: closeResultOverlay });
+  ctx.fillStyle = `rgba(8,8,12,${Math.min(0.8, t * 3)})`; ctx.fillRect(-OX(), 0, W, H);
+  if (o === 'letter') {
+    const full = PRINCESS_LETTERS[G.n];
+    G.letterShow.shown = Math.min(full.length, G.letterShow.shown + 0.5);
+    const s = easeOutBack(Math.min(1, t / 0.45));
+    ctx.save(); ctx.translate(480, 270); ctx.scale(s, s); ctx.rotate(-0.015);
+    ctx.fillStyle = '#fff6e4'; rr(-300, -200, 600, 400, 18); ctx.fill();
+    ctx.strokeStyle = '#e9cfa0'; ctx.lineWidth = 3; rr(-286, -186, 572, 372, 12); ctx.stroke();
+    for (let i = 0; i < 6; i++) { ctx.strokeStyle = 'rgba(200,170,120,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-250, -60 + i * 40); ctx.lineTo(250, -60 + i * 40); ctx.stroke(); }
+    drawImg(IMG.princess, -220, -130, 110);
+    text('공주님의 편지', -150, -150, 26, '#b24a7a', { align: 'left', stroke: false });
+    text('유리병에 담겨 떠내려왔어요', -150, -118, 14, '#a08a6a', { align: 'left', body: true, stroke: false });
+    const lh = fs(19) * 1.55;
+    wrapText(full.slice(0, Math.floor(G.letterShow.shown)), 500, 19).forEach((l, i) => text(l, -250, -64 + i * lh, 19, '#4a3a2a', { align: 'left', body: true, stroke: false }));
+    if (G.letterShow.shown >= full.length) text('— 공주 거북', 250, 150, 17, '#b24a7a', { align: 'right', stroke: false });
+    ctx.restore();
+    if (G.letterShow.shown >= full.length && t > 0.8) button(380, 486, 200, 44, '편지 접기', closeResultOverlay, { size: 16 });
+    return;
+  }
+  const lv = G.lvUps[0], perk = LV_PERKS[lv];
+  burstRays(480 + OX(), 210, '#ffd54a', 0.1, 18);
+  const s = t < 0.3 ? 0.4 + easeOutBack(t / 0.3) * 0.6 : 1;
+  ctx.save(); ctx.translate(480, 92); ctx.scale(s, s); text('레벨 업!', 0, 0, 64, C.yellow, { lw: 10 }); ctx.restore();
+  drawImg(IMG.cheer, 240, 300 + Math.abs(Math.sin(T * 5)) * -14, 230);
+  ctx.save(); ctx.translate(480, 196);
+  const ps = 1 + Math.max(0, 0.5 - t) * 1.2; ctx.scale(ps, ps);
+  ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.stroke();
+  text('Lv', 0, -22, 16, '#cfe0ff', { stroke: false }); text(String(lv), 0, 10, 46, '#ffffff', { stroke: false });
+  ctx.restore();
+  if (perk) {
+    panel(370, 274, 400, 130, { fill: C.gray });
+    drawItemIcon(perk.icon, 430, 338, 58);
+    text('새 능력', 480, 302, 14, C.yellow, { align: 'left', stroke: false });
+    text(perk.name, 480, 334, 26, '#ffffff', { align: 'left', stroke: false });
+    text(perk.desc, 480, 370, 16, C.sub, { align: 'left', body: true, stroke: false });
+  } else {
+    text('조금 더 튼튼해졌어요!', 570, 330, 24, '#ffffff', { stroke: false });
+    const nx = Object.keys(LV_PERKS).map(Number).find((k) => k > lv);
+    if (nx) text(`Lv ${nx} 에 「${LV_PERKS[nx].name}」`, 570, 366, 16, C.sub, { body: true, stroke: false });
+  }
+  if (t > 0.7) button(430, 430, 280, 56, '좋아요!', closeResultOverlay, { size: 21 });
+}
+
+// ───────── 마지막: 다시 만난 둘의 대화 ─────────
+function endingTap() {
+  if (endT < 1.8) return;
+  const i = G.talkI || 0;
+  if (i < ENDING_TALK.length) {
+    const line = ENDING_TALK[i].text;
+    if ((G.talkShown || 0) < line.length) { G.talkShown = line.length; return; }
+    G.talkI = i + 1; G.talkShown = 0; G.talkAt = endT; sfx.click();
+    if (G.talkI === ENDING_TALK.length) { sfx.fever(); fireworks(6); confetti(80); }
+  } else if (endT - (G.talkAt || 0) > 1.2) enterMap();
 }

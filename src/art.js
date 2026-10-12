@@ -755,7 +755,11 @@ function drawItemIcon(key, x, y, size) {
   if (it === 'egg') return drawImg(IMG.egg, x, y, size);
   if (it.startsWith('e_')) return icon(it, x, y, size);
   ctx.save(); ctx.translate(x, y); const s = size / 40; ctx.scale(s, s);
-  if (it === 'magnet') {
+  if (it === 'heart') {
+    ctx.fillStyle = '#ff5470'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, 16); ctx.bezierCurveTo(-26, -2, -14, -24, 0, -10); ctx.bezierCurveTo(14, -24, 26, -2, 0, 16); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.ellipse(-8, -8, 4, 3, -0.6, 0, Math.PI * 2); ctx.fill();
+  } else if (it === 'magnet') {
     ctx.lineCap = 'butt'; ctx.lineWidth = 11; ctx.strokeStyle = '#ff4d5e';
     ctx.beginPath(); ctx.arc(0, -2, 11, Math.PI, 0); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-11, -2); ctx.lineTo(-11, 10); ctx.moveTo(11, -2); ctx.lineTo(11, 10); ctx.stroke();

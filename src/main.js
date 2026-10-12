@@ -10,14 +10,22 @@ addEventListener('keydown', (e) => {
   userActed = true; initAudio();
   onKey(e.code);
 });
-addEventListener('keyup', (e) => { keys[e.code] = false; });
-const autoPause = () => { for (const k in keys) keys[k] = false; drag = null; if (state === 'play' && G && !G.p.dead && !G.won) state = 'pause'; };
+addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+  if (state === 'play' && G && G.run) {
+    if (RUN_JUMP.includes(e.code) && !RUN_JUMP.some((k) => keys[k])) jumpUp();
+    if (RUN_SLIDE.includes(e.code) && !RUN_SLIDE.some((k) => keys[k])) slideUp();
+  }
+});
+const RUN_JUMP = ['Space', 'ArrowUp', 'KeyW', 'KeyJ'], RUN_SLIDE = ['ArrowDown', 'KeyS', 'KeyK'];
+const autoPause = () => { for (const k in keys) keys[k] = false; drag = null; releaseRunInput(); if (state === 'play' && G && !G.p.dead && !G.won) state = 'pause'; };
 addEventListener('blur', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
 
 function onKey(c) {
   const go = c === 'Space' || c === 'Enter';
   if (c === 'KeyM') { toggleMute(); return; }
+  if (resultOverlay()) { if (go || c === 'Escape') closeResultOverlay(); return; }
   switch (state) {
     case 'title': if (go) startGame(); break;
     case 'intro': if (c === 'Escape') endIntro(); else if (go || c === 'ArrowRight') introAdvance(); break;
@@ -33,6 +41,14 @@ function onKey(c) {
       else if (c >= 'Digit1' && c <= 'Digit3') { save.diff = +c.slice(5) - 1; persist(); sfx.click(); }
       break;
     case 'play':
+      if (G.run) {
+        if (RUN_JUMP.includes(c)) jumpDown();
+        else if (RUN_SLIDE.includes(c)) slideDown();
+        else if (c === 'ShiftLeft' || c === 'ShiftRight' || c === 'KeyX' || c === 'KeyL') tryBoost();
+        else if (c === 'KeyE' || c === 'KeyC') useItem();
+        else if ((c === 'Escape' || c === 'KeyP') && !G.p.dead) state = 'pause';
+        break;
+      }
       if (c === 'Space' || c === 'ShiftLeft' || c === 'ShiftRight' || c === 'KeyJ' || c === 'KeyX') tryBoost();
       else if (c === 'KeyE' || c === 'KeyK' || c === 'KeyC') useItem();
       else if ((c === 'Escape' || c === 'KeyP') && !G.p.dead) state = 'pause';
@@ -60,7 +76,7 @@ function onKey(c) {
       else if (go) startLevel(shop.next);
       else if (c === 'Escape') enterMap();
       break;
-    case 'ending': if (endT > 2 && go) enterMap(); break;
+    case 'ending': if (go) endingTap(); break;
   }
 }
 function toGame(e) { const r = cvs.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
@@ -74,11 +90,14 @@ cvs.addEventListener('pointerdown', (e) => {
   const lx = pt.x - OX(); // 메뉴 화면 좌표(가운데 960)
   if (state === 'title') { if (lx > 100 && lx < 400 && pt.y > 130 && pt.y < 450) buddyAct(); else startGame(); }
   else if (state === 'intro') introAdvance();
+  else if (state === 'ending') endingTap();
   else if (state === 'map' && !map.overlay) mapDown(pt);
-  else if (state === 'play' && !G.p.dead) {
+  else if (state === 'play' && !G.p.dead && G.run) {
+    if (pt.x < W / 2) { G.touch.j = e.pointerId; jumpDown(); } else { G.touch.s = e.pointerId; slideDown(); }
+  } else if (state === 'play' && !G.p.dead) {
     drag = { id: e.pointerId, sx: pt.x, sy: pt.y, kx: pt.x, ky: pt.y, px: G.p.x, py: G.p.y }; // 손가락을 끈 만큼 거북이가 그대로 따라감
     try { cvs.setPointerCapture(e.pointerId); } catch (_) { /* 무시 */ }
-  } else if (state === 'dead' && G.deadT > 0.35) startLevel(G.n);
+  } else if (state === 'dead' && G.deadT > 0.35 && !resultOverlay()) startLevel(G.n);
 });
 cvs.addEventListener('pointermove', (e) => {
   const pt = toGame(e); mouse = pt;
@@ -88,7 +107,9 @@ cvs.addEventListener('pointermove', (e) => {
   }
   if (state === 'map') mapMove(pt);
 });
-const endDrag = (e) => { press.down = false; if (drag && drag.id === e.pointerId) drag = null; if (state === 'map' && map.drag) mapUp(toGame(e)); };
+const endDrag = (e) => {
+  press.down = false; if (drag && drag.id === e.pointerId) drag = null;
+  if (G && G.run && G.touch) { if (G.touch.j === e.pointerId) { G.touch.j = null; jumpUp(); } if (G.touch.s === e.pointerId) { G.touch.s = null; slideUp(); } } if (state === 'map' && map.drag) mapUp(toGame(e)); };
 cvs.addEventListener('pointerup', endDrag);
 cvs.addEventListener('pointercancel', endDrag);
 
@@ -206,6 +227,6 @@ requestAnimationFrame(frame);
 window.__turtle = {
   state: () => state, G: () => G, save, start: startLevel, map: () => { enterMap(); },
   face: (f) => setFace(f, 99), boost: () => { G.boost = 100; tryBoost(); }, fever: () => startFever(), item: (k) => { G.item = k; useItem(); },
-  bless: () => openBless(), boss: () => { G.dist = G.cfg.length; }, die: () => { G.p.inv = 0; G.shield = 0; hitPlayer({ type: 'test' }); },
+  bless: () => openBless(), jump: () => { jumpDown(); setTimeout(jumpUp, 200); }, slide: (ms = 600) => { slideDown(); setTimeout(slideUp, ms); }, xp: (n) => { save.xp += n; }, boss: () => { G.dist = G.cfg.length; }, die: () => { G.p.inv = 0; G.shield = 0; hitPlayer({ type: 'test' }); },
   win: () => levelClear(), special: (t) => { spawnEnemy(t); const e = G.enemies[G.enemies.length - 1]; if (e) { e.x = W * 0.62; e.sp = { t: 0, wind: 0.75, done: false }; } }, set: (k, v) => { save[k] = v; persist(); }, spawn: (t) => spawnEnemy(t),
 };
