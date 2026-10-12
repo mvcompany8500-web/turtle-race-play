@@ -101,6 +101,7 @@ function updateMap(dt) {
     if (before < 1.5 && u.t >= 1.5) {
       const n = nodePos(u.s);
       sfx.crack(); boom(0.9); haptic([40, 30, 90]); shake = 14; flash = 0.35; flashColor = '#ffffff';
+      burstRays(n.x - map.cam, n.y, C.yellow, 1.3, 24); fireworks(2, n.x - map.cam - 200, n.x - map.cam + 200, 90);
       for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, sp = rand(120, 520); fx.push({ k: 'spark', x: n.x - map.cam, y: n.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.8, max: 0.8, size: rand(3, 7), color: pick(['#ffd54a', '#ffffff', '#4c82ff']) }); }
       toast(`${u.s}번 바다가 열렸어요!`, C.yellow);
       if (u.s % 10 === 1) map.banner = 3;
@@ -812,6 +813,7 @@ const BOSS_LINES = {
 };
 const STAR_AT = [0.5, 0.95, 1.4];
 function updateClear() {
+  if (endT < 4 && Math.random() < 0.035) fireworks(1, 520 + OX(), W - 40 - SAFE, 40);
   const shown = Math.floor(G.eggs * clamp((endT - 1.7) / 1.1, 0, 1));
   if (shown > (G.eggShown || 0) && Math.floor(endT * 30) % 2 === 0) tone(1200 + shown % 7 * 60, 1500, 0.03, 'square', 0.03);
   G.eggShown = shown;

@@ -124,7 +124,7 @@ function update(dt) {
   if (state === 'map') updateMap(dt);
   if (state === 'shop') updateShop(dt);
   if (state === 'title') setMusic('title');
-  updateCutin(dt);
+  updateCutin(dt); updateScreenFx(dt);
   if (freeze > 0) { freeze -= dt; return; }
   const sdt = dt * timeScale;
   updateFx(state === 'play' ? sdt : dt);
@@ -159,6 +159,7 @@ function render() {
     if (state !== 'ending') drawWorld();
     ctx.restore();
     drawBoostOverlay();
+    drawScreenFxBack();
     if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawHUD(); }
     if (state === 'play') drawCutin();
   } else if (state === 'map' || state === 'intro') {
@@ -183,6 +184,8 @@ function render() {
   else if (state === 'ending') drawEnding();
   ctx.restore();
   if (state === 'map' || state === 'shop') drawConfetti();
+  if (!inRun) drawScreenFxBack();
+  drawScreenFxTop();
   drawEggFly();
   drawToasts();
 }

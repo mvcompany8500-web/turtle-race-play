@@ -39,7 +39,7 @@ function startLevel(n) {
          ph: 0, blinkT: 2, face: 'normal', faceT: 0, scared: false, wakeT: 0, flip: 0, scale: 1 },
     pet: save.pet ? { x: -150, y: H / 2 - 50, t: 0, zapT: 3 } : null,
     enterT: 0.8, won: false, winT: 0,
-    kills: 0, near: 0, perfect: 0, weak: 0, intro: 2.8, banked: false, deathT: 0, deadT: 0,
+    kills: 0, near: 0, perfect: 0, weak: 0, intro: 4.4, banked: false, deathT: 0, deadT: 0,
     eggsSpawned: 0, eggsGot: 0, hits: 0, revives: 0, freeRevive: false, fever: 0, feverT: 0, feverEggT: 0, sprout: 0, starShown: 0,
     item: null, itemPop: 0, eff: { magnet: 0, giant: 0, freeze: 0, lamp: 0, whirl: 0, double: 0 }, jellySafe: 0,
     slowMul: 1, blessDone: cfg.boss != null, nextBless: 1500, bless: null, chain: 0, chainT: 0, chainBest: 0, feverEggs: 0, zoomAt: null,
@@ -206,13 +206,15 @@ function chainKill(e) {
     if (ac) bell(hz(72 + Math.min(c, 14) * 2), now(), 0.12, 0.4);
     shake = Math.max(shake, 8 + c * 2); haptic(10 + c * 6);
   }
+  if (c === 3) reaction(1, '3연속!');
   if (c === 5) sweepScreen('바다를 휩쓸었다!!');
-  if (c === 10) { G.eggs += 30; pop(W / 2, H / 2 + 40, '전설의 거북이! 알 +30', C.yellow, 40, true); sfx.fever(); }
+  if (c === 8) reaction(3, '8연속 미쳤다!!');
+  if (c === 10) { G.eggs += 30; reaction(4, '전설의 거북이!!!'); pop(W / 2, H / 2 + 50, '알 +30', C.yellow, 40, true); sfx.fever(); }
 }
 function sweepScreen(label) {
   flash = 0.7; flashColor = '#ffffff'; shake = 30; freeze = 0.18; timeScale = 0.3; zoomTo(1.12);
   ring(G.p.x, G.p.y, '#ffffff', W, 0.7, 18); ring(G.p.x, G.p.y, C.yellow, W * 0.7, 0.55, 10);
-  pop(W / 2, H / 2 - 40, label, '#ffffff', 60, true);
+  reaction(3, label); burstRays(G.p.x, G.p.y, '#ffffff', 1.4, 30);
   boom(1); sfx.bossHit(); sfx.fever(); haptic([60, 30, 60, 30, 160]);
   for (const o of G.enemies) if (!o.dead && o.x < W + 30) { o.dead = true; G.kills++; dexKill(o.type); burst(o.x, o.y, (ENEMIES[o.type] || {}).color || '#fff', 18, 500); for (let i = 0; i < 2; i++) G.eggsArr.push({ x: o.x, y: o.y, vx: rand(-120, 120), vy: rand(-200, 200), loose: true, gold: i === 0, t: 0 }); }
   G.shots = [];
@@ -245,6 +247,7 @@ function tryBoost() {
   freeze = 0.09; flash = 0.5; flashColor = '#b48bff'; shake = 14; timeScale = 0.35; zoomTo(1.08);
   ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12); ring(G.p.x, G.p.y, '#5fd4ff', 150, 0.45, 6);
   startCutin('boost', '질주!!', '앞을 막는 건 다 들이받아!', 0.7);
+  burstRays(G.p.x, G.p.y, '#b48bff', 1.2, 24); edgeFlash('#8b5cff', 0.9);
   sfx.boost(); haptic([30, 30, 70]);
   track('boost');
 }
@@ -334,6 +337,8 @@ function collectEgg(e) {
   if (e.gold && !e.bonus) { sfx.gold(); pop(e.x, e.y - 24, `황금알 +${v}`, C.yellow, 26); burst(e.x, e.y, '#ffe36b', 16); track('gold'); }
   else { sfx.egg(G.combo); burst(e.x, e.y, '#eafff2', 5, 160); }
   if (G.combo > 0 && G.combo % 6 === 0) { pop(G.p.x, G.p.y - 60, `${G.combo}개 연속!`, '#7cf0ff', 30); G.boost = Math.min(100, G.boost + 6); haptic(12); }
+  const CM = { 12: 0, 24: 1, 36: 2, 54: 3, 80: 4 };
+  if (CM[G.combo] != null) reaction(CM[G.combo], `알 ${G.combo}개 ${REACT_WORDS[CM[G.combo]][0]}`);
   if (petIs('sprout') && ++G.sprout % 10 === 0) { G.eggs += petLv(); pop(G.p.x - 40, G.p.y - 40, `새싹이 +${petLv()}`, '#9dff7a', 20); }
   if (G.feverT <= 0) {
     G.fever = Math.min(100, G.fever + (e.gold ? 14 : 5));
@@ -342,7 +347,7 @@ function collectEgg(e) {
 }
 function startFever() {
   G.feverT = 6; G.fever = 0; G.feverEggT = 0;
-  pop(W / 2, H / 2 - 30, '알 소나기! 2배', C.yellow, 60, true);
+  reaction(3, '알 소나기!!'); burstRays(G.p.x, G.p.y, C.yellow, 1.4, 28);
   flash = 0.45; flashColor = '#ffe36b'; shake = 10; zoomTo(1.05);
   sfx.fever(); haptic([20, 30, 20, 30, 60]);
   musicFever = true;
@@ -464,11 +469,13 @@ function bossDamage() {
   burst(b.x - 50, b.y, '#ffe36b', 30, 560); burst(b.x - 50, b.y, '#ffffff', 14, 400);
   ring(b.x - 50, b.y, '#ffe36b', 180, 0.5, 12);
   pop(b.x - 40, b.y - 90, '크게 한 방!', C.yellow, 44, true);
+  burstRays(b.x - 50, b.y, '#ffffff', 0.8, 18); edgeFlash('#ff5470', 0.5);
   sfx.bossHit(); haptic([60, 30, 100]);
   if (b.hp <= 0) {
     b.dead = true; b.deadT = 2.2; timeScale = 0.12; freeze = 0.5; zoom = 1.3; G.zoomAt = { x: b.x - 40, y: b.y };
     flash = 0.9; flashColor = '#ffffff'; shake = 34;
     startCutin('finish', '마무리!!', '', 0.6);
+    burstRays(b.x - 40, b.y, C.yellow, 2.4, 32); setTimeout(() => { if (state === 'play') { fireworks(6); reaction(4, b.def.flee ? '도망쳤다!!' : '해냈다!!!'); } }, 700);
     pop(clamp(b.x - 60, 260, W - 260), clamp(b.y - 120, 120, H - 160), '마무리!!', '#ffffff', 70, true);
     setTimeout(() => { if (G && state === 'play') { pop(W / 2, H / 2 - 20, b.def.flee ? '상어왕이 도망쳤어요! 쫓아가요!' : `${b.def.name}을(를) 이겼어요!`, C.yellow, b.def.flee ? 40 : 50, true); sfx.clear(); } }, 900);
     for (let k = 0; k < 5; k++) setTimeout(() => { if (G && G.boss) { boom(0.9); noise(0.5, 0.5, 3000); } }, 150 + k * 220);
@@ -776,7 +783,7 @@ function updatePlay(dt) {
         G.near++; track('near');
         if (e.wasClose) {
           G.perfect++; G.boost = Math.min(100, G.boost + 14); timeScale = 0.35; zoomTo(1.04);
-          pop(p.x, p.y - 52, '완벽 회피!', C.yellow, 28); sfx.perfect(); haptic(20);
+          pop(p.x, p.y - 52, '완벽 회피!', C.yellow, 34); sfx.perfect(); haptic(20); edgeFlash('#ffffff', 0.4);
         } else {
           G.boost = Math.min(100, G.boost + 7);
           pop(p.x, p.y - 48, pick(['아슬아슬!', '휴~ 살았다!', '나이스 회피!']), '#7cf0ff', 22); sfx.near();
@@ -846,6 +853,7 @@ function levelClear() {
   G.enemies = []; G.shots = []; G.warns = []; G.sweeps = [];
   pop(W / 2, H / 2 - 60, G.n === LAST ? '공주님!' : '도착!', C.yellow, 60, true);
   shake = 6; sfx.ready(); haptic([30, 40, 60]);
+  fireworks(5); burstRays(G.p.x, G.p.y, C.yellow, 1.2, 24);
 }
 function finishClear() {
   bank(true);
@@ -963,6 +971,12 @@ function drawWorld() {
   const face = p.dead ? 'dead' : G.boosting > 0 || E.giant > 0 ? 'boost' : p.faceT > 0 ? p.face : p.scared ? 'scared' : 'normal';
   const bob = p.dead ? 0 : Math.sin(p.ph * 0.5) * 2.5;
   if (E.giant > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 110); g.addColorStop(0, 'rgba(120,255,160,.35)'); g.addColorStop(1, 'rgba(120,255,160,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 110, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  if (G.boosting > 0 && !REDUCE) { // 질주 중 빨강·파랑으로 갈라지는 잔상
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    drawHero(p.x - 6 * p.scale - 8, p.y + (4 + bob) * p.scale, HERO_H * p.scale, p.rot + p.flip, { ghost: '#ff3355', alpha: 0.5, ph: p.ph, boost: true });
+    drawHero(p.x - 6 * p.scale + 8, p.y + (4 + bob) * p.scale, HERO_H * p.scale, p.rot + p.flip, { ghost: '#33aaff', alpha: 0.5, ph: p.ph, boost: true });
+    ctx.restore();
+  }
   drawHero(p.x - 6 * p.scale, p.y + (4 + bob) * p.scale, HERO_H * p.scale, p.rot + p.flip, {
     ph: p.ph, boost: G.boosting > 0, face, blink: p.blinkT < 0,
     alpha: blink ? 0.35 : 1, stretch: G.boosting > 0 ? 1.1 : 1,
@@ -1137,7 +1151,7 @@ function drawHUD() {
   }
   if (G.enterT > 0) { const k = 1 - G.enterT / 0.8, s = 0.6 + easeOutBack(Math.min(1, k * 1.6)) * 0.5; ctx.save(); ctx.translate(W / 2, H / 2 - 30); ctx.scale(s, s); text('준비…', 0, 0, 64, '#ffffff', { lw: 9 }); ctx.restore(); }
   // 시작 안내
-  if (G.intro > 0 && G.enterT <= 0 && !(G.bossWarnT > 0)) {
+  if (G.intro > 0 && G.intro < 2.8 && !(G.bossWarnT > 0)) { // 「출발!」이 사라진 뒤에 바다 이름
     const a = Math.min(1, G.intro / 0.4, (2.8 - G.intro) / 0.3);
     ctx.save(); ctx.globalAlpha = a;
     text(endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, W / 2, H / 2 - 54, 38, '#ffffff');
@@ -1198,4 +1212,109 @@ function drawCutin() {
   ctx.restore();
   if (c.sub) text(c.sub, tx, 50, 22, c.kind === 'finish' ? '#191F28' : C.yellow, { body: true, stroke: false });
   ctx.restore();
+}
+
+// ───────── 눈이 번쩍: 화면 가득 효과 (빛줄기·집중선·테두리 빛·반응 글자·불꽃놀이) ─────────
+const scr = { rays: [], reacts: [], works: [], sparks: [], edge: null };
+const REACT_WORDS = [['좋아!', '#7cf0ff'], ['굉장해!', '#7dffb0'], ['대박!', '#ffd54a'], ['미쳤다!!', '#ff8a3c'], ['전설이다!!!', '#ff4d8a']];
+function burstRays(x, y, color = '#ffffff', dur = 0.9, n = 20) { if (!REDUCE) scr.rays.push({ x, y, color, t: 0, dur, n, rot: rand(0, 6) }); }
+function edgeFlash(color, dur = 0.6) { scr.edge = { color, t: 0, dur }; }
+function reaction(tier, word) {
+  tier = clamp(tier, 0, 4);
+  const [w, c] = REACT_WORDS[tier];
+  scr.reacts = [{ s: word || w, c, t: 0, dur: 1.15, tier, rot: rand(-0.1, 0.1) }];
+  edgeFlash(c, 0.7); shake = Math.max(shake, 10 + tier * 5); zoomTo(1.03 + tier * 0.012);
+  if (ac) { chime(['C6', 'E6', 'G6', 'C7', 'E7'].slice(0, 2 + tier), 0.05, 0.11); boom(0.4 + tier * 0.12); }
+  haptic([20 + tier * 10, 20, 30 + tier * 15]);
+  burstRays(W / 2, H / 2 - 40, c, 1, 16 + tier * 4);
+}
+function fireworks(n = 5, x0 = 120, x1 = W - 120, yTop = 80) {
+  for (let i = 0; i < n; i++) scr.works.push({ x: rand(x0, x1), y: H + 20 + i * 60, vy: -rand(620, 820), ty: rand(yTop, yTop + 160), color: pick(['#ffd54a', '#ff4d8a', '#7cf0ff', '#7dffb0', '#b48bff', '#ff8a3c']), t: 0 });
+}
+function updateScreenFx(dt) {
+  for (const r of scr.rays) r.t += dt;
+  scr.rays = scr.rays.filter((r) => r.t < r.dur);
+  for (const r of scr.reacts) r.t += dt;
+  scr.reacts = scr.reacts.filter((r) => r.t < r.dur);
+  if (scr.edge) { scr.edge.t += dt; if (scr.edge.t > scr.edge.dur) scr.edge = null; }
+  for (const w of scr.works) {
+    w.t += dt; w.y += w.vy * dt;
+    if (Math.random() < 0.8) scr.sparks.push({ x: w.x + rand(-2, 2), y: w.y, vx: rand(-20, 20), vy: rand(40, 100), life: 0.4, max: 0.4, c: '#fff4c0', s: 2 });
+    if (w.y <= w.ty) {
+      w.dead = true;
+      for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, sp = rand(160, 360); scr.sparks.push({ x: w.x, y: w.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.9, 1.4), max: 1.4, c: i % 5 ? w.color : '#ffffff', s: rand(2.5, 4.5), g: true }); }
+      if (ac) { nz({ d: 0.5, vol: 0.28, f: 2400, f2: 80 }); boom(0.35); sparkle(6, 0.05, 0.04); }
+    }
+  }
+  scr.works = scr.works.filter((w) => !w.dead);
+  for (const s of scr.sparks) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; if (s.g) { s.vy += 160 * dt; s.vx *= 1 - dt * 1.2; } }
+  scr.sparks = scr.sparks.filter((s) => s.life > 0);
+}
+// 세상 위·글자 아래
+function drawScreenFxBack() {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const r of scr.rays) {
+    const k = r.t / r.dur, a = (1 - k) * 0.55, rad = 1500;
+    ctx.fillStyle = r.color; ctx.globalAlpha = a;
+    for (let i = 0; i < r.n; i++) {
+      const ang = r.rot + i * Math.PI * 2 / r.n + r.t * 0.9, w = 0.05 + 0.03 * Math.sin(i * 7);
+      ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x + Math.cos(ang - w) * rad, r.y + Math.sin(ang - w) * rad); ctx.lineTo(r.x + Math.cos(ang + w) * rad, r.y + Math.sin(ang + w) * rad); ctx.fill();
+    }
+    const g = ctx.createRadialGradient(r.x, r.y, 4, r.x, r.y, 220 * (0.5 + k)); g.addColorStop(0, r.color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = a * 0.9; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(r.x, r.y, 220 * (0.5 + k), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  if (G && state === 'play') {
+    const p = G.p;
+    // 질주: 만화 집중선
+    if (G.boosting > 0 && !REDUCE) {
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.5)';
+      for (let i = 0; i < 46; i++) {
+        const a = rand(0, Math.PI * 2), r0 = rand(260, 430), r1 = 1100;
+        ctx.lineWidth = rand(1, 4.5); ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * r0, p.y + Math.sin(a) * r0); ctx.lineTo(p.x + Math.cos(a) * r1, p.y + Math.sin(a) * r1); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // 알 소나기: 오로라 물결 + 금빛 테두리
+    if (G.feverT > 0 && !REDUCE) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let b = 0; b < 3; b++) {
+        const g = ctx.createLinearGradient(0, 0, W, 0);
+        ['#ff4d8a', '#ffd54a', '#7dffb0', '#7cf0ff', '#b48bff'].forEach((c, i) => g.addColorStop(((i / 4) + T * 0.3 + b * 0.2) % 1, c));
+        ctx.globalAlpha = 0.16; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+        for (let x = 0; x <= W; x += 24) ctx.lineTo(x, 60 + b * 40 + Math.sin(x / 120 + T * 2 + b) * 30);
+        ctx.lineTo(W, 0); ctx.fill();
+      }
+      ctx.restore();
+      edgeGlow(C.yellow, 0.35 + 0.15 * Math.sin(T * 8));
+    }
+    if (G.boosting > 0) edgeGlow('#8b5cff', 0.4 + 0.1 * Math.sin(T * 12));
+  }
+  if (scr.edge) edgeGlow(scr.edge.color, 0.75 * (1 - scr.edge.t / scr.edge.dur));
+}
+function edgeGlow(color, a) {
+  if (a <= 0) return;
+  const [r, g, b] = rgb(color.length === 7 ? color : '#ffffff');
+  const gr = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62);
+  gr.addColorStop(0, `rgba(${r},${g},${b},0)`); gr.addColorStop(1, `rgba(${r},${g},${b},${a})`);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+// 맨 위: 반응 글자·불꽃놀이
+function drawScreenFxTop() {
+  for (const w of scr.works) { ctx.fillStyle = '#fff4c0'; ctx.beginPath(); ctx.arc(w.x, w.y, 4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const s of scr.sparks) { ctx.globalAlpha = Math.max(0, s.life / s.max); ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  for (const r of scr.reacts) {
+    const k = r.t / r.dur;
+    const s = k < 0.12 ? 0.3 + (k / 0.12) * 1.05 : k < 0.24 ? 1.35 - ((k - 0.12) / 0.12) * 0.35 : 1 + Math.sin(k * 30) * 0.015;
+    const a = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1, size = 70 + r.tier * 10;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2 + (r.tier >= 3 ? rand(-3, 3) : 0), H / 2 - 50); ctx.rotate(r.rot); ctx.scale(s, s);
+    ctx.font = `900 ${fs(size)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(16,16,18,.85)'; ctx.strokeText(r.s, 0, 6);
+    ctx.lineWidth = 7; ctx.strokeStyle = '#ffffff'; ctx.strokeText(r.s, 0, 0);
+    const g = ctx.createLinearGradient(0, -size / 2, 0, size / 2); g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, r.c); g.addColorStop(1, mix(r.c, '#000000', 0.25));
+    ctx.fillStyle = g; ctx.fillText(r.s, 0, 0);
+    ctx.restore();
+  }
 }
