@@ -12,7 +12,7 @@ function resize() {
   const vw = innerWidth, vh = innerHeight;
   PORTRAIT = isTouch && vh > vw * 1.05;
   W = PORTRAIT ? 960 : Math.round(Math.min(1280, Math.max(960, H * vw / vh)));
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2); // 폰은 1.5배로 — 프레임이 높아 조작이 덜 굼뜸
   const s = Math.min(vw / W, vh / H);
   CSS_S = s;
   SAFE = isTouch && W > 1040 ? 34 : 0; // 노치(카메라 구멍) 쪽 여백
@@ -97,6 +97,7 @@ const IMG = {};
 function load(key, src) { const im = new Image(); im.src = src; IMG[key] = im; return im; }
 SKINS.forEach((s) => { load('skin_' + s.k, `assets/skins/${s.k}.webp`); load('skinf_' + s.k, `assets/skins_f/${s.k}.webp`); });
 PETS.forEach((p) => load('pet_' + p.k, `assets/pets/${p.k}.webp`));
+SPRITES.forEach((k) => load('spr_' + k, `assets/sprites/${k}.webp`));
 ['princess:princess.webp', 'egg:egg.png', 'comfort:comfort.png', 'cheer:cheer.png', 'hello:hello.png', 'side:side.webp', 'back:back.webp',
   'e_shield:emoji/shield.png', 'e_fire:emoji/fire.png', 'e_rocket:emoji/rocket.png', 'e_trophy:emoji/trophy.png', 'e_crown:emoji/crown.png',
   'e_sparkles:emoji/sparkles.png', 'e_gem:emoji/gem_stone.png', 'e_party:emoji/party_popper.png', 'e_target:emoji/bullseye.png',
@@ -170,7 +171,7 @@ function drawImg(im, x, y, h, rot = 0, alpha = 1, flip = false) {
 const SAVE_KEY = 'turtle-race-v1';
 const save = (() => {
   const d = {
-    eggs: 0, unlocked: 1, best: {}, stars: {}, crown: {}, up: { slow: 0, boost: 0, shield: 0, magnet: 0 },
+    eggs: 0, unlocked: 1, best: {}, stars: {}, crown: {}, up: { slow: 0, boost: 0, shield: 0, magnet: 0, fire: 0, power: 0 },
     skins: ['basic'], skin: 'basic', face: 'basic', pets: [], pet: null, petLv: {}, cleared: false,
     muted: false, musicOff: false, sfxOff: false, haptics: true, runs: 0, diff: 1, world: 1,
     introSeen: false, missions: [], giftAt: 0, streak: { day: 0, last: '' }, endlessBest: 0, dex: {}, chests: 0,

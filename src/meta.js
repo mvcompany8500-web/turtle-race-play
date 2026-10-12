@@ -667,15 +667,16 @@ function drawShop() {
     button(480 - 300 + i * 204, 62, 192, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 16, kind: shop.tab === k ? 'primary' : 'soft' });
   });
   if (shop.tab === 'up') {
+    const icons = { slow: 'e_snow', boost: 'e_rocket', shield: 'e_shield', magnet: 'e_gem', fire: 'e_sparkles', power: 'e_fire' };
     UPS.forEach((u, i) => withRise(i, () => {
-      const x = 40 + i * 222, y = 124, w = 206, h = 270, lv = save.up[u.k], c = upCost(u);
+      const x = 40 + (i % 3) * 296, y = 116 + Math.floor(i / 3) * 176, w = 284, h = 166, lv = save.up[u.k], c = upCost(u);
       panel(x, y, w, h);
-      icon(['e_snow', 'e_rocket', 'e_shield', 'e_gem'][i], x + w / 2, y + 52, 64, Math.sin(T * 2 + i) * 0.08);
-      text(u.name, x + w / 2, y + 112, 19, C.text, { stroke: false });
-      text(u.desc, x + w / 2, y + 140, 14, C.sub, { body: true, stroke: false });
-      for (let k = 0; k < u.max; k++) { ctx.fillStyle = k < lv ? C.blueD : C.line; rr(x + w / 2 - u.max * 13 + k * 26, y + 164, 20, 10, 5); ctx.fill(); }
-      if (c == null) text('최고 단계', x + w / 2, y + 222, 18, C.ok, { stroke: false });
-      else button(x + 20, y + 196, w - 40, 52, `알 ${c}개`, () => buyUp(i), { size: 18, disabled: save.eggs < c });
+      icon(icons[u.k], x + 52, y + 56, 60, Math.sin(T * 2 + i) * 0.08);
+      text(u.name, x + 100, y + 34, 19, C.text, { align: 'left', stroke: false });
+      text(u.desc, x + 100, y + 62, 14, C.sub, { align: 'left', body: true, stroke: false });
+      for (let k = 0; k < u.max; k++) { ctx.fillStyle = k < lv ? C.blueD : C.line; rr(x + 100 + k * 26, y + 84, 20, 10, 5); ctx.fill(); }
+      if (c == null) text('최고 단계', x + w / 2, y + 134, 17, C.ok, { stroke: false });
+      else button(x + 20, y + 110, w - 40, 44, `알 ${c}개`, () => buyUp(i), { size: 17, disabled: save.eggs < c });
     }));
   } else if (shop.tab === 'skin') {
     panel(40, 118, 250, 350);

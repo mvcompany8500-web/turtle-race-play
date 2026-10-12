@@ -73,19 +73,19 @@ STAGES[ENDLESS] = { name: '끝없는 바다', tip: '얼마나 멀리 갈 수 있
 
 // ───────── 몬스터 11종 (특징·약점 아이템) ─────────
 const ENEMIES = {
-  jelly: { name: '해파리', intro: 1, trait: '둥둥 떠다니며 쏴요', weak: 'bubble', color: '#ff8fd0' },
-  urchin: { name: '성게', intro: 1, trait: '바닥·천장에 박혀 있어요', weak: 'giant', color: '#a36bff' },
-  shark: { name: '상어', intro: 2, trait: '! 경고 뒤 돌진해요', weak: 'freeze', color: '#9fc0dc' },
-  puffer: { name: '복어', intro: 3, trait: '가까이 가면 부풀어요', weak: 'bolt', color: '#ffd34d' },
-  eel: { name: '곰치', intro: 4, trait: '빨간 줄을 따라 쏜살같이', weak: 'freeze', color: '#7fe36b' },
-  octopus: { name: '문어', intro: 7, trait: '먹물로 앞을 가려요', weak: 'lamp', color: '#e0679a' },
-  angler: { name: '아귀', intro: 8, trait: '가짜 황금알로 꾀어요', weak: 'lamp', color: '#ffb84d', darkOnly: true },
-  whirlpool: { name: '소용돌이', intro: 12, trait: '거북이를 빨아들여요', weak: 'whirl', color: '#7cf0ff' },
-  ray: { name: '가오리', intro: 16, trait: '크게 물결치며 빨라요', weak: 'freeze', color: '#6f8fd8' },
-  crab: { name: '게', intro: 21, trait: '뛰어올라요, 번개가 안 들어요', weak: 'giant', color: '#ff6a4d', armored: true },
-  mine: { name: '기뢰', intro: 23, trait: '깜빡이다 펑 터져요', weak: 'whirl', color: '#ff5470' },
-  swordfish: { name: '청새치', intro: 32, trait: '긴 부리로 일직선 돌진', weak: 'bubble', color: '#5fa8ff' },
-  phantom: { name: '유령 해파리', intro: 42, trait: '사라졌다 나타나요', weak: 'lamp', color: '#c9b8ff' },
+  jelly: { name: '해파리', hp: 2, intro: 1, trait: '둥둥 떠다니며 쏴요', weak: 'bubble', color: '#ff8fd0' },
+  urchin: { name: '성게', hp: 4, intro: 1, trait: '바닥·천장에 박혀 있어요', weak: 'giant', color: '#a36bff' },
+  shark: { name: '상어', hp: 3, intro: 2, trait: '! 경고 뒤 돌진해요', weak: 'freeze', color: '#9fc0dc' },
+  puffer: { name: '복어', hp: 2, intro: 3, trait: '가까이 가면 부풀어요', weak: 'bolt', color: '#ffd34d' },
+  eel: { name: '곰치', hp: 2, intro: 4, trait: '빨간 줄을 따라 쏜살같이', weak: 'freeze', color: '#7fe36b' },
+  octopus: { name: '문어', hp: 4, intro: 7, trait: '먹물로 앞을 가려요', weak: 'lamp', color: '#e0679a' },
+  angler: { name: '아귀', hp: 4, intro: 8, trait: '가짜 황금알로 꾀어요', weak: 'lamp', color: '#ffb84d', darkOnly: true },
+  whirlpool: { name: '소용돌이', hp: 999, intro: 12, trait: '거북이를 빨아들여요', weak: 'whirl', color: '#7cf0ff' },
+  ray: { name: '가오리', hp: 3, intro: 16, trait: '크게 물결치며 빨라요', weak: 'freeze', color: '#6f8fd8' },
+  crab: { name: '게', hp: 6, intro: 21, trait: '뛰어올라요, 번개가 안 들어요', weak: 'giant', color: '#ff6a4d', armored: true },
+  mine: { name: '기뢰', hp: 1, intro: 23, trait: '깜빡이다 펑 터져요', weak: 'whirl', color: '#ff5470' },
+  swordfish: { name: '청새치', hp: 2, intro: 32, trait: '긴 부리로 일직선 돌진', weak: 'bubble', color: '#5fa8ff' },
+  phantom: { name: '유령 해파리', hp: 3, intro: 42, trait: '사라졌다 나타나요', weak: 'lamp', color: '#c9b8ff' },
 };
 const ENEMY_KEYS = Object.keys(ENEMIES);
 
@@ -149,4 +149,9 @@ const UPS = [
   { k: 'boost', name: '질주 엔진', desc: '질주가 30% 빨리 차요', max: 5, cost: [20, 45, 90, 150, 240] },
   { k: 'shield', name: '거품 방패', desc: '판마다 한 번 막아 줘요', max: 3, cost: [40, 130, 280] },
   { k: 'magnet', name: '알 자석', desc: '가까운 알을 끌어와요', max: 3, cost: [25, 80, 180] },
+  { k: 'fire', name: '물방울 연사', desc: '물방울을 더 빨리 쏴요', max: 5, cost: [20, 50, 100, 170, 260] },
+  { k: 'power', name: '물방울 위력', desc: '물방울이 더 세져요', max: 5, cost: [30, 70, 130, 210, 320] },
 ];
+// Codex 로 만든 그림 (assets/sprites/*.webp) — 없으면 코드 그림으로
+const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
+  'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5'];

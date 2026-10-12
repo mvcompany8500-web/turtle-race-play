@@ -56,7 +56,7 @@ function onKey(c) {
     case 'shop':
       if (shop.hatch) { if (shop.hatch.t > 1.9 && (go || c === 'Escape')) shop.hatch = null; break; }
       if (c === 'Tab') { const t = ['up', 'skin', 'pet']; shop.tab = t[(t.indexOf(shop.tab) + 1) % 3]; sfx.click(); }
-      else if (shop.tab === 'up' && c >= 'Digit1' && c <= 'Digit4') buyUp(+c.slice(5) - 1);
+      else if (shop.tab === 'up' && c >= 'Digit1' && c <= 'Digit6') buyUp(+c.slice(5) - 1);
       else if (go) startLevel(shop.next);
       else if (c === 'Escape') enterMap();
       break;
@@ -82,7 +82,11 @@ cvs.addEventListener('pointerdown', (e) => {
 });
 cvs.addEventListener('pointermove', (e) => {
   const pt = toGame(e); mouse = pt;
-  if (drag && drag.id === e.pointerId) { drag.kx = pt.x; drag.ky = pt.y; }
+  if (drag && drag.id === e.pointerId) {
+    drag.kx = pt.x; drag.ky = pt.y;
+    const dx = pt.x - drag.bx, dy = pt.y - drag.by, d = Math.hypot(dx, dy), MAXR = 70;
+    if (d > MAXR) { drag.bx = pt.x - dx / d * MAXR; drag.by = pt.y - dy / d * MAXR; }
+  }
   if (state === 'map') mapMove(pt);
 });
 const endDrag = (e) => { press.down = false; if (drag && drag.id === e.pointerId) drag = null; if (state === 'map' && map.drag) mapUp(toGame(e)); };
@@ -156,6 +160,7 @@ function render() {
     if (shake > 0) ctx.translate(rand(-shake, shake) * 0.6, rand(-shake, shake) * 0.6);
     if (zoom > 1.001) { const zx = G.zoomAt ? G.zoomAt.x : G.p.x, zy = G.zoomAt ? G.zoomAt.y : G.p.y; ctx.translate(zx, zy); ctx.scale(zoom, zoom); ctx.translate(-zx, -zy); }
     drawBackground(G.n, G.dist);
+    drawScreenFxBehind();
     if (state !== 'ending') drawWorld();
     ctx.restore();
     drawBoostOverlay();

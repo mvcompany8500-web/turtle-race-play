@@ -34,6 +34,7 @@ function startLevel(n) {
     boost: n === ENDLESS ? 30 : Math.min(60, (n - 1) * 3), boosting: 0,
     shield: save.up.shield + (petIs('whale') ? (petLv() >= 4 ? 2 : 1) : 0),
     enemies: [], eggsArr: [], shots: [], warns: [], inks: [], boxes: [], sweeps: [], hazards: [], spCD: 4,
+    bullets: [], fireT: 0.5, breaks: [], brkT: 5, shotKills: 0, darkT: 0, grabT: 0,
     spawnT: 1.8, eggT: 0.9, boxT: 4, boss: null, bossDone: !cfg.boss, bossWarnT: null, goal: null,
     p: { x: -90, y: H / 2, vx: 0, vy: 0, tx: null, ty: null, r: 23, inv: 1.2, dead: false, rot: 0, trail: [],
          ph: 0, blinkT: 2, face: 'normal', faceT: 0, scared: false, wakeT: 0, flip: 0, scale: 1 },
@@ -133,6 +134,13 @@ function dexKill(type) {
 }
 
 // ───────── 적 ─────────
+function addEnemy(e) {
+  const base = (ENEMIES[e.type] || {}).hp || 2;
+  e.hp = e.maxHp = base * (e.elite ? 2 : 1) * (G.n > 30 ? 1.5 : 1);
+  e.hitT = 0;
+  G.enemies.push(e);
+  return e;
+}
 function spawnEnemy(type) {
   const p = G.p, y = rand(CEIL + 50, SEABED - 50);
   const elite = Math.random() < G.D.elite + (G.n !== ENDLESS && G.n > 20 ? 0.05 : 0);
@@ -156,7 +164,7 @@ function spawnEnemy(type) {
   if (!e) return;
   Object.assign(e, base);
   if (elite) { e.r *= 1.25; e.vx *= 1.2; }
-  G.enemies.push(e);
+  addEnemy(e);
 }
 function enemyHits(e, x, y, r) {
   const k = ES * 0.92; // 그림은 1.2배, 판정은 살짝 너그럽게
@@ -181,7 +189,8 @@ function weakHit(e, item) {
 function killEnemy(e, cause = 'boost') {
   if (e.dead) return;
   e.dead = true;
-  freeze = Math.max(freeze, 0.075); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035);
+  if (cause === 'shot') shake = Math.max(shake, e.elite ? 10 : 5);
+  else { freeze = Math.max(freeze, 0.06); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035); }
   const col = (ENEMIES[e.type] || {}).color || '#fff';
   burst(e.x, e.y, col, 34, 620); burst(e.x, e.y, '#ffffff', 12, 420);
   for (let i = 0; i < 7; i++) { const a = Math.random() * Math.PI * 2, sp = rand(200, 560); fx.push({ k: 'chunk', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, life: 0.7, max: 0.7, size: rand(6, 12), color: col, rot: rand(0, 6), vr: rand(-14, 14) }); }
@@ -244,7 +253,7 @@ function tryBoost() {
   if (!G || G.p.dead || G.boosting > 0 || G.won || G.enterT > 0) return;
   if (G.boost < 100) { if (G.boost < 99) sfx.no(); return; }
   G.boost = 0; G.boosting = boostDur();
-  freeze = 0.09; flash = 0.5; flashColor = '#b48bff'; shake = 14; timeScale = 0.35; zoomTo(1.08);
+  freeze = 0.05; flash = 0.35; flashColor = '#b48bff'; shake = 14; timeScale = 0.75; zoomTo(1.06);
   ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12); ring(G.p.x, G.p.y, '#5fd4ff', 150, 0.45, 6);
   startCutin('boost', '질주!!', '앞을 막는 건 다 들이받아!', 0.7);
   burstRays(G.p.x, G.p.y, '#b48bff', 1.2, 24); edgeFlash('#8b5cff', 0.9);
@@ -253,9 +262,10 @@ function tryBoost() {
 }
 
 // ───────── 몬스터 필살기: 갑자기 빨간 기운 → 이름 띠 → 화려한 한 방 ─────────
-const SPECIALS = {
-  jelly: '전기 폭풍', urchin: '가시 폭발', shark: '광폭 돌진', puffer: '독가시 폭탄', octopus: '먹물 폭풍', angler: '유혹의 빛',
-  whirlpool: '대소용돌이', ray: '전기 활공', crab: '집게 미사일', mine: '연쇄 폭발', phantom: '분신술',
+const SPECIALS = { // 몬스터마다 2~3가지, 쓸 때마다 무작위
+  jelly: ['전기 폭풍', '번개 사슬', '분열'], urchin: ['가시 폭발', '조준 가시', '굴러오기'], shark: ['광폭 돌진', '상어 떼', '물어뜯기'],
+  puffer: ['독가시 폭탄', '독 안개', '튕기기'], octopus: ['먹물 폭풍', '먹물 광선', '다리 붙잡기'], angler: ['유혹의 빛', '가짜 황금알 비', '어둠 파동'],
+  whirlpool: ['대소용돌이'], ray: ['전기 활공', '급강하'], crab: ['집게 미사일', '집게 3연발', '높이 뛰기'], mine: ['연쇄 폭발', '쫓아오는 기뢰'], phantom: ['분신술', '순간이동'],
 };
 function trySpecials(dt) {
   const p = G.p;
@@ -264,9 +274,12 @@ function trySpecials(dt) {
     if (e.sp || e.noSp || e.dead || e.stun > 0 || !SPECIALS[e.type] || e.x > W - 90 || e.x < p.x + 150) continue;
     const rate = (e.elite ? 0.9 : 0.22) * (G.n === ENDLESS ? 1.4 : 1 + Math.min(G.n, 50) / 40) * (G.D.elite > 0.2 ? 1.4 : 1);
     if (Math.random() < rate * dt) {
-      e.sp = { t: 0, wind: 0.75, done: false };
+      const v = (Math.random() * SPECIALS[e.type].length) | 0;
+      e.sp = { t: 0, wind: 0.75, done: false, v };
       G.spCD = rand(2.2, 4.2) * (G.n > 30 ? 0.75 : 1);
-      pop(e.x, e.y - 60, `필살! ${SPECIALS[e.type]}`, '#ff4d6a', 22, true);
+      pop(e.x, e.y - 64, `필살! ${SPECIALS[e.type][v]}`, '#ff4d6a', 22, true);
+      if (e.type === 'jelly' && v === 1) G.hazards.push({ k: 'beam', x1: e.x, y1: e.y, x2: p.x, y2: p.y, t: 0, warn: 0.75, src: e }); // 번개 사슬 조준선
+      if (e.type === 'octopus' && v === 1) G.hazards.push({ k: 'hbeam', y: e.y, t: 0, warn: 0.75, src: e });
       if (ac) { voice({ type: 'sawtooth', f: 120, f2: 520, d: 0.7, vol: 0.09, filter: { f: 800, f2: 3000 } }); nz({ d: 0.7, vol: 0.12, type: 'bandpass', f: 300, f2: 2500 }); }
       haptic(15);
       return;
@@ -274,35 +287,59 @@ function trySpecials(dt) {
   }
 }
 function runSpecial(e) {
-  const p = G.p, ang = Math.atan2(p.y - e.y, p.x - e.x);
-  shake = Math.max(shake, 12); burstRays(e.x, e.y, '#ff4d6a', 0.7, 14); ring(e.x, e.y, '#ff4d6a', 120, 0.4, 8);
-  switch (e.type) {
-    case 'jelly': // 퍼지는 전기 고리
-      G.hazards.push({ k: 'shock', x: e.x, y: e.y, r: 12, max: 170, spd: 300, t: 0 });
-      if (ac) { for (let i = 0; i < 5; i++) nz({ t: now(i * 0.04), d: 0.06, vol: 0.25, type: 'highpass', f: 3000, f2: 8000 }); boom(0.4); }
-      break;
-    case 'urchin': // 가시 사방으로
-      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; G.shots.push({ x: e.x, y: e.y, vx: Math.cos(a) * 340, vy: Math.sin(a) * 340, r: 9, t: 0, style: 'spike', rot: a }); }
-      if (ac) { nz({ d: 0.3, vol: 0.35, f: 4000 }); boom(0.4); }
-      break;
-    case 'shark': e.rage = 1.8; e.vx = -780; e.zigT = 0; if (ac) sfx.roar(); break; // 빨간 눈 지그재그 돌진
-    case 'puffer': // 크게 부풀었다가 펑! 독가시
-      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; G.shots.push({ x: e.x, y: e.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, r: 10, t: 0, style: 'poison' }); }
-      e.dead = true; burst(e.x, e.y, '#9dff6a', 40, 520); ring(e.x, e.y, '#9dff6a', 160, 0.5, 12); if (ac) sfx.mineBoom();
-      break;
-    case 'octopus': for (let i = 0; i < 5; i++) G.inks.push({ x: e.x - 40, y: e.y + (i - 2) * 60, r: 60, a: 0.95, t: 0, vx: -240 - i * 20 }); e.spin = 1; if (ac) sfx.ink(); break;
-    case 'angler': flash = 0.7; flashColor = '#fff4c0'; e.lunge = true; e.vx = -900; e.vy = clamp((p.y - e.y) * 2.5, -360, 360); if (ac) sfx.lunge(); break;
-    case 'whirlpool': e.big = 4; if (ac) voice({ f: 60, d: 1.5, vol: 0.25, vib: 6 }); break;
-    case 'ray': e.amp *= 1.6; e.vx = -560; e.spark = 1.6; if (ac) sfx.bolt(); break;
-    case 'crab': G.shots.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 560, vy: Math.sin(ang) * 560, r: 14, t: 0, style: 'claw' }); if (ac) sfx.shoot(); break;
-    case 'mine': e.armed = true; e.armT = 0; e.big = true; break;
-    case 'phantom': for (const dy of [-110, 110]) G.enemies.push({ type: 'phantom', x: e.x + 30, y: e.y + dy, baseY: clamp(e.y + dy, CEIL + 60, SEABED - 60), r: e.r, amp: 40, vx: e.vx, vis: 1, t: 0, ph: rand(0, 6), noSp: true }); if (ac) sfx.double(); break;
+  const p = G.p, ang = Math.atan2(p.y - e.y, p.x - e.x), v = e.sp ? e.sp.v : 0;
+  shake = Math.max(shake, 12); burstRays(e.x, e.y, '#ff4d6a', 0.6, 12); ring(e.x, e.y, '#ff4d6a', 120, 0.4, 8);
+  const key = `${e.type}:${v}`;
+  switch (key) {
+    case 'jelly:0': G.hazards.push({ k: 'shock', x: e.x, y: e.y, r: 12, max: 170, spd: 300, t: 0 }); if (ac) { for (let i = 0; i < 5; i++) nz({ t: now(i * 0.04), d: 0.06, vol: 0.25, type: 'highpass', f: 3000, f2: 8000 }); boom(0.4); } break;
+    case 'jelly:1': for (const h of G.hazards) if (h.src === e && h.k === 'beam') { h.on = true; h.t = 0; } if (ac) sfx.bolt(); break;
+    case 'jelly:2': for (const dy of [-70, 0, 70]) addEnemy({ type: 'jelly', x: e.x, y: e.y + dy, baseY: clamp(e.y + dy, CEIL + 50, SEABED - 50), r: 12, amp: 30, vx: -120, t: 0, ph: rand(0, 6), noSp: true }); e.dead = true; burst(e.x, e.y, '#ff8fd0', 24, 400); if (ac) sfx.bubble(); break;
+    case 'urchin:0': for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; G.shots.push({ x: e.x, y: e.y, vx: Math.cos(a) * 340, vy: Math.sin(a) * 340, r: 9, t: 0, style: 'spike' }); } if (ac) { nz({ d: 0.3, vol: 0.35, f: 4000 }); boom(0.4); } break;
+    case 'urchin:1': for (const da of [-0.18, 0, 0.18]) G.shots.push({ x: e.x, y: e.y, vx: Math.cos(ang + da) * 560, vy: Math.sin(ang + da) * 560, r: 10, t: 0, style: 'spike' }); if (ac) sfx.shoot(); break;
+    case 'urchin:2': e.roll = 3; e.vx = -520; e.top = false; if (ac) nz({ d: 0.8, vol: 0.3, f: 400, f2: 1600 }); break;
+    case 'shark:0': e.rage = 1.8; e.vx = -780; e.zigT = 0; if (ac) sfx.roar(); break;
+    case 'shark:1': for (let i = 0; i < 3; i++) G.warns.push({ kind: 'shark', y: clamp(p.y + (i - 1) * 110, CEIL + 40, SEABED - 40), t: 0.5 + i * 0.25, max: 0.75 }); if (ac) sfx.roar(); break;
+    case 'shark:2': e.vx = -620; e.lungeY = clamp(p.y, CEIL + 40, SEABED - 40); e.rage = 1; e.zigT = 99; e.zigY = e.lungeY; if (ac) sfx.lunge(); break;
+    case 'puffer:0': for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; G.shots.push({ x: e.x, y: e.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, r: 10, t: 0, style: 'poison' }); } e.dead = true; burst(e.x, e.y, '#9dff6a', 40, 520); ring(e.x, e.y, '#9dff6a', 160, 0.5, 12); if (ac) sfx.mineBoom(); break;
+    case 'puffer:1': G.hazards.push({ k: 'cloud', x: e.x - 60, y: e.y, r: 90, t: 0, dur: 3.2 }); if (ac) nz({ d: 1, vol: 0.25, f: 600, f2: 200 }); break;
+    case 'puffer:2': e.bounce = 3; e.vy2 = pick([-420, 420]); e.vx = -260; if (ac) sfx.bubble(); break;
+    case 'octopus:0': for (let i = 0; i < 5; i++) G.inks.push({ x: e.x - 40, y: e.y + (i - 2) * 60, r: 60, a: 0.95, t: 0, vx: -240 - i * 20 }); e.spin = 1; if (ac) sfx.ink(); break;
+    case 'octopus:1': for (const h of G.hazards) if (h.src === e && h.k === 'hbeam') { h.on = true; h.t = 0; } if (ac) { sfx.ink(); boom(0.4); } break;
+    case 'octopus:2': G.grabT = 1.8; G.hazards.push({ k: 'grab', src: e, t: 0, dur: 1.8 }); pop(p.x, p.y - 70, '붙잡혔다! 버둥버둥', '#ff9aa8', 22); if (ac) sfx.ink(); break;
+    case 'angler:0': flash = 0.7; flashColor = '#fff4c0'; e.lunge = true; e.vx = -900; e.vy = clamp((p.y - e.y) * 2.5, -360, 360); if (ac) sfx.lunge(); break;
+    case 'angler:1': for (let i = 0; i < 6; i++) G.shots.push({ x: e.x - 20, y: e.y - 40, vx: -rand(260, 420), vy: rand(-220, 220), r: 12, t: 0, fake: true }); if (ac) sfx.gold(); break;
+    case 'angler:2': G.darkT = 3.2; pop(W / 2, H / 2 - 120, '깜깜해졌어요!', '#ffffff', 30, true); if (ac) voice({ f: 80, f2: 40, d: 1.2, vol: 0.3 }); break;
+    case 'whirlpool:0': e.big = 4; if (ac) voice({ f: 60, d: 1.5, vol: 0.25, vib: 6 }); break;
+    case 'ray:0': e.amp *= 1.6; e.vx = -560; e.spark = 1.6; if (ac) sfx.bolt(); break;
+    case 'ray:1': e.dive = 1.2; e.vx = -700; e.baseY = clamp(p.y, CEIL + 60, SEABED - 60); e.amp = 10; if (ac) sfx.swoosh(); break;
+    case 'crab:0': G.shots.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 560, vy: Math.sin(ang) * 560, r: 14, t: 0, style: 'claw' }); if (ac) sfx.shoot(); break;
+    case 'crab:1': for (let i = 0; i < 3; i++) G.shots.push({ x: e.x, y: e.y, vx: Math.cos(ang + (i - 1) * 0.22) * 500, vy: Math.sin(ang + (i - 1) * 0.22) * 500, r: 13, t: 0, style: 'claw' }); if (ac) sfx.shoot(); break;
+    case 'crab:2': e.jumped = true; e.vy = e.top ? 820 : -860; e.vx = -320; if (ac) sfx.crab(); break;
+    case 'mine:0': e.armed = true; e.armT = 0; e.big = true; break;
+    case 'mine:1': e.homing = 3; e.armed = false; if (ac) sfx.beep(); break;
+    case 'phantom:0': for (const dy of [-110, 110]) addEnemy({ type: 'phantom', x: e.x + 30, y: e.y + dy, baseY: clamp(e.y + dy, CEIL + 60, SEABED - 60), r: e.r, amp: 40, vx: e.vx, vis: 1, t: 0, ph: rand(0, 6), noSp: true }); if (ac) sfx.double(); break;
+    case 'phantom:1': e.x = p.x + 190; e.baseY = clamp(p.y + rand(-40, 40), CEIL + 60, SEABED - 60); e.vis = 1; burst(e.x, e.y, '#c9b8ff', 24, 360); if (ac) sfx.double(); break;
   }
 }
 function updateHazards(dt) {
   const p = G.p;
+  if (G.darkT > 0) G.darkT -= dt;
+  if (G.grabT > 0) G.grabT -= dt;
+  const safe = () => G.boosting > 0 || G.eff.giant > 0 || G.eff.whirl > 0;
   for (const h of G.hazards) {
     h.t += dt;
+    if (h.k === 'beam') { // 해파리 번개 사슬: 조준선 → 번쩍
+      if (!h.on) { if (h.src && !h.src.dead) { h.x1 = h.src.x; h.y1 = h.src.y; } if (h.t > 1.2) h.done = true; continue; }
+      if (!h.hit && h.t < 0.25 && !p.dead) { const dx = h.x2 - h.x1, dy = h.y2 - h.y1, L = Math.hypot(dx, dy) || 1, u = clamp(((p.x - h.x1) * dx + (p.y - h.y1) * dy) / (L * L), 0, 1.6), cx = h.x1 + dx * u, cy = h.y1 + dy * u; if (Math.hypot(p.x - cx, p.y - cy) < 26 + p.r) { h.hit = true; if (!safe()) hitPlayer({ type: 'jelly' }); } }
+      if (h.t > 0.35) h.done = true; continue;
+    }
+    if (h.k === 'hbeam') { // 문어 먹물 광선: 한 줄 가로
+      if (!h.on) { if (h.src && !h.src.dead) h.y = h.src.y; if (h.t > 1.2) h.done = true; continue; }
+      if (!h.hit && h.t < 0.5 && !p.dead && Math.abs(p.y - h.y) < 30 + p.r && p.x < (h.src ? h.src.x : W)) { h.hit = true; if (!safe()) hitPlayer({ type: 'octopus' }); }
+      if (h.t > 0.6) h.done = true; continue;
+    }
+    if (h.k === 'cloud') { h.x -= G.cfg.speed * 0.5 * dt; if (!p.dead && !h.hit && h.t > 0.4 && Math.hypot(p.x - h.x, p.y - h.y) < h.r * 0.8) { h.hit = true; if (!safe()) hitPlayer({ type: 'puffer' }); } if (h.t > h.dur) h.done = true; continue; }
+    if (h.k === 'grab') { if (h.t > h.dur || !h.src || h.src.dead) { h.done = true; G.grabT = 0; } continue; }
     if (h.k === 'shock') {
       h.r = Math.min(h.max, h.r + h.spd * dt); h.x -= G.cfg.speed * 0.3 * dt;
       const d = Math.hypot(p.x - h.x, p.y - h.y);
@@ -411,7 +448,7 @@ function collectEgg(e) {
 }
 function startFever() {
   G.feverT = 6; G.fever = 0; G.feverEggT = 0;
-  reaction(3, '알 소나기!!'); burstRays(G.p.x, G.p.y, C.yellow, 1.4, 28);
+  reaction(3, '알 소나기!!');
   flash = 0.45; flashColor = '#ffe36b'; shake = 10; zoomTo(1.05);
   sfx.fever(); haptic([20, 30, 20, 30, 60]);
   musicFever = true;
@@ -433,7 +470,7 @@ const BOSS_DEF = {
 };
 function spawnBoss() {
   const d = BOSS_DEF[G.cfg.boss];
-  G.boss = { def: d, kind: d.kind, x: W + 260, y: H / 2, hp: d.hp, maxHp: d.hp, st: 'enter', t: 0, cd: 2.4, shoot: 1.4, hurt: 0, ihit: 0, stun: 0, dead: false, deadT: 0, cycle: 0, s: d.s };
+  G.boss = { def: d, kind: d.kind, x: W + 260, y: H / 2, hp: d.hp * 10, maxHp: d.hp * 10, st: 'enter', t: 0, cd: 2.4, shoot: 1.4, hurt: 0, ihit: 0, stun: 0, dead: false, deadT: 0, cycle: 0, s: d.s };
   startCutin('boss', d.name, G.n === LAST ? '최후의 결전!' : d.flee ? '공주님을 돌려줘!' : '질주로 들이받아야 아파해요!', 1.3);
   shake = 18; zoomTo(1.05);
   setMusic('boss');
@@ -535,9 +572,17 @@ function updateBoss(dt) {
     else if (!(b.kind === 'angler' && b.st === 'lurk')) hitPlayer({ type: 'boss' });
   }
 }
-function bossDamage() {
+function bossChip(dmg, x, y) { // 물방울로 조금씩
+  const b = G.boss; if (!b || b.dead) return;
+  b.hp -= dmg; b.hurt = Math.max(b.hurt, 0.07);
+  burst(x, y, '#ffffff', 4, 220);
+  if (Math.random() < 0.5) pop(x, y - 20, `-${dmg % 1 ? dmg.toFixed(1) : dmg}`, '#ffffff', 16);
+  if (ac && Math.random() < 0.5) voice({ type: 'square', f: 900 + rand(0, 200), f2: 400, d: 0.05, vol: 0.04 });
+  if (b.hp <= 0) { b.hp = 0; bossDamage(0); }
+}
+function bossDamage(amount = 10) {
   const b = G.boss, p = G.p;
-  b.hp--; b.ihit = 0.7; b.hurt = 0.3; b.st = 'knock'; b.t = 0; b.x += 70;
+  b.hp -= amount; b.ihit = 0.7; b.hurt = 0.3; if (b.hp > 0) { b.st = 'knock'; b.t = 0; b.x += 70; }
   p.x -= 90; p.vx = -320;
   freeze = 0.22; shake = 30; flash = 0.45; flashColor = '#ffffff'; zoomTo(1.12);
   burst(b.x - 50, b.y, '#ffe36b', 30, 560); burst(b.x - 50, b.y, '#ffffff', 14, 400);
@@ -545,6 +590,7 @@ function bossDamage() {
   pop(b.x - 40, b.y - 90, '크게 한 방!', C.yellow, 44, true);
   burstRays(b.x - 50, b.y, '#ffffff', 0.8, 18); edgeFlash('#ff5470', 0.5);
   sfx.bossHit(); haptic([60, 30, 100]);
+  if (amount) pop(b.x - 40, b.y - 50, `-${amount}`, '#ff4d6a', 34, true);
   if (b.hp <= 0) {
     b.dead = true; b.deadT = 2.2; timeScale = 0.12; freeze = 0.5; zoom = 1.3; G.zoomAt = { x: b.x - 40, y: b.y };
     flash = 0.9; flashColor = '#ffffff'; shake = 34;
@@ -699,11 +745,11 @@ function updatePlay(dt) {
     let ix = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
     let iy = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
     if (drag) {
-      const dx = drag.kx - drag.bx, dy = drag.ky - drag.by, d = Math.hypot(dx, dy), JR = 62;
-      const m = d < 6 ? 0 : Math.min(1, d / JR);
+      const dx = drag.kx - drag.bx, dy = drag.ky - drag.by, d = Math.hypot(dx, dy), JR = 52;
+      const m = d < 4 ? 0 : Math.min(1, d / JR);
       ix = d ? dx / d * m : 0; iy = d ? dy / d * m : 0;
-      const sp = 470 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1), a = Math.min(1, dt * 20);
-      p.vx += (ix * sp - p.vx) * a; p.vy += (iy * sp - p.vy) * a;
+      const sp = 640 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1);
+      p.vx = ix * sp; p.vy = iy * sp; // 서서히 가속하지 않고 바로
     } else {
       if (ix && iy) { ix *= 0.7071; iy *= 0.7071; }
       const sp = 440 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1), a = Math.min(1, dt * 16);
@@ -711,6 +757,7 @@ function updatePlay(dt) {
     }
     if (whirling) p.vx = lerp(p.vx, (E.whirl > 1 ? 640 - p.x : 220 - p.x) * 4, Math.min(1, dt * 6));
     const maxX = G.boosting > 0 || whirling ? 820 : 470;
+    if (G.grabT > 0 && G.boosting <= 0) { p.vx *= 0.4; p.vy *= 0.4; p.x -= 40 * dt; }
     p.x += p.vx * dt; p.y += p.vy * dt;
     p.x = Math.max(50 + SAFE, p.x);
     if (p.x > maxX) p.x = lerp(p.x, maxX, Math.min(1, dt * 6));
@@ -770,7 +817,7 @@ function updatePlay(dt) {
         : w.kind === 'sword' ? { type: 'swordfish', x: W + 60, y: w.y, r: 18, vx: -1050, t: 0, elite: w.elite }
           : { type: 'eel', x: W + 40, y: w.y, r: 12, vx: -950, len: 150, t: 0, elite: w.elite };
       if (e.elite) { e.r *= 1.2; e.vx *= 1.2; }
-      G.enemies.push(e);
+      addEnemy(e);
     }
   }
   G.warns = G.warns.filter((w) => !w.done);
@@ -779,6 +826,7 @@ function updatePlay(dt) {
   const fz = E.freeze > 0 ? 0.3 : 1;
   if (!p.dead && G.enterT <= 0) trySpecials(dt);
   updateHazards(dt);
+  updateShooting(dt, scroll);
   for (const e of G.enemies) {
     e.frozen = E.freeze > 0;
     if (e.x < W) dexSee(e.type);
@@ -791,6 +839,10 @@ function updatePlay(dt) {
     if (e.rage > 0) { e.rage -= dt; e.zigT -= dt; if (e.zigT <= 0) { e.zigT = 0.32; e.zigY = clamp(p.y + rand(-80, 80), CEIL + 40, SEABED - 40); } e.y = lerp(e.y, e.zigY, Math.min(1, dt * 7)); if (Math.random() < dt * 40) fx.push({ k: 'flame', x: e.x + 30, y: e.y + rand(-14, 14), vx: rand(80, 200), vy: rand(-30, 30), life: 0.35, max: 0.35, size: rand(5, 10), color: pick(['#ff4d6a', '#ff8a3c']) }); }
     if (e.spark > 0) { e.spark -= dt; if (Math.random() < dt * 30) fx.push({ k: 'spark', x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), life: 0.4, max: 0.4, size: 3, color: '#bfe8ff' }); }
     if (e.big > 0 && e.type === 'whirlpool') e.big -= dt;
+    if (e.roll > 0) { e.roll -= dt; e.spin = 0.2; e.y = lerp(e.y, SEABED - 18, dt * 4); }
+    if (e.bounce > 0) { e.bounce -= dt; e.y += e.vy2 * dt; if (e.y < CEIL + 30 || e.y > SEABED - 30) { e.vy2 *= -1; if (ac) voice({ f: 300, f2: 700, d: 0.08, vol: 0.06 }); } }
+    if (e.dive > 0) { e.dive -= dt; if (Math.random() < dt * 30) fx.push({ k: 'spark', x: e.x + 20, y: e.y, vx: rand(60, 160), vy: rand(-40, 40), life: 0.3, max: 0.3, size: 3, color: '#bfe8ff' }); }
+    if (e.homing > 0) { e.homing -= dt; e.y = lerp(e.y, p.y, dt * 1.5); e.baseY = e.y; e.x -= 60 * dt; if (e.homing <= 0) { e.armed = true; e.armT = 0.2; e.big = true; } }
     if (e.spin > 0) e.spin -= dt;
     const edt = dt * fz;
     e.t += edt;
@@ -870,7 +922,7 @@ function updatePlay(dt) {
       if (p.inv <= 0) {
         G.near++; track('near');
         if (e.wasClose) {
-          G.perfect++; G.boost = Math.min(100, G.boost + 14); timeScale = 0.35; zoomTo(1.04);
+          G.perfect++; G.boost = Math.min(100, G.boost + 14); timeScale = 0.7; zoomTo(1.03);
           pop(p.x, p.y - 52, '완벽 회피!', C.yellow, 34); sfx.perfect(); haptic(20); edgeFlash('#ffffff', 0.4);
         } else {
           G.boost = Math.min(100, G.boost + 7);
@@ -983,19 +1035,39 @@ function drawGoal(gx) {
 }
 function drawEgg(e) {
   const bob = Math.sin(e.t * 4) * 3, h = e.gold && !e.bonus ? 34 : 28;
-  if (e.gold) {
+  if (e.gold && !e.bonus) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(e.x, e.y + bob, 2, e.x, e.y + bob, 30);
     g.addColorStop(0, 'rgba(255,220,90,.7)'); g.addColorStop(1, 'rgba(255,220,90,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y + bob, 30, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
-  const im = e.gold || G.eff.double > 0 ? silhouette('egg', '#ffc93a') : IMG.egg;
+  const im = e.gold && !e.bonus ? silhouette('egg', '#ffc93a') : IMG.egg;
+  if (e.bonus) { ctx.strokeStyle = `hsl(${(T * 200 + e.x) % 360},90%,70%)`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(e.x, e.y + bob, 13, 16, 0, 0, Math.PI * 2); ctx.stroke(); }
   if (!drawImg(im, e.x, e.y + bob, h, Math.sin(e.t * 3) * 0.15)) {
     ctx.fillStyle = e.gold ? '#ffc93a' : '#f6f1e2'; ctx.beginPath(); ctx.ellipse(e.x, e.y + bob, 10, 13, 0, 0, Math.PI * 2); ctx.fill();
   }
-  if (e.gold) { ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.6 + 0.4 * Math.sin(T * 10); ctx.beginPath(); ctx.arc(e.x - 5, e.y + bob - 7, 2.5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+  if (e.gold && !e.bonus) { ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.6 + 0.4 * Math.sin(T * 10); ctx.beginPath(); ctx.arc(e.x - 5, e.y + bob - 7, 2.5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
 }
+const BOSS_SPR = { shark: 'boss_shark', shark2: 'boss_shark', shark3: 'boss_shark', king1: 'boss_king', king: 'boss_king', octopus: 'boss_octopus', octopus2: 'boss_octopus', octopus3: 'boss_pirate', angler: 'boss_angler', angler2: 'boss_angler' };
+const BOSS_H = { boss_shark: 230, boss_king: 270, boss_octopus: 300, boss_pirate: 300, boss_angler: 280 };
 function drawBoss(b, px, py) {
+  const key = 'spr_' + BOSS_SPR[G.cfg.boss], im = IMG[key];
+  if (ready(im)) {
+    ctx.save(); ctx.globalAlpha = b.dead ? Math.max(0, b.deadT / 2.2) : 1;
+    if (b.st === 'windup') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.5 + 0.5 * Math.sin(T * 40); ctx.fillStyle = 'rgba(255,40,70,.22)'; ctx.fillRect(0, b.y - 60, W, 120); ctx.restore(); }
+    const h = BOSS_H[BOSS_SPR[G.cfg.boss]] * (b.kind === 'octopus' ? 1 : 1), att = b.st === 'charge' || b.st === 'lunge' || b.st === 'bite';
+    const bob = Math.sin(b.t * 2.4) * 8, tilt = att ? -0.12 : Math.sin(b.t * 1.6) * 0.06, sq = 1 + Math.sin(b.t * (att ? 18 : 4)) * (att ? 0.05 : 0.025);
+    const jx = b.st === 'windup' ? rand(-5, 5) : 0;
+    ctx.save(); ctx.translate(b.x + jx, b.y + bob); ctx.rotate(tilt); ctx.scale(1 / sq, sq);
+    drawImg(im, 0, 0, h);
+    if (b.hurt > 0) drawImg(silhouette(key, '#ffffff'), 0, 0, h, 0, Math.min(1, b.hurt / 0.1) * 0.8);
+    else if (b.rage) drawImg(silhouette(key, '#ff3355'), 0, 0, h, 0, 0.18 + 0.12 * Math.sin(T * 10));
+    if (G.eff.freeze > 0) drawImg(silhouette(key, '#bfefff'), 0, 0, h, 0, 0.4);
+    ctx.restore();
+    if (b.stun > 0) for (let i = 0; i < 3; i++) { const a = T * 7 + i * 2.1; text('★', b.x + Math.cos(a) * 60, b.y - h * 0.45 + Math.sin(a) * 12, 22, C.yellow, { lw: 3 }); }
+    ctx.restore();
+    return;
+  }
   ctx.save(); ctx.globalAlpha = b.dead ? Math.max(0, b.deadT / 1.7) : 1;
   if (b.kind === 'shark') {
     const d = b.def, open = b.st === 'windup' || b.st === 'charge' ? 1 : 0.15 + 0.15 * Math.sin(b.t * 3);
@@ -1013,9 +1085,11 @@ function drawBoss(b, px, py) {
 function drawWorld() {
   const p = G.p, E = G.eff;
   if (G.goal) drawGoal(G.goal.x);
+  drawShooting();
   for (const b of G.boxes) drawItemBox(b);
   for (const e of G.eggsArr) drawEgg(e);
   for (const e of G.enemies) {
+    if (e.hitT > 0) e.hitT -= 1 / 60;
     const winding = e.sp && !e.sp.done, k = winding ? e.sp.t / e.sp.wind : 0;
     if (winding || e.rage > 0 || (e.big > 0 && e.type === 'whirlpool')) { // 필살기 기운
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1033,6 +1107,23 @@ function drawWorld() {
     drawEnemy(e, p.x, p.y);
     ctx.restore();
     if (e.rage > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,40,60,.9)'; ctx.beginPath(); ctx.arc(e.x - 30, e.y - 8, 6 + Math.sin(T * 30) * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  }
+  for (const h of G.hazards) {
+    if (h.k === 'beam') {
+      if (!h.on) { ctx.strokeStyle = `rgba(255,77,106,${0.4 + 0.4 * Math.sin(T * 40)})`; ctx.lineWidth = 3; ctx.setLineDash([12, 8]); ctx.beginPath(); ctx.moveTo(h.x1, h.y1); ctx.lineTo(h.x1 + (h.x2 - h.x1) * 1.6, h.y1 + (h.y2 - h.y1) * 1.6); ctx.stroke(); ctx.setLineDash([]); }
+      else { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#bfe8ff'; ctx.lineWidth = 10 * (1 - h.t / 0.35) + 2; ctx.shadowColor = '#7cf0ff'; ctx.shadowBlur = 20; ctx.beginPath(); ctx.moveTo(h.x1, h.y1); for (let i = 1; i <= 8; i++) ctx.lineTo(lerp(h.x1, h.x1 + (h.x2 - h.x1) * 1.6, i / 8) + rand(-14, 14), lerp(h.y1, h.y1 + (h.y2 - h.y1) * 1.6, i / 8) + rand(-14, 14)); ctx.stroke(); ctx.restore(); }
+    } else if (h.k === 'hbeam') {
+      const x0 = h.src ? h.src.x : W;
+      if (!h.on) { ctx.fillStyle = `rgba(80,20,90,${0.2 + 0.15 * Math.sin(T * 30)})`; ctx.fillRect(0, h.y - 30, x0, 60); }
+      else { const a = 1 - h.t / 0.6; ctx.fillStyle = `rgba(30,8,40,${0.85 * a})`; ctx.fillRect(0, h.y - 34, x0, 68); ctx.fillStyle = `rgba(180,120,255,${0.5 * a})`; ctx.fillRect(0, h.y - 6, x0, 12); }
+    } else if (h.k === 'cloud') {
+      const a = Math.min(1, h.t / 0.4) * (h.t > h.dur - 0.5 ? (h.dur - h.t) / 0.5 : 1);
+      ctx.save(); ctx.globalAlpha = a * 0.75; for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#7bd44a' : '#a8f06a'; ctx.beginPath(); ctx.arc(h.x + Math.cos(i * 1.1 + h.t) * h.r * 0.45, h.y + Math.sin(i * 1.7 + h.t) * h.r * 0.35, h.r * 0.5, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+    } else if (h.k === 'grab' && h.src && !h.src.dead) {
+      ctx.strokeStyle = '#d0457f'; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(h.src.x - 20, h.src.y + 10);
+      ctx.quadraticCurveTo((h.src.x + p.x) / 2, Math.max(h.src.y, p.y) + 60 + Math.sin(T * 10) * 10, p.x + 10, p.y); ctx.stroke();
+      ctx.strokeStyle = '#ffb3d1'; ctx.lineWidth = 4; ctx.stroke();
+    }
   }
   // 전기 고리
   for (const h of G.hazards) if (h.k === 'shock') {
@@ -1123,7 +1214,7 @@ function drawWorld() {
   }
   ctx.globalAlpha = 1;
   // 깜깜한 바다: 내 주변만 보임 (등불·질주면 넓게)
-  if (G.cfg.dark) {
+  if (G.cfg.dark || G.darkT > 0) {
     const r = E.lamp > 0 ? 560 : G.boosting > 0 ? 420 : G.feverT > 0 ? 320 : 230;
     const g = ctx.createRadialGradient(p.x, p.y, r * 0.3, p.x, p.y, r);
     g.addColorStop(0, 'rgba(0,3,10,0)'); g.addColorStop(1, E.lamp > 0 ? 'rgba(0,3,10,.55)' : 'rgba(0,3,10,.93)');
@@ -1284,15 +1375,15 @@ function drawHUD() {
 function drawBoostOverlay() {
   if (!G) return;
   if (G.feverT > 0 || G.eff.double > 0) {
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.1 + 0.05 * Math.sin(T * 8);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.05 + 0.03 * Math.sin(T * 8);
     const rg = ctx.createLinearGradient(0, 0, W, H);
     ['#ff5470', '#ffd34d', '#7dffb0', '#5fd4ff', '#b48bff'].forEach((c, i) => rg.addColorStop(((i / 4) + T * 0.5) % 1, c));
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H); ctx.restore();
   }
-  if (G.eff.freeze > 0) { ctx.fillStyle = `rgba(190,240,255,${0.12 + 0.04 * Math.sin(T * 6)})`; ctx.fillRect(0, 0, W, H); }
+  if (G.eff.freeze > 0) { ctx.fillStyle = `rgba(190,240,255,${0.06 + 0.03 * Math.sin(T * 6)})`; ctx.fillRect(0, 0, W, H); }
   if (G.boosting <= 0) return;
   const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.65);
-  v.addColorStop(0, 'rgba(40,0,90,0)'); v.addColorStop(1, `rgba(60,10,140,${0.45 + 0.1 * Math.sin(T * 12)})`);
+  v.addColorStop(0, 'rgba(40,0,90,0)'); v.addColorStop(1, `rgba(60,10,140,${0.26 + 0.06 * Math.sin(T * 12)})`);
   ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 2;
   for (let i = 0; i < 16; i++) { const y = rand(0, H), x = rand(0, W), l = rand(60, 200); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - l, y); ctx.stroke(); }
@@ -1345,7 +1436,7 @@ function reaction(tier, word) {
   edgeFlash(c, 0.7); shake = Math.max(shake, 10 + tier * 5); zoomTo(1.03 + tier * 0.012);
   if (ac) { chime(['C6', 'E6', 'G6', 'C7', 'E7'].slice(0, 2 + tier), 0.05, 0.11); boom(0.4 + tier * 0.12); }
   haptic([20 + tier * 10, 20, 30 + tier * 15]);
-  burstRays(W / 2, H / 2 - 40, c, 1, 16 + tier * 4);
+  burstRays(W / 2, 128, c, 0.9, 14 + tier * 3);
 }
 function fireworks(n = 5, x0 = 120, x1 = W - 120, yTop = 80) {
   for (let i = 0; i < n; i++) scr.works.push({ x: rand(x0, x1), y: H + 20 + i * 60, vy: -rand(620, 820), ty: rand(yTop, yTop + 160), color: pick(['#ffd54a', '#ff4d8a', '#7cf0ff', '#7dffb0', '#b48bff', '#ff8a3c']), t: 0 });
@@ -1369,47 +1460,48 @@ function updateScreenFx(dt) {
   for (const s of scr.sparks) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; if (s.g) { s.vy += 160 * dt; s.vx *= 1 - dt * 1.2; } }
   scr.sparks = scr.sparks.filter((s) => s.life > 0);
 }
-// 세상 위·글자 아래
-function drawScreenFxBack() {
+// 캐릭터 뒤: 빛줄기·오로라 (배경 위, 캐릭터 아래라 캐릭터가 또렷)
+function drawScreenFxBehind() {
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const r of scr.rays) {
-    const k = r.t / r.dur, a = (1 - k) * 0.55, rad = 1500;
+    const k = r.t / r.dur, a = (1 - k) * 0.26, rad = 900;
     ctx.fillStyle = r.color; ctx.globalAlpha = a;
     for (let i = 0; i < r.n; i++) {
       const ang = r.rot + i * Math.PI * 2 / r.n + r.t * 0.9, w = 0.05 + 0.03 * Math.sin(i * 7);
       ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x + Math.cos(ang - w) * rad, r.y + Math.sin(ang - w) * rad); ctx.lineTo(r.x + Math.cos(ang + w) * rad, r.y + Math.sin(ang + w) * rad); ctx.fill();
     }
     const g = ctx.createRadialGradient(r.x, r.y, 4, r.x, r.y, 220 * (0.5 + k)); g.addColorStop(0, r.color); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = a * 0.9; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(r.x, r.y, 220 * (0.5 + k), 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = a * 0.7; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(r.x, r.y, 160 * (0.5 + k), 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
+  if (G && state === 'play' && G.feverT > 0 && !REDUCE) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let b = 0; b < 3; b++) {
+      const g = ctx.createLinearGradient(0, 0, W, 0);
+      ['#ff4d8a', '#ffd54a', '#7dffb0', '#7cf0ff', '#b48bff'].forEach((c, i) => g.addColorStop(((i / 4) + T * 0.3 + b * 0.2) % 1, c));
+      ctx.globalAlpha = 0.1; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+      for (let x = 0; x <= W; x += 24) ctx.lineTo(x, 60 + b * 40 + Math.sin(x / 120 + T * 2 + b) * 30);
+      ctx.lineTo(W, 0); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+// 캐릭터 앞: 집중선은 가장자리만, 테두리 빛은 연하게
+function drawScreenFxBack() {
   if (G && state === 'play') {
     const p = G.p;
-    // 질주: 만화 집중선
     if (G.boosting > 0 && !REDUCE) {
-      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.5)';
-      for (let i = 0; i < 46; i++) {
-        const a = rand(0, Math.PI * 2), r0 = rand(260, 430), r1 = 1100;
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.3)';
+      for (let i = 0; i < 40; i++) {
+        const a = rand(0, Math.PI * 2), r0 = rand(420, 560), r1 = 1100;
         ctx.lineWidth = rand(1, 4.5); ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * r0, p.y + Math.sin(a) * r0); ctx.lineTo(p.x + Math.cos(a) * r1, p.y + Math.sin(a) * r1); ctx.stroke();
       }
       ctx.restore();
     }
-    // 알 소나기: 오로라 물결 + 금빛 테두리
-    if (G.feverT > 0 && !REDUCE) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      for (let b = 0; b < 3; b++) {
-        const g = ctx.createLinearGradient(0, 0, W, 0);
-        ['#ff4d8a', '#ffd54a', '#7dffb0', '#7cf0ff', '#b48bff'].forEach((c, i) => g.addColorStop(((i / 4) + T * 0.3 + b * 0.2) % 1, c));
-        ctx.globalAlpha = 0.16; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
-        for (let x = 0; x <= W; x += 24) ctx.lineTo(x, 60 + b * 40 + Math.sin(x / 120 + T * 2 + b) * 30);
-        ctx.lineTo(W, 0); ctx.fill();
-      }
-      ctx.restore();
-      edgeGlow(C.yellow, 0.35 + 0.15 * Math.sin(T * 8));
-    }
-    if (G.boosting > 0) edgeGlow('#8b5cff', 0.4 + 0.1 * Math.sin(T * 12));
+    if (G.feverT > 0 && !REDUCE) edgeGlow('#ff9ad5', 0.12 + 0.04 * Math.sin(T * 8));
+    if (G.boosting > 0) edgeGlow('#8b5cff', 0.25 + 0.06 * Math.sin(T * 12));
   }
-  if (scr.edge) edgeGlow(scr.edge.color, 0.75 * (1 - scr.edge.t / scr.edge.dur));
+  if (scr.edge) edgeGlow(scr.edge.color, 0.45 * (1 - scr.edge.t / scr.edge.dur));
 }
 function edgeGlow(color, a) {
   if (a <= 0) return;
@@ -1427,8 +1519,8 @@ function drawScreenFxTop() {
   for (const r of scr.reacts) {
     const k = r.t / r.dur;
     const s = k < 0.12 ? 0.3 + (k / 0.12) * 1.05 : k < 0.24 ? 1.35 - ((k - 0.12) / 0.12) * 0.35 : 1 + Math.sin(k * 30) * 0.015;
-    const a = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1, size = 70 + r.tier * 10;
-    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2 + (r.tier >= 3 ? rand(-3, 3) : 0), H / 2 - 50); ctx.rotate(r.rot); ctx.scale(s, s);
+    const a = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1, size = 56 + r.tier * 7;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2 + (r.tier >= 3 ? rand(-3, 3) : 0), 128); ctx.rotate(r.rot); ctx.scale(s, s);
     ctx.font = `900 ${fs(size)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(16,16,18,.85)'; ctx.strokeText(r.s, 0, 6);
     ctx.lineWidth = 7; ctx.strokeStyle = '#ffffff'; ctx.strokeText(r.s, 0, 0);
@@ -1436,4 +1528,110 @@ function drawScreenFxTop() {
     ctx.fillStyle = g; ctx.fillText(r.s, 0, 0);
     ctx.restore();
   }
+}
+
+// ───────── 물방울 쏘기 · 체력 · 부술 것 (피하기만 하지 않고 깨부수는 맛) ─────────
+const fireGap = () => 0.34 * (1 - save.up.fire * 0.12);
+const shotDmg = () => 1 + save.up.power * 0.5;
+function fireBullets(dt) {
+  const p = G.p;
+  if (p.dead || G.won || G.enterT > 0 || G.boosting > 0 || G.eff.whirl > 0) return;
+  G.fireT -= dt;
+  if (G.fireT > 0) return;
+  G.fireT = fireGap();
+  const mx = p.x + 44 * p.scale, my = p.y - 4, big = G.eff.giant > 0;
+  const spread = G.feverT > 0 ? [-0.16, 0, 0.16] : [0];
+  for (const a of spread) G.bullets.push({ x: mx, y: my, vx: Math.cos(a) * 920, vy: Math.sin(a) * 920, r: big ? 14 : 8, dmg: shotDmg() * (big ? 2 : 1), t: 0 });
+  fx.push({ k: 'ring', x: mx, y: my, r: 4, maxR: 18, life: 0.15, max: 0.15, color: '#bff3ff', lw: 3 });
+  if (ac) voice({ f: 520 + rand(0, 80), f2: 1100, d: 0.05, vol: 0.035 });
+}
+function damageEnemy(e, dmg, bx, by) {
+  if (e.dead) return;
+  if (ENEMIES[e.type] && ENEMIES[e.type].armored) dmg *= 0.5;
+  e.hp -= dmg; e.hitT = 0.12; e.x += 8;
+  burst(bx, by, '#ffffff', 5, 260);
+  pop(bx, by - 16, `-${dmg % 1 ? dmg.toFixed(1) : dmg}`, '#ffffff', 16);
+  if (ac) voice({ type: 'square', f: 700 + rand(0, 300), f2: 300, d: 0.05, vol: 0.045 });
+  if (e.hp <= 0) {
+    killEnemy(e, 'shot');
+    G.shotKills++;
+    const M = { 10: [0, '10마리 격추!'], 25: [1, '25마리 격추!'], 50: [2, '50마리 격추!!'], 80: [3, '80마리 격추!!'], 120: [4, '120마리!!!'] };
+    if (M[G.shotKills]) reaction(M[G.shotKills][0], M[G.shotKills][1]);
+  }
+}
+const BREAK = { rock: { hp: 8, r: 36, col: '#c98a6a', eggs: 4 }, ice: { hp: 6, r: 34, col: '#bfe8ff', eggs: 4 }, chest: { hp: 4, r: 32, col: '#c8935a', eggs: 10 } };
+function spawnBreakable() {
+  const world = G.n === ENDLESS ? 1 : worldOf(G.n).id;
+  const k = Math.random() < 0.28 ? 'chest' : world === 3 && Math.random() < 0.6 ? 'ice' : 'rock';
+  const d = BREAK[k];
+  G.breaks.push({ k, x: W + 60, y: rand(CEIL + 80, SEABED - 70), r: d.r, hp: d.hp, maxHp: d.hp, t: 0, hitT: 0, wob: rand(0, 6) });
+}
+function smashBreak(o, byRam) {
+  o.dead = true;
+  const d = BREAK[o.k];
+  freeze = Math.max(freeze, byRam ? 0.06 : 0.02); shake = Math.max(shake, 14); zoomTo(1.03);
+  for (let i = 0; i < 14; i++) { const a = Math.random() * Math.PI * 2, sp = rand(200, 620); fx.push({ k: 'chunk', x: o.x, y: o.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160, life: 0.9, max: 0.9, size: rand(8, 18), color: i % 3 ? d.col : '#ffffff', rot: rand(0, 6), vr: rand(-16, 16) }); }
+  burst(o.x, o.y, d.col, 30, 520); ring(o.x, o.y, '#ffffff', 140, 0.4, 12);
+  pop(o.x, o.y - 50, o.k === 'chest' ? '보물이다!' : pick(['와장창!', '콰직!', '깨부숴!']), o.k === 'chest' ? C.yellow : '#ffffff', 36, true);
+  for (let i = 0; i < d.eggs; i++) G.eggsArr.push({ x: o.x, y: o.y, vx: rand(-260, 260), vy: rand(-300, 200), loose: true, gold: o.k === 'chest' && i < 2, t: 0 });
+  if (o.k === 'chest' && Math.random() < 0.4) G.boxes.push({ x: o.x + 30, y: o.y, t: 0 });
+  if (ac) { nz({ d: 0.45, vol: 0.5, f: o.k === 'ice' ? 6000 : 2200, f2: 120 }); boom(0.6); if (o.k === 'ice') sfx.freeze(); if (o.k === 'chest') sfx.gold(); }
+  haptic([30, 20, 50]);
+  if (byRam) chainKill(o);
+}
+function updateShooting(dt, scroll) {
+  const p = G.p;
+  fireBullets(dt);
+  for (const b of G.bullets) {
+    b.t += dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    for (const e of G.enemies) {
+      if (e.dead || e.type === 'whirlpool' || (e.type === 'phantom' && e.vis < 0.5)) continue;
+      if (enemyHits(e, b.x, b.y, b.r)) { b.dead = true; damageEnemy(e, b.dmg, b.x, b.y); break; }
+    }
+    if (b.dead) continue;
+    for (const o of G.breaks) if (!o.dead && circ(o.x, o.y, o.r, b.x, b.y, b.r)) {
+      b.dead = true; o.hp -= b.dmg; o.hitT = 0.1; o.x += 4; burst(b.x, b.y, BREAK[o.k].col, 5, 240);
+      if (ac) nz({ d: 0.06, vol: 0.12, f: 3000, f2: 800 });
+      if (o.hp <= 0) smashBreak(o, false);
+      break;
+    }
+    if (b.dead) continue;
+    if (G.boss && !G.boss.dead && !(G.boss.kind === 'angler' && G.boss.st === 'lurk') && bossHitTest(G.boss, b.x, b.y, b.r)) { b.dead = true; bossChip(b.dmg, b.x, b.y); }
+  }
+  G.bullets = G.bullets.filter((b) => !b.dead && b.x < W + 40 && b.y > -20 && b.y < H + 20);
+  // 부술 것
+  G.brkT -= dt;
+  if (G.brkT <= 0 && !p.dead && !G.goal && !(G.boss && !G.boss.dead)) { G.brkT = rand(4.5, 7.5); spawnBreakable(); }
+  for (const o of G.breaks) {
+    o.t += dt; o.x -= scroll * dt; o.hitT -= dt;
+    if (o.dead || p.dead) continue;
+    if (circ(o.x, o.y, o.r, p.x, p.y, p.r * p.scale)) {
+      if (G.boosting > 0 || G.eff.giant > 0 || G.eff.whirl > 0) smashBreak(o, true);
+      else if (o.k === 'chest') { o.x += 30; p.vx = -260; }
+      else hitPlayer({ type: 'rock' });
+    }
+  }
+  G.breaks = G.breaks.filter((o) => !o.dead && o.x > -80);
+}
+function drawShooting() {
+  for (const o of G.breaks) {
+    const im = IMG['spr_' + o.k], wob = Math.sin(o.t * 2 + o.wob) * 0.06, sz = o.r * 2.6;
+    ctx.save(); ctx.translate(o.x + (o.hitT > 0 ? rand(-3, 3) : 0), o.y); ctx.rotate(wob);
+    if (!drawImg(im, 0, 0, sz)) { ctx.fillStyle = BREAK[o.k].col; rr(-o.r, -o.r, o.r * 2, o.r * 2, 10); ctx.fill(); }
+    if (o.hitT > 0) drawImg(silhouette('spr_' + o.k, '#ffffff'), 0, 0, sz, 0, 0.6);
+    // 금 간 정도
+    const dmg = 1 - o.hp / o.maxHp;
+    if (dmg > 0.2) { ctx.strokeStyle = 'rgba(30,20,10,.75)'; ctx.lineWidth = 3; ctx.beginPath(); for (let i = 0; i < Math.ceil(dmg * 5); i++) { const a = i * 1.7 + o.wob; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * o.r * 0.6, Math.sin(a) * o.r * 0.6); ctx.lineTo(Math.cos(a + 0.4) * o.r * 0.95, Math.sin(a + 0.4) * o.r * 0.95); } ctx.stroke(); }
+    ctx.restore();
+    if (o.hp < o.maxHp) { ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(o.x - 26, o.y - o.r - 18, 52, 7, 3); ctx.fill(); ctx.fillStyle = C.yellow; rr(o.x - 26, o.y - o.r - 18, 52 * Math.max(0, o.hp / o.maxHp), 7, 3); ctx.fill(); }
+  }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const b of G.bullets) {
+    const g = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, b.r * 2.2); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(0.4, 'rgba(140,220,255,.7)'); g.addColorStop(1, 'rgba(80,170,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  for (const b of G.bullets) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.8, 0, Math.PI * 2); ctx.stroke(); }
+  // 맞은 몬스터 체력 막대
+  for (const e of G.enemies) if (!e.dead && e.hp < e.maxHp && e.maxHp < 900) { const w = 44; ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(e.x - w / 2, e.y - e.r * ES - 22, w, 6, 3); ctx.fill(); ctx.fillStyle = C.danger; rr(e.x - w / 2, e.y - e.r * ES - 22, w * Math.max(0, e.hp / e.maxHp), 6, 3); ctx.fill(); }
 }

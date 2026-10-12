@@ -20,6 +20,15 @@ function drawBackground(n, d) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.top); g.addColorStop(1, th.bot);
   ctx.fillStyle = g; ctx.fillRect(-30, -30, W + 60, H + 60);
+  const bgi = IMG['spr_bg' + th.world];
+  if (ready(bgi)) {
+    const bh = H + 40, bw = bh * bgi.naturalWidth / bgi.naturalHeight, off = (d * 0.22) % (bw * 2);
+    for (let x = -off, i = 0; x < W + bw; x += bw, i++) {
+      ctx.save(); ctx.translate(x + bw / 2, H / 2); if (i % 2) ctx.scale(-1, 1); ctx.drawImage(bgi, -bw / 2, -bh / 2, bw, bh); ctx.restore();
+    }
+    const depth = n === ENDLESS ? 0.2 : ((n - 1) % 10) / 9;
+    ctx.fillStyle = `rgba(4,10,30,${0.08 + depth * 0.32})`; ctx.fillRect(-30, -30, W + 60, H + 60); // 같은 세계 안에서 깊어질수록 어둡게
+  }
   // 빛줄기
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < 6; i++) {
@@ -38,8 +47,8 @@ function drawBackground(n, d) {
     for (let x = -20; x <= W + 20; x += 12) ctx.lineTo(x, base - vnoise((x + d * factor) / scale) * amp - vnoise((x + d * factor) / (scale * 0.37)) * amp * 0.3);
     ctx.lineTo(W + 20, H); ctx.fill(); ctx.globalAlpha = 1;
   };
-  ridge(0.12, SEABED - 40, 170, 190, th.rock, 0.5);
-  ridge(0.3, SEABED - 6, 90, 120, th.rock2, 0.75);
+  if (!ready(bgi)) ridge(0.12, SEABED - 40, 170, 190, th.rock, 0.5);
+  ridge(0.3, SEABED - 6, 90, 120, th.rock2, ready(bgi) ? 0.35 : 0.75);
   // 장식: 난파선(3·17), 열수구(24·26·얼음불꽃 후반), 얼음 기둥(얼음불꽃 초반)
   if (n === 3 || n === 17) {
     const tile = 1500, off = d * 0.22, i0 = Math.floor(off / tile);
@@ -293,7 +302,34 @@ function drawShark(x, y, s, c1, c2, angry, hurt, crown, tail = 0, mouth = 0) {
   }
   ctx.restore();
 }
+// Codex 그림 몬스터: 키(몸 반지름의 몇 배), 움직임(둥실·기울기·찌그러짐), 맞으면 하얗게, 얼면 파랗게, 필살기면 빨갛게
+const SPR_H = { jelly: 3.4, urchin: 3.3, shark: 3.4, puffer: 3.1, eel: 4.4, octopus: 3.5, angler: 3.4, ray: 3.9, crab: 3.4, mine: 3.4, swordfish: 4.2, phantom: 3.4 };
+function drawSpriteEnemy(e) {
+  const key = 'spr_' + e.type, im = IMG[key];
+  if (!SPR_H[e.type] || !ready(im)) return false;
+  let h = e.r * SPR_H[e.type];
+  if (e.type === 'eel') h = (e.len + 50) * im.naturalHeight / im.naturalWidth;
+  const bob = Math.sin(e.t * 3 + (e.ph || 0)) * 3, tilt = Math.sin(e.t * 2.2 + (e.ph || 0)) * 0.07, sq = 1 + Math.sin(e.t * 6 + (e.ph || 0)) * 0.035;
+  const cx = e.type === 'eel' ? e.x + e.len / 2 : e.x;
+  ctx.save(); ctx.translate(cx, e.y + bob); ctx.rotate(tilt + (e.roll > 0 ? -e.t * 10 : 0)); ctx.scale(1 / sq, sq);
+  if (e.top && e.type === 'urchin') ctx.scale(1, -1);
+  if (e.type === 'phantom') ctx.globalAlpha *= e.vis == null ? 1 : e.vis;
+  drawImg(im, 0, 0, h);
+  if (e.hitT > 0) drawImg(silhouette(key, '#ffffff'), 0, 0, h, 0, Math.min(1, e.hitT / 0.12) * 0.85);
+  else if (e.frozen) drawImg(silhouette(key, '#bfefff'), 0, 0, h, 0, 0.5);
+  else if (e.rage > 0 || (e.sp && !e.sp.done)) drawImg(silhouette(key, '#ff3355'), 0, 0, h, 0, 0.3 + 0.2 * Math.sin(T * 30));
+  ctx.restore();
+  return true;
+}
 function drawEnemy(e, px = 0, py = H / 2) {
+  if (e.type !== 'whirlpool' && e.type !== 'mine' && drawSpriteEnemy(e)) {
+    if (e.type === 'mine' || e.armed) { ctx.strokeStyle = `rgba(255,84,112,${0.4 + 0.4 * Math.sin(T * 30)})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(e.x, e.y, 110, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+    return;
+  }
+  if (e.type === 'mine' && drawSpriteEnemy(e)) {
+    if (e.armed) { ctx.strokeStyle = `rgba(255,84,112,${0.4 + 0.4 * Math.sin(T * 30)})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(e.x, e.y, e.big ? 170 : 110, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,50,70,${0.5 + 0.5 * Math.sin(T * 30)})`; ctx.beginPath(); ctx.arc(e.x, e.y - 6, 10, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    return;
+  }
   ctx.save();
   if (e.elite) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
