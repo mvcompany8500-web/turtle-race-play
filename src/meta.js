@@ -743,16 +743,17 @@ function drawBless() {
   text('산호 쉼터', 480, 70, 40, C.yellow, { lw: 8 });
   text('잠깐 쉬어 가요. 하나만 골라요!', 480, 116, 18, C.text, { body: true });
   (G.bless || []).forEach((b, i) => withRise(i, () => {
-    const x = 150 + i * 230, y = 150, w = 210, h = 270;
+    const x = 140 + i * 236, y = 140, w = 220, h = 300;
     const hover = mouse.x >= x + OX() && mouse.x <= x + OX() + w && mouse.y >= y && mouse.y <= y + h;
     panel(x, y - (hover ? 6 : 0), w, h, { fill: C.gray, sel: hover });
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(x + w / 2, y + 80, 4, x + w / 2, y + 80, 80); g.addColorStop(0, 'rgba(76,130,255,.35)'); g.addColorStop(1, 'rgba(76,130,255,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x + w / 2, y + 80, 80, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    drawItemIcon(b.icon, x + w / 2, y + 82 + Math.sin(T * 3 + i) * 4, 72);
-    text(b.name, x + w / 2, y + 160, 20, C.text, { stroke: false });
-    wrapText(b.desc, w - 30, 14).forEach((l, k) => text(l, x + w / 2, y + 190 + k * 20, 14, C.sub, { body: true, stroke: false }));
-    button(x + 20, y + h - 56, w - 40, 44, isTouch ? '고르기' : `고르기 (${i + 1})`, () => chooseBless(i), { size: 15 });
+    drawItemIcon(b.icon, x + w / 2, y + 72 + Math.sin(T * 3 + i) * 4, 68);
+    text(b.name, x + w / 2, y + 140, 20, C.text, { stroke: false });
+    const lh = fs(14) * 1.3; // 줄 간격은 실제 글자 크기 기준 (폰에서 글자가 커져도 안 겹치게)
+    wrapText(b.desc, w - 28, 14).slice(0, 2).forEach((l, k) => text(l, x + w / 2, y + 140 + fs(20) * 0.9 + 8 + k * lh, 14, C.sub, { body: true, stroke: false }));
+    button(x + 20, y + h - 58, w - 40, 46, isTouch ? '고르기' : `고르기 (${i + 1})`, () => chooseBless(i), { size: 15 });
   }));
 }
 
