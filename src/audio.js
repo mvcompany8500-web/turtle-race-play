@@ -25,6 +25,8 @@ function initAudio() {
     for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
   }
   applyVolumes();
+  // 아이폰: 무음 스위치를 켜도 게임 소리가 나도록 (iOS 17+)
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* 지원 안 함 */ }
   if (ac.state === 'suspended') ac.resume();
   loadSamples();
 }
@@ -187,10 +189,12 @@ setInterval(() => {
 
 // ───────── 일레븐랩스 소리 파일 (assets/audio/list.json 에 있는 것만) — 있으면 파일, 없으면 위 합성음 ─────────
 const SAMPLES = {};
-let samplesLoading = false, bgmSrc = null, bgmName = '', bgmGain = null;
+let samplesLoading = false, bgmSrc = null, bgmName = '', bgmGain = null, AUDIO_META = {};
 async function loadSamples() {
   if (samplesLoading || !ac) return; samplesLoading = true;
   let list = [];
+  // 파일을 분석해 둔 값: 효과음 크기 맞춤(gain), 음악 반복 구간(조용한 앞·페이드아웃 끝 빼고)
+  try { const r = await fetch('assets/audio/meta.json', { cache: 'no-cache' }); if (r.ok) AUDIO_META = await r.json(); } catch (e) { /* 없으면 기본값 */ }
   try { const r = await fetch('assets/audio/list.json', { cache: 'no-cache' }); if (r.ok) list = await r.json(); } catch (e) { /* 파일 없음 = 합성음만 */ }
   // 효과음 먼저(작음), 음악은 나중에
   list.sort((a, b) => (a.startsWith('bgm_') ? 1 : 0) - (b.startsWith('bgm_') ? 1 : 0));
@@ -201,7 +205,7 @@ async function loadSamples() {
 function playSample(name, vol = 1, rate = 1) {
   const buf = SAMPLES[name]; if (!buf || !ac) return false;
   const s = ac.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
-  const g = ac.createGain(); g.gain.value = vol;
+  const g = ac.createGain(); g.gain.value = vol * ((AUDIO_META[name] || {}).gain || 1);
   s.connect(g); g.connect(sfxBus); s.start();
   return true;
 }
@@ -225,7 +229,10 @@ function bgmTick() {
     bgmSrc = null; bgmName = want;
     if (want) {
       bgmGain = ac.createGain(); bgmGain.gain.value = 0.0001; bgmGain.connect(musicBus);
-      bgmSrc = ac.createBufferSource(); bgmSrc.buffer = SAMPLES['bgm_' + want]; bgmSrc.loop = true; bgmSrc.connect(bgmGain); bgmSrc.start();
+      const mt = AUDIO_META['bgm_' + want] || {};
+      bgmSrc = ac.createBufferSource(); bgmSrc.buffer = SAMPLES['bgm_' + want]; bgmSrc.loop = true;
+      if (mt.loopEnd) { bgmSrc.loopStart = mt.loopStart || 0; bgmSrc.loopEnd = mt.loopEnd; }
+      bgmSrc.connect(bgmGain); bgmSrc.start(0, mt.loopStart || 0); // 조용한 앞부분 건너뛰고 바로 신나게
     }
   }
   if (bgmSrc) {

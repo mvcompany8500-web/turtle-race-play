@@ -4,7 +4,7 @@
 
 // 화면 높이는 540 고정, 폭은 기기 비율대로 960~1280 (폰 가로 19.5:9 도 꽉 채움)
 const H = 540, CEIL = 26, SEABED = H - 48;
-let W = 960, K = 1, CSS_S = 1, SAFE = 0, PORTRAIT = false;
+let W = 960, K = 1, CSS_S = 1, SAFE = 0, PORTRAIT = false, LOWFX = false;
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -12,7 +12,7 @@ function resize() {
   const vw = innerWidth, vh = innerHeight;
   PORTRAIT = isTouch && vh > vw * 1.05;
   W = PORTRAIT ? 960 : Math.round(Math.min(1280, Math.max(960, H * vw / vh)));
-  const dpr = Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2); // 폰은 1.5배로 — 프레임이 높아 조작이 덜 굼뜸
+  const dpr = LOWFX ? 1 : Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2); // 폰은 1.5배로 — 프레임이 높아 조작이 덜 굼뜸
   const s = Math.min(vw / W, vh / H);
   CSS_S = s;
   SAFE = isTouch && W > 1040 ? 34 : 0; // 노치(카메라 구멍) 쪽 여백

@@ -228,6 +228,19 @@ function sweepScreen(label) {
   for (const o of G.enemies) if (!o.dead && o.x < W + 30) { o.dead = true; G.kills++; dexKill(o.type); burst(o.x, o.y, (ENEMIES[o.type] || {}).color || '#fff', 18, 500); for (let i = 0; i < 2; i++) G.eggsArr.push({ x: o.x, y: o.y, vx: rand(-120, 120), vy: rand(-200, 200), loose: true, gold: i === 0, t: 0 }); }
   G.shots = [];
 }
+function moveByFinger() {
+  const p = G.p;
+  if (!drag || p.dead || G.enterT > 0 || G.won) return;
+  const K2 = 1.25 * (G.grabT > 0 && G.boosting <= 0 ? 0.45 : 1);
+  let tx = drag.px + (drag.kx - drag.sx) * K2, ty = drag.py + (drag.ky - drag.sy) * K2;
+  const maxX = G.boosting > 0 || G.eff.whirl > 0 ? 820 : 470, rs = p.r * p.scale;
+  const cx = clamp(tx, 50 + SAFE, maxX), cy = clamp(ty, CEIL + rs + 2, SEABED - rs - 4);
+  if (cx !== tx) drag.px += cx - tx; // 벽에 막힌 만큼 기준을 옮김 → 손가락을 돌리면 즉시 반대로
+  if (cy !== ty) drag.py += cy - ty;
+  const dt = 1 / 60;
+  p.vx = clamp((cx - p.x) / dt, -1600, 1600); p.vy = clamp((cy - p.y) / dt, -1600, 1600);
+  p.x = cx; p.y = cy;
+}
 function setFace(f, t) { G.p.face = f; G.p.faceT = t; }
 function hitPlayer(src) {
   const p = G.p;
@@ -745,11 +758,7 @@ function updatePlay(dt) {
     let ix = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
     let iy = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
     if (drag) {
-      const dx = drag.kx - drag.bx, dy = drag.ky - drag.by, d = Math.hypot(dx, dy), JR = 52;
-      const m = d < 4 ? 0 : Math.min(1, d / JR);
-      ix = d ? dx / d * m : 0; iy = d ? dy / d * m : 0;
-      const sp = 640 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1);
-      p.vx = ix * sp; p.vy = iy * sp; // 서서히 가속하지 않고 바로
+      moveByFinger(); p.vx *= 0.5; p.vy *= 0.5; // 손가락 이동은 moveByFinger 가 바로 처리 (여기선 기울기용 속도만 줄임)
     } else {
       if (ix && iy) { ix *= 0.7071; iy *= 0.7071; }
       const sp = 440 * (petIs('rabbit') ? 1 + petLv() * 0.05 : 1), a = Math.min(1, dt * 16);
@@ -758,7 +767,7 @@ function updatePlay(dt) {
     if (whirling) p.vx = lerp(p.vx, (E.whirl > 1 ? 640 - p.x : 220 - p.x) * 4, Math.min(1, dt * 6));
     const maxX = G.boosting > 0 || whirling ? 820 : 470;
     if (G.grabT > 0 && G.boosting <= 0) { p.vx *= 0.4; p.vy *= 0.4; p.x -= 40 * dt; }
-    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (!drag) { p.x += p.vx * dt; p.y += p.vy * dt; }
     p.x = Math.max(50 + SAFE, p.x);
     if (p.x > maxX) p.x = lerp(p.x, maxX, Math.min(1, dt * 6));
     const rs = p.r * p.scale;
@@ -1310,7 +1319,12 @@ function drawHUD() {
     text('알 소나기 2배', gx + 32 + fw, fy, 14, C.yellow, { align: 'left' });
   } else { ctx.fillStyle = C.yellow; rr(gx + 24, fy - 5, Math.max(10, fw * G.fever / 100), 10, 5); ctx.fill(); }
   // 조이스틱: 반투명 원 + 손잡이
-  if (isTouch) {
+  if (isTouch && drag) {
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(drag.kx, drag.ky, 30, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fill(); ctx.restore();
+  } else if (isTouch && save.runs <= 3) text('화면 아무 데나 끌어서 이동', L + 120, H - 34, 15, C.text, { body: true });
+  if (false) {
     const JR = 62, idle = !drag;
     const bx = idle ? L + 96 : drag.bx, by = idle ? H - 104 : drag.by;
     let kx = bx, ky = by;
@@ -1462,6 +1476,7 @@ function updateScreenFx(dt) {
 }
 // 캐릭터 뒤: 빛줄기·오로라 (배경 위, 캐릭터 아래라 캐릭터가 또렷)
 function drawScreenFxBehind() {
+  if (LOWFX && !scr.rays.length) return;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const r of scr.rays) {
     const k = r.t / r.dur, a = (1 - k) * 0.26, rad = 900;
@@ -1488,6 +1503,7 @@ function drawScreenFxBehind() {
 }
 // 캐릭터 앞: 집중선은 가장자리만, 테두리 빛은 연하게
 function drawScreenFxBack() {
+  if (LOWFX) return; // 느린 폰: 화면 전체 효과 생략
   if (G && state === 'play') {
     const p = G.p;
     if (G.boosting > 0 && !REDUCE) {

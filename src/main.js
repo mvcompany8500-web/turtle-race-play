@@ -76,7 +76,7 @@ cvs.addEventListener('pointerdown', (e) => {
   else if (state === 'intro') introAdvance();
   else if (state === 'map' && !map.overlay) mapDown(pt);
   else if (state === 'play' && !G.p.dead) {
-    drag = { id: e.pointerId, bx: pt.x, by: pt.y, kx: pt.x, ky: pt.y }; // 엄지가 닿은 자리가 조이스틱 중심
+    drag = { id: e.pointerId, sx: pt.x, sy: pt.y, kx: pt.x, ky: pt.y, px: G.p.x, py: G.p.y }; // 손가락을 끈 만큼 거북이가 그대로 따라감
     try { cvs.setPointerCapture(e.pointerId); } catch (_) { /* 무시 */ }
   } else if (state === 'dead' && G.deadT > 0.35) startLevel(G.n);
 });
@@ -84,8 +84,7 @@ cvs.addEventListener('pointermove', (e) => {
   const pt = toGame(e); mouse = pt;
   if (drag && drag.id === e.pointerId) {
     drag.kx = pt.x; drag.ky = pt.y;
-    const dx = pt.x - drag.bx, dy = pt.y - drag.by, d = Math.hypot(dx, dy), MAXR = 70;
-    if (d > MAXR) { drag.bx = pt.x - dx / d * MAXR; drag.by = pt.y - dy / d * MAXR; }
+    if (state === 'play' && G) moveByFinger(); // 다음 그림을 기다리지 않고 손가락이 움직이는 즉시 반영
   }
   if (state === 'map') mapMove(pt);
 });
@@ -95,8 +94,15 @@ cvs.addEventListener('pointercancel', endDrag);
 
 // ───────── 루프 ─────────
 let last = performance.now(), prevState = state;
+// 프레임 재기: 2초 동안 평균이 느리면(45프레임 아래) 화질을 낮춰 조작이 굼뜨지 않게
+let fpsAcc = 0, fpsN = 0;
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now; T += dt;
+  const raw = (now - last) / 1000;
+  const dt = Math.min(0.05, raw); last = now; T += dt;
+  if (state === 'play' && !LOWFX && raw < 0.5) {
+    fpsAcc += raw; fpsN++;
+    if (fpsAcc > 2) { if (fpsN / fpsAcc < 45) { LOWFX = true; resize(); } fpsAcc = 0; fpsN = 0; }
+  }
   update(dt); render();
   requestAnimationFrame(frame);
 }
