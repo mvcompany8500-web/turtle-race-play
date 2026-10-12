@@ -192,7 +192,19 @@ function drawMapDecor(w, x, i, y0) {
 function drawNode(s, x, y, scale = 1) {
   const st = STAGES[s], boss = !!st.boss, open = nodeOpen(s), stars = save.stars[s] || 0, cur = map.cur === s && !map.path.length;
   const r = (boss ? 36 : 28) * scale;
-  if (boss) drawCastle(x, y - r - 6, 0.72, '#ff5470', wOf(s) > 1);
+  if (boss) { const cs = IMG['spr_castle' + wOf(s)]; if (!drawImg(cs, x, y - r - 40 * scale, (s % 10 === 0 ? 120 : 92) * scale)) drawCastle(x, y - r - 6, 0.72, '#ff5470', wOf(s) > 1); }
+  const nodeImg = open ? IMG.spr_node : IMG.spr_node_lock;
+  if (ready(nodeImg)) {
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.75, r * 0.95, r * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+    if (cur) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 2.2); g.addColorStop(0, `rgba(255,213,74,${0.5 + 0.2 * Math.sin(T * 5)})`); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    drawImg(nodeImg, x, y, r * 2.5);
+    if (open && stars) { ctx.save(); ctx.globalCompositeOperation = 'source-atop'; ctx.restore(); }
+    if (open) text(String(s), x, y + 2, boss ? 24 : 21, stars ? C.blue : '#7a4a10', { stroke: '#ffffff', lw: 5 });
+    if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 14), y + Math.sin(a) * (r + 14) + 2, 9, k < stars); }
+    if (save.crown[s]) icon('e_crown', x + r * 0.95, y - r * 0.95, 24);
+    if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 10, w2, fs(13) + 8, (fs(13) + 8) / 2); ctx.fill(); text(nm, x, y + r + 14 + fs(13) / 2, 13, '#fff', { stroke: false, weight: 700 }); }
+    return;
+  }
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.7, r * 0.95, r * 0.35, 0, 0, Math.PI * 2); ctx.fill();
   if (cur) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 2.2); g.addColorStop(0, `rgba(255,213,74,${0.45 + 0.2 * Math.sin(T * 5)})`); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
   const g = ctx.createLinearGradient(x, y - r, x, y + r);
@@ -218,8 +230,37 @@ function drawMap() {
     const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, ZONE_BG[w - 1][0]); g.addColorStop(1, ZONE_BG[w - 1][1]);
     ctx.fillStyle = g; ctx.fillRect(Math.max(-10, x0), 0, Math.min(W + 10, x1) - Math.max(-10, x0), H);
   }
+  // Codex 지도 그림: 세계마다 2장을 번갈아(두 번째 바퀴는 좌우 뒤집어) 이어 붙임
+  const painted = ready(IMG.spr_map1a);
+  if (painted) {
+    for (let w = 1; w <= 5; w++) {
+      const zs = w === 1 ? -200 : zoneStart(w), ze = w < 5 ? zoneStart(w + 1) : MAP_LEN + 400;
+      if (ze - cam < -60 || zs - cam > W + 60) continue;
+      const A = IMG['spr_map' + w + 'a'], B = IMG['spr_map' + w + 'b'];
+      if (!ready(A)) continue;
+      const ph = H, pw = ph * A.naturalWidth / A.naturalHeight;
+      ctx.save(); ctx.beginPath(); ctx.rect(zs - cam, 0, ze - zs, H); ctx.clip();
+      for (let i = 0, x = zs; x < ze; x += pw, i++) {
+        if (x + pw - cam < 0 || x - cam > W) continue;
+        const im = i % 2 && ready(B) ? B : A;
+        ctx.save(); ctx.translate(x - cam + pw / 2, H / 2); if (Math.floor(i / 2) % 2) ctx.scale(-1, 1); ctx.drawImage(im, -pw / 2, -ph / 2, pw + 1, ph); ctx.restore();
+        if (i > 0) { // 그림 이음새: 물빛 띠로 부드럽게
+          const sx = x - cam, sg = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0), wc = ZONE_BG[w - 1][0];
+          const [r2, g2, b2] = rgb(wc);
+          sg.addColorStop(0, `rgba(${r2},${g2},${b2},0)`); sg.addColorStop(0.5, `rgba(${r2},${g2},${b2},.55)`); sg.addColorStop(1, `rgba(${r2},${g2},${b2},0)`);
+          ctx.fillStyle = sg; ctx.fillRect(sx - 90, 0, 180, H);
+        }
+      }
+      ctx.restore();
+    }
+    for (let w = 2; w <= 5; w++) { // 세계 경계: 물안개로 부드럽게
+      const x0 = zoneStart(w) - cam; if (x0 < -200 || x0 > W + 200) continue;
+      const g = ctx.createLinearGradient(x0 - 140, 0, x0 + 140, 0); g.addColorStop(0, 'rgba(220,240,255,0)'); g.addColorStop(0.5, 'rgba(220,240,255,.45)'); g.addColorStop(1, 'rgba(220,240,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(x0 - 140, 0, 280, H);
+    }
+  }
   // 세계 경계는 앞 세계 색이 서서히 사라지게
-  for (let w = 2; w <= 5; w++) {
+  for (let w = 2; w <= 5 && !painted; w++) {
     const x0 = zoneStart(w) - cam; if (x0 < -420 || x0 > W + 20) continue;
     const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, ZONE_BG[w - 2][0]); g.addColorStop(1, ZONE_BG[w - 2][1]);
     ctx.fillStyle = g;
@@ -228,9 +269,10 @@ function drawMap() {
   }
   // 빛줄기
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 7; i++) { const x = ((i * 260 - cam * 0.3) % (W + 400) + W + 400) % (W + 400) - 200; const rg = ctx.createLinearGradient(0, 0, 0, H); rg.addColorStop(0, `rgba(220,250,255,${0.08 + 0.05 * Math.sin(T + i)})`); rg.addColorStop(1, 'rgba(220,250,255,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 60, 0); ctx.lineTo(x + 240, H); ctx.lineTo(x + 120, H); ctx.fill(); }
+  for (let i = 0; i < (painted ? 0 : 7); i++) { const x = ((i * 260 - cam * 0.3) % (W + 400) + W + 400) % (W + 400) - 200; const rg = ctx.createLinearGradient(0, 0, 0, H); rg.addColorStop(0, `rgba(220,250,255,${0.08 + 0.05 * Math.sin(T + i)})`); rg.addColorStop(1, 'rgba(220,250,255,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 60, 0); ctx.lineTo(x + 240, H); ctx.lineTo(x + 120, H); ctx.fill(); }
   ctx.restore();
-  // 먼 바위(느리게) · 모래 바닥
+  // 먼 바위(느리게) · 모래 바닥 · 장식 — Codex 지도 그림이 있으면 생략
+  if (!painted) {
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.moveTo(0, H);
   for (let x = 0; x <= W; x += 14) ctx.lineTo(x, 380 - vnoise((x + cam * 0.5) / 160) * 150);
   ctx.lineTo(W, H); ctx.fill();
@@ -240,6 +282,7 @@ function drawMap() {
   // 장식
   const i0 = Math.floor((cam - 200) / 120), i1 = Math.ceil((cam + W + 200) / 120);
   for (let i = i0; i <= i1; i++) { const wx = i * 120 + hash(i) * 60; drawMapDecor(clamp(Math.floor((wx - MAP_X0 + MAP_STEP / 2) / (MAP_STEP * 10)) + 1, 1, 5), wx - cam, i, 470 - vnoise(wx / 90) * 26 + 6); }
+  }
   for (const b of bubbles) { ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.stroke(); }
   // 길: 모래 길 + 열린 곳은 금빛
   const pts = []; for (let s = 1; s <= LAST; s++) pts.push(nodePos(s));

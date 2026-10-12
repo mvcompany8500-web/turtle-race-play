@@ -49,8 +49,9 @@ function drawBackground(n, d) {
   };
   if (!ready(bgi)) ridge(0.12, SEABED - 40, 170, 190, th.rock, 0.5);
   ridge(0.3, SEABED - 6, 90, 120, th.rock2, ready(bgi) ? 0.35 : 0.75);
+  const painted = ready(bgi); // Codex 배경이면 코드로 그린 장식·해초·모래는 생략
   // 장식: 난파선(3·17), 열수구(24·26·얼음불꽃 후반), 얼음 기둥(얼음불꽃 초반)
-  if (n === 3 || n === 17) {
+  if (!painted && (n === 3 || n === 17)) {
     const tile = 1500, off = d * 0.22, i0 = Math.floor(off / tile);
     ctx.fillStyle = th.rock2; ctx.globalAlpha = 0.85;
     for (let i = i0; i <= i0 + 1; i++) {
@@ -63,7 +64,7 @@ function drawBackground(n, d) {
     }
     ctx.globalAlpha = 1;
   }
-  if (th.world === 3 && n <= 23) {
+  if (!painted && th.world === 3 && n <= 23) {
     const tile = 260, off = d * 0.5, i0 = Math.floor(off / tile);
     for (let i = i0; i <= i0 + Math.ceil(W / tile) + 1; i++) {
       const x = i * tile - off + hash(i) * 90, h1 = 40 + hash(i * 3) * 70;
@@ -72,7 +73,7 @@ function drawBackground(n, d) {
       ctx.beginPath(); ctx.moveTo(x + 40, SEABED + 6); ctx.lineTo(x + 58, SEABED + 6); ctx.lineTo(x + 49, SEABED - h1 * 0.7); ctx.fill();
     }
   }
-  if (n === 7 || n === 24 || n === 26 || (th.world === 3 && n >= 24)) {
+  if (!painted && (n === 7 || n === 24 || n === 26 || (th.world === 3 && n >= 24))) {
     const tile = 430, off = d, i0 = Math.floor(off / tile);
     for (let i = i0; i <= i0 + 3; i++) {
       const vx = i * tile - off + 120 + hash(i) * 120;
@@ -86,7 +87,7 @@ function drawBackground(n, d) {
   }
   // 해초
   const tile = 105, off = d * 0.65, i0 = Math.floor(off / tile) - 1;
-  for (let i = i0; i < i0 + W / tile + 3; i++) {
+  for (let i = i0; i < i0 + W / tile + 3 && !painted; i++) {
     if (hash(i * 3.1) > 0.62) continue;
     const bx = i * tile - off + hash(i) * 60, hgt = 55 + hash(i * 7.7) * 100;
     ctx.strokeStyle = th.weed; ctx.lineCap = 'round';
@@ -100,7 +101,9 @@ function drawBackground(n, d) {
       ctx.stroke();
     }
   }
-  // 모래
+  // 모래 (그림 배경이면 얇게 바닥 선만)
+  if (painted) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(-20, SEABED + 8, W + 40, 3); }
+  else {
   ctx.fillStyle = th.sand;
   ctx.beginPath(); ctx.moveTo(-20, H + 20);
   for (let x = -20; x <= W + 20; x += 10) ctx.lineTo(x, SEABED + 4 - vnoise((x + d) / 70) * 10);
@@ -110,6 +113,7 @@ function drawBackground(n, d) {
   for (let x = -po; x < W + pt; x += pt) {
     const idx = Math.floor((x + d) / pt);
     ctx.beginPath(); ctx.ellipse(x + hash(idx) * 30, SEABED + 18 + hash(idx * 2.3) * 22, 4 + hash(idx * 5.1) * 5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  }
   }
   // 물방울·플랑크톤
   for (const b of bubbles) {

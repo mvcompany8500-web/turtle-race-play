@@ -154,4 +154,5 @@ const UPS = [
 ];
 // Codex 로 만든 그림 (assets/sprites/*.webp) — 없으면 코드 그림으로
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
-  'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5'];
+  'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
+  'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock'];
