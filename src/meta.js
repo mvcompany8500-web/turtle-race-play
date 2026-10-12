@@ -328,7 +328,7 @@ function drawMap() {
   ctx.globalAlpha = 1;
   // 잠긴 바다 안개
   const fogX = (save.unlocked < LAST ? nodePos(save.unlocked + 1).x - 70 : MAP_LEN + 200) - cam;
-  if (fogX < W) { const fg = ctx.createLinearGradient(fogX, 0, fogX + 260, 0); fg.addColorStop(0, 'rgba(10,12,24,0)'); fg.addColorStop(1, 'rgba(10,12,24,.55)'); ctx.fillStyle = fg; ctx.fillRect(fogX, 60, 260, H); ctx.fillStyle = 'rgba(10,12,24,.55)'; ctx.fillRect(fogX + 260, 60, W + 400, H); }
+  if (fogX < W) { const fg = ctx.createLinearGradient(fogX, 0, fogX + 260, 0); fg.addColorStop(0, 'rgba(10,12,24,0)'); fg.addColorStop(1, 'rgba(10,12,24,.66)'); ctx.fillStyle = fg; ctx.fillRect(fogX, 60, 260, H); ctx.fillStyle = 'rgba(10,12,24,.66)'; ctx.fillRect(fogX + 260, 60, W + 400, H); }
   // 공주 (마지막 칸 옆)
   const last = nodePos(LAST), lx = last.x - cam;
   if (lx < W + 200) {
