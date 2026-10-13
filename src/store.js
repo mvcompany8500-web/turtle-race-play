@@ -383,7 +383,7 @@ function drawCoach() {
   }
   // 말풍선(구멍과 반대쪽)
   const top = sp ? sp.y > H * 0.5 : false, bw = Math.min(560, W - 60), bx = W / 2 - bw / 2, by = top ? 70 : H - 200;
-  ctx.fillStyle = 'rgba(27,28,31,.96)'; rr(bx, by, bw, 116, 22); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2; ctx.stroke();
+  panel(bx, by, bw, 116, { r: 22 }); // 안내 말풍선도 코덱스 판
   drawImg(IMG.hello, bx + 54, by + 60, 92);
   text(c.text, bx + 108, by + 38, 22, C.yellow, { align: 'left', stroke: false });
   if (c.sub) wrapText(c.sub, bw - 130, 16).slice(0, 2).forEach((l, i) => text(l, bx + 108, by + 70 + i * 24, 16, '#ffffff', { align: 'left', body: true, stroke: false }));

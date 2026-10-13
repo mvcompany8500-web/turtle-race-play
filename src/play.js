@@ -1237,9 +1237,7 @@ function drawGoal(gx) {
     g.addColorStop(0, 'rgba(255,200,240,.55)'); g.addColorStop(1, 'rgba(255,200,240,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(gx + 50, y, 120, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     drawImg(IMG.princess, gx + 50, y, 120, -0.05, 1, true);
-    ctx.strokeStyle = 'rgba(200,240,255,.85)'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(gx + 50, y, 78, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = 'rgba(200,240,255,.12)'; ctx.fill();
+    if (!drawImg(IMG.spr_bubble_cage, gx + 50, y, 190 + Math.sin(T * 4) * 4)) { ctx.strokeStyle = 'rgba(200,240,255,.85)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(gx + 50, y, 78, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(200,240,255,.12)'; ctx.fill(); } // 마지막 바다: 거품 감옥 속 공주님
     text('도와줘요!', gx + 50, y - 100, 22, '#ffd1ef');
     return;
   }

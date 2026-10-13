@@ -100,7 +100,7 @@ function mapGo(target) {
   sfx.click();
 }
 function updateMap(dt) {
-  if (save.cleared && !map.overlay && stateT > 1) coachOnce('afterEnd', { text: '공주님을 구했어요! 다음 목표는', sub: '「어려움」으로 바다마다 왕관 모으기(50개) · 끝없는 바다 최고 기록 · 펫 키우기 · 바다 패스', spot: null, pass: true, state: 'map' });
+  if (save.cleared && !map.overlay && stateT > 0.5) coachOnce('afterEnd', { text: '공주님을 구했어요! 다음 목표는', sub: '「어려움」으로 바다마다 왕관 모으기(50개) · 끝없는 바다 최고 기록 · 펫 키우기 · 바다 패스', spot: null, pass: true, state: 'map' });
   // 지도 초보 안내: 처음엔 「달리기!」, 첫 성공 뒤 진주가 모이면 상점
   if (!map.overlay && !map.unlock && !map.path.length && stateT > 0.8) {
     if (marks.play && !save.runs) coachOnce('map', { text: '「달리기!」를 눌러 출발해요', sub: '왼쪽 = 점프 · 오른쪽 꾹 = 숙이기', spot: marks.play, pass: true, state: 'map' });
@@ -626,9 +626,9 @@ function drawIntro() {
   if (i >= 4) { const k = i === 4 ? t : 99; sx = 790 + Math.max(0, k - 0.8) * 560; px = sx - 130; }
   if (px < 960 + 120) {
     drawImg(IMG.princess, px, py + Math.sin(T * 3) * 5, 150, caged ? Math.sin(T * 8) * 0.08 : 0, 1, true);
-    if (caged) { ctx.strokeStyle = 'rgba(200,240,255,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, 88, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(200,240,255,.12)'; ctx.fill(); }
+    if (caged && !drawImg(IMG.spr_bubble_cage, px, py, 200 + Math.sin(T * 4) * 4)) { ctx.strokeStyle = 'rgba(200,240,255,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, 88, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(200,240,255,.12)'; ctx.fill(); } // 코덱스 그림 거품 감옥
   }
-  if (i >= 2 && sx < 960 + 260) drawShark(sx, 250, 2.7, '#8a6bd6', '#3f2a7a', true, false, true, Math.sin(T * 8) * 0.28, i === 2 || i === 3 ? 0.6 + 0.4 * Math.sin(T * 10) : 0.2);
+  if (i >= 2 && sx < 960 + 260 && !drawImg(IMG.spr_boss_king, sx + 60, 175 + Math.sin(T * 3) * 6, 200, Math.sin(T * 8) * 0.05)) drawShark(sx, 250, 2.7, '#8a6bd6', '#3f2a7a', true, false, true, Math.sin(T * 8) * 0.28, i === 2 || i === 3 ? 0.6 + 0.4 * Math.sin(T * 10) : 0.2); // 상어왕은 코덱스 그림으로
   if (i <= 1) drawImg(IMG.hello, 230, 320 + Math.sin(T * 3) * 4, 200);
   else if (i <= 4) drawHero(230, 330, 170, Math.sin(T * 20) * 0.03, { stand: true, face: 'scared', ph: T * 6 });
   else {
@@ -1066,8 +1066,8 @@ function rewardRow(y, iconFn, label, value, color = C.text, sub) {
 function measureW(s, size) { ctx.font = `600 ${fs(size)}px ${FONT}`; return ctx.measureText(s).width; }
 function sayBubble(x, y, w, line, color = '#ffffff') { // 왼쪽 캐릭터 아래 말풍선
   const lines = wrapText(line, w - 32, 14).slice(0, 2), h = 22 + lines.length * fs(14) * 1.35;
-  ctx.fillStyle = 'rgba(27,28,31,.9)'; rr(x - w / 2, y, w, h, 16); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x, y - 10); ctx.lineTo(x + 10, y); ctx.fill();
+  ctx.fillStyle = 'rgba(27,28,31,.9)'; ctx.beginPath(); ctx.moveTo(x - 10, y + 2); ctx.lineTo(x, y - 10); ctx.lineTo(x + 10, y + 2); ctx.fill();
+  panel(x - w / 2, y, w, h, { r: 16 }); // 말풍선도 코덱스 판
   lines.forEach((l, i) => text(l, x, y + 18 + i * fs(14) * 1.35, 14, color, { body: true, stroke: false }));
 }
 function bottomButtons(primaryLabel, primaryFn, secondary) {

@@ -692,6 +692,7 @@ function drawCastle(x, y, s, flag = '#ff3355', dark = false) {
   ctx.restore();
 }
 function drawPalace(x, y, s) {
+  if (IMG.spr_palace && ready(IMG.spr_palace)) { const b = typeof obox === 'function' ? obox(IMG.spr_palace) : null, h = 330 * s; if (b) { const w = h * b.w / b.h; ctx.drawImage(IMG.spr_palace, b.x, b.y, b.w, b.h, x - w / 2, y - h, w, h); return; } } // 코덱스가 그린 산호 궁전
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   ctx.fillStyle = '#ff9ec0';
   for (const cx of [-150, -60, 60, 150]) { rr(cx - 16, -170, 32, 170, 14); ctx.fill(); }
