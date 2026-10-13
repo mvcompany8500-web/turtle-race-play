@@ -100,6 +100,7 @@ function mapGo(target) {
   sfx.click();
 }
 function updateMap(dt) {
+  if (save.cleared && !map.overlay && stateT > 1) coachOnce('afterEnd', { text: '공주님을 구했어요! 다음 목표는', sub: '「어려움」으로 바다마다 왕관 모으기(50개) · 끝없는 바다 최고 기록 · 펫 키우기 · 바다 패스', spot: null, pass: true, state: 'map' });
   // 지도 초보 안내: 처음엔 「달리기!」, 첫 성공 뒤 진주가 모이면 상점
   if (!map.overlay && !map.unlock && !map.path.length && stateT > 0.8) {
     if (marks.play && !save.runs) coachOnce('map', { text: '「달리기!」를 눌러 출발해요', sub: '왼쪽 = 점프 · 오른쪽 꾹 = 숙이기', spot: marks.play, pass: true, state: 'map' });
@@ -371,6 +372,10 @@ function drawMap() {
   gemBadge(L + 22, 118, save.gems, 22);
   const cr = chestReady();
   button(L + 130, 14, 156, 42, `별 ${totalStars()} · ${cr ? '상자 열기!' : '상자 ' + chestGoal()}`, openChest, { size: 14, kind: cr ? 'yellow' : 'soft' });
+  if (save.cleared) { // 엔딩 뒤: 어려움 왕관 모으기(2회차 목표)
+    const nc = Object.keys(save.crown || {}).length;
+    ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(L + 6, 150, 150, 30, 15); ctx.fill(); icon('e_crown', L + 26, 165, 22); text(`왕관 ${nc}/50`, L + 44, 165, 14, C.yellow, { align: 'left', body: true, stroke: false });
+  }
   if (save.streak.day) { // 출석 글: 바쁜 지도 위에서도 읽히게 어두운 띠 위에
     const st = `출석 ${save.streak.day}일째${save.streak.rest ? ` · 쉬는 카드 ${save.streak.rest}` : ''}${save.streak.lost ? ` · 오늘 ${3 - (save.streak.lostRuns || 0)}판 더 하면 ${save.streak.lost}일 되찾기` : ''}`;
     ctx.font = `600 ${fs(14)}px ${FONT}`; const room = R - 480 - (L + 306) - 16; // 오른쪽 둥근 단추 7개(70 간격) 앞까지

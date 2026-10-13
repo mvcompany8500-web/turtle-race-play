@@ -504,7 +504,7 @@ function drawReady() {
       text(`${BOSS_DEF[st.boss].name} 쓰러뜨리기`, 360, by + 54, 22, '#ffffff', { align: 'left', stroke: false });
       text('↑ 뛰고 ↓ 숙여 피하고, 위에서 밟기!', 360, by + 78, 13, C.sub, { align: 'left', body: true, stroke: false });
     } else if (!endless && st.fresh) {
-      drawImg(IMG['spr_' + st.fresh], 300, by + 50, 70);
+      if (!drawImg(IMG['spr_' + st.fresh], 300, by + 50, 70)) drawEnemy({ type: st.fresh, x: 300, y: by + 50, r: 22, t: T, ph: 0, len: 40, baseY: by + 50, top: false, armed: false }, 520, by + 50); // 그림이 없는 몬스터(소용돌이 등)는 게임 속 모습으로
       text('새 몬스터', 360, by + 26, 14, C.sub, { align: 'left', body: true, stroke: false });
       text(`${ENEMIES[st.fresh].name} — ${ENEMIES[st.fresh].trait}`, 360, by + 54, 18, '#ffffff', { align: 'left', stroke: false });
       text(`약점: ${ITEMS[ENEMIES[st.fresh].weak].name}`, 360, by + 78, 14, C.yellow, { align: 'left', body: true, stroke: false });

@@ -227,6 +227,11 @@ const ACH = [
   { k: 'pets', name: '펫 9마리 모두', test: () => save.pets.length >= PETS.length, gems: 50 },
   { k: 'end1k', name: '끝없는 바다 1,000미터', test: () => (save.endlessBest || 0) >= 1000, gems: 40 },
   { k: 'crown10', name: '어려움 왕관 10개', test: () => Object.keys(save.crown || {}).length >= 10, gems: 50 },
+  // 엔딩 뒤 목표(2회차): 어려움 왕관 모으기 · 끝없는 바다 기록
+  { k: 'crown25', name: '어려움 왕관 25개', test: () => Object.keys(save.crown || {}).length >= 25, gems: 80 },
+  { k: 'crown50', name: '어려움 왕관 50개 — 바다의 왕', test: () => Object.keys(save.crown || {}).length >= 50, gems: 200 },
+  { k: 'end3k', name: '끝없는 바다 3,000미터', test: () => (save.endlessBest || 0) >= 3000, gems: 60 },
+  { k: 'end5k', name: '끝없는 바다 5,000미터', test: () => (save.endlessBest || 0) >= 5000, gems: 100 },
 ];
 const achReady = () => ACH.filter((a) => !save.ach[a.k] && a.test()).length;
 function claimAch(a) { if (save.ach[a.k] || !a.test()) return; save.ach[a.k] = Date.now(); save.gems += a.gems; persist(); sfx.mission(); toast(`업적 「${a.name}」 보석 +${a.gems}`, '#7cd8ff'); }
