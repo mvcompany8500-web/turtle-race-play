@@ -208,6 +208,18 @@ function drawNode(s, x, y, scale = 1) {
   const st = STAGES[s], boss = !!st.boss, open = nodeOpen(s), stars = save.stars[s] || 0, cur = map.cur === s && !map.path.length;
   const r = (boss ? 36 : 28) * scale;
   if (boss) { const cs = IMG['spr_castle' + wOf(s)]; if (!drawImg(cs, x, y - r - 40 * scale, (s % 10 === 0 ? 120 : 92) * scale)) drawCastle(x, y - r - 6, 0.72, '#ff5470', wOf(s) > 1); }
+  const SHELLS = ['pink', 'purple', 'blue', 'green'], shell = IMG['spr_node_shell_' + (cur ? 'gold' : SHELLS[s % 4])];
+  if (shell && ready(shell)) { // 시안: 알록달록 조개 단추(코덱스), 지금 칸은 금빛, 잠긴 칸은 흐리게 + 자물쇠
+    const sz = r * 2.9 * (cur ? 1.1 + Math.sin(T * 4) * 0.03 : 1);
+    if (cur) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 2.4); g.addColorStop(0, `rgba(255,213,74,${0.45 + 0.2 * Math.sin(T * 5)})`); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    drawImg(shell, x, y, sz, 0, open ? 1 : 0.6);
+    if (open) text(String(s), x, y - r * 0.08, boss ? 24 : 22, '#ffffff', { stroke: 'rgba(40,20,60,.7)', lw: 5 });
+    else drawImg(IMG.spr_ui_lock, x, y + r * 0.15, r * 1.2);
+    if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 16), y + Math.sin(a) * (r + 16) - 4, 9, k < stars); }
+    if (save.crown[s]) icon('e_crown', x + r * 0.95, y - r * 0.95, 24);
+    if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 12, w2, 24, 12); ctx.fill(); text(nm, x, y + r + 24, 13, '#fff', { stroke: false }); }
+    return;
+  }
   const nodeImg = open ? IMG.spr_node : IMG.spr_node_lock;
   if (ready(nodeImg)) {
     ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.75, r * 0.95, r * 0.32, 0, 0, Math.PI * 2); ctx.fill();
@@ -261,7 +273,8 @@ function drawMap() {
     for (let w = 1; w <= 5; w++) {
       const zs = w === 1 ? -200 : zoneStart(w), ze = w < 5 ? zoneStart(w + 1) : MAP_LEN + 400;
       if (ze - cam < -60 || zs - cam > W + 60) continue;
-      const A = IMG['spr_map' + w + 'a'], B = IMG['spr_map' + w + 'b'];
+      const A2 = IMG['spr_mapv2_' + w + 'a'], B2 = IMG['spr_mapv2_' + w + 'b'], v2 = ready(A2); // 코덱스 시안 화풍 새 지도(오면 그것)
+      const A = v2 ? A2 : IMG['spr_map' + w + 'a'], B = v2 ? (ready(B2) ? B2 : A2) : IMG['spr_map' + w + 'b'];
       if (!ready(A)) continue;
       const ph = H, pw = ph * A.naturalWidth / A.naturalHeight;
       ctx.save(); ctx.beginPath(); ctx.rect(zs - cam, 0, ze - zs, H); ctx.clip();
@@ -370,6 +383,23 @@ function drawMap() {
   }
   // 위쪽: 알·별 상자 / 둥근 버튼
   const L = SAFE + 14, R = W - SAFE - 14;
+  const NEWUI = ['spr_ui_cur_pill', 'spr_ui_ic_set', 'spr_ui_bottom_bar', 'spr_ui_play_btn'].every((k) => ready(IMG[k])); // 코덱스 지도 시안대로(그림이 다 오면)
+  if (NEWUI) {
+    const pill = (x, w, iconFn, val, plusFn, onTap) => { // 크림색 재화 칸 + 초록 「+」
+      slice3(IMG.spr_ui_cur_pill, x, 12, w, 42); iconFn(x + 22, 33);
+      text(val, x + 44, 34, 17, '#2f3550', { align: 'left', stroke: false });
+      if (plusFn) { drawImg(IMG.spr_ui_plus, x + w - 20, 33, 32); ctx.save(); ctx.globalAlpha = 0; button(x + w - 40, 12, 40, 42, '+', plusFn, {}); ctx.restore(); }
+      if (onTap) { ctx.save(); ctx.globalAlpha = 0; button(x, 12, w - (plusFn ? 40 : 0), 42, '', onTap, {}); ctx.restore(); }
+    };
+    pill(L, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; });
+    pill(L + 160, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; });
+    const cr = chestReady();
+    pill(L + 302, 120, (x, y) => drawStar(x, y, 13, true), `${totalStars()}`, null, openChest);
+    if (cr) { const bx = L + 402, by = 14; ctx.fillStyle = C.danger; rr(bx - 26, by - 4, 52, 22, 11); ctx.fill(); text('상자!', bx, by + 7, 13, '#fff', { stroke: false }); }
+    drawLvBadge(L + 6, 62);
+    if (save.cleared) { const nc = Object.keys(save.crown || {}).length; ctx.fillStyle = 'rgba(16,30,60,.55)'; rr(L + 6, 104, 150, 30, 15); ctx.fill(); icon('e_crown', L + 26, 119, 22); text(`왕관 ${nc}/50`, L + 44, 119, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
+    if (save.streak.day) { const st2 = `출석 ${save.streak.day}일째`; ctx.font = `600 ${fs(14)}px ${FONT}`; const sw = ctx.measureText(st2).width; ctx.fillStyle = 'rgba(16,30,60,.55)'; rr(L + 164, 66, sw + 24, 30, 15); ctx.fill(); text(st2, L + 176, 81, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
+  } else {
   eggBadge(L + 34, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
   drawLvBadge(L + 6, 62);
   gemBadge(L + 22, 118, save.gems, 22);
@@ -388,6 +418,7 @@ function drawMap() {
     ctx.save(); rr(L + 294, 20, sw + 24, 30, 15); ctx.clip();
     text(st2, L + 306, 35, 14, C.yellow, { align: 'left', body: true, stroke: false }); ctx.restore();
   }
+  }
   const gr = giftReady();
   const btns = [
     ['설정', () => { map.overlay = 'settings'; sfx.click(); }, null, 'gear'],
@@ -398,7 +429,17 @@ function drawMap() {
     ['패스', () => { map.overlay = 'pass'; passPage = Math.floor(Math.max(0, passTier() - 1) / 6); sfx.click(); }, 'e_medal', null],
     ['업적', () => { map.overlay = 'ach'; sfx.click(); }, 'e_trophy', null],
   ];
-  btns.forEach(([label, on, ic, sym], i) => {
+  const ICON_ART = ['spr_ui_ic_set', 'spr_ui_ic_shop', 'spr_ui_ic_dex', 'spr_ui_ic_mission', 'spr_ui_ic_gift', 'spr_ui_ic_pass', 'spr_ui_ic_ach'];
+  if (NEWUI) btns.forEach(([label, on], i) => { // 시안대로: 동그란 유리 아이콘(코덱스) + 아래 작은 이름
+    const bx = R - 58 - i * 66, by = 8, cx = bx + 29, cy = by + 28, bob = i === 4 && gr ? Math.sin(T * 8) * 3 : 0;
+    drawImg(IMG[ICON_ART[i]], cx, cy + bob, 58);
+    ctx.save(); ctx.globalAlpha = 0; button(bx, by, 58, 64, '', on, {}); ctx.restore();
+    if (i === 1) markSpot('shopBtn', cx, cy, 44);
+    text(label, cx, by + 64, 13, '#ffffff', { lw: 3 });
+    const badge = i === 6 ? achReady() : i === 3 ? missionsReady() : 0;
+    if (badge) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 52, by + 6, 11, 0, Math.PI * 2); ctx.fill(); text(String(badge), bx + 52, by + 7, 13, '#fff', { stroke: false }); }
+  });
+  else btns.forEach(([label, on, ic, sym], i) => {
     const bx = R - 60 - i * 70, by = 10;
     button(bx, by, 58, 58, '', on, { kind: i === 1 ? 'primary' : i === 4 && gr ? 'yellow' : 'soft' });
     if (ic) icon(ic, bx + 29, by + 24, 30, ic === 'e_gift' && gr ? Math.sin(T * 10) * 0.2 : 0);
@@ -409,7 +450,7 @@ function drawMap() {
     if (i === 3 && missionsReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(missionsReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
   });
   // 아래: 바다 정보 · 난이도 · 출발
-  panel(L, 452, R - L, 80);
+  if (NEWUI) slice3(IMG.spr_ui_bottom_bar, L, 448, R - L, 88); else panel(L, 452, R - L, 80); // 시안: 유리 판
   const s = map.cur;
   if (s === 0) {
     text('끝없는 바다', L + 24, 480, 22, C.text, { align: 'left' });
@@ -424,6 +465,12 @@ function drawMap() {
   const bounce = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, bx0 = R - 226, by0 = 458, bw0 = 216, bh0 = 64;
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(bounce, bounce); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
   const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
+  if (NEWUI) { // 시안의 노란 재생 단추(코덱스) — 왼쪽 ▶ 그림, 오른쪽에 글자
+    const pb = IMG.spr_ui_play_btn, b2 = obox(pb), ph = bh0 + 14, pw = Math.min(bw0 + 30, ph * b2.w / b2.h);
+    ctx.drawImage(pb, b2.x, b2.y, b2.w, b2.h, bx0 + bw0 / 2 - pw / 2, by0 - 7 + (pressed ? 4 : 0), pw, ph);
+    text('달리기!', bx0 + bw0 / 2 + pw * 0.14, by0 + bh0 / 2 + (pressed ? 5 : 0), 28, '#ffffff', { stroke: '#b4560a', lw: 6 });
+  } else {
+  const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
   ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 6, bw0, bh0, 20); ctx.fill(); // 아래 그림자
   const gg = ctx.createLinearGradient(0, by0, 0, by0 + bh0); gg.addColorStop(0, '#ffd84a'); gg.addColorStop(1, '#ff8a00');
   ctx.fillStyle = gg; rr(bx0, by0 + (pressed ? 4 : 0), bw0, bh0, 20); ctx.fill();
@@ -432,6 +479,7 @@ function drawMap() {
   ctx.fillStyle = 'rgba(255,255,255,.35)'; rr(bx0 + 10, by0 + 6, bw0 - 20, 14, 7); ctx.fill();
   ctx.restore();
   text('달리기!', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 6 : 2), 30, '#ffffff', { stroke: '#b4560a', lw: 6 });
+  }
   ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 6, '달리기!', mapPlay, { size: 26 }); ctx.restore();
   markSpot('play', bx0 + bw0 / 2, by0 + bh0 / 2, 96);
   ctx.restore();
