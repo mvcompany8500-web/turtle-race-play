@@ -163,8 +163,8 @@ const TRACKS = {
   ending: { bpm: 86, chords: [['C4', 'E4', 'G4'], ['G3', 'B3', 'D4'], ['A3', 'C4', 'E4'], ['F3', 'A3', 'C4']], drums: '....h.......h..h', bass: '1.......5.......', arp: true, pad: true,
     lead: 'E5 - G5 - C6 - B5 G5 D5 - G5 - B5 - A5 - C5 - E5 - A5 - G5 E5 F5 - A5 - C6 - - -'.split(' '), leadType: 'triangle' },
 };
-let curTrack = null, trackName = '', mStep = 0, mNext = 0, musicFever = false;
-function setMusic(name) { if (name === trackName) return; trackName = name; curTrack = TRACKS[name] || null; mStep = 0; mNext = 0; }
+let curTrack = null, trackName = '', mStep = 0, mNext = 0, musicFever = false, synthT0 = null; // synthT0: 합성 음악 첫 음 시각(박자 시계용)
+function setMusic(name) { if (name === trackName) return; trackName = name; curTrack = TRACKS[name] || null; mStep = 0; mNext = 0; synthT0 = null; }
 function kick(t) { voice({ f: 160, f2: 45, t, d: 0.26, vol: 0.5, bus: musicBus }); }
 function snare(t) { nz({ t, d: 0.16, vol: 0.2, type: 'bandpass', f: 1800, f2: 1200, bus: musicBus }); voice({ type: 'triangle', f: 190, f2: 120, t, d: 0.08, vol: 0.1, bus: musicBus }); }
 function hat(t, open) { nz({ t, d: open ? 0.2 : 0.035, vol: 0.06, type: 'highpass', f: 7000, f2: 9000, bus: musicBus }); }
@@ -191,14 +191,16 @@ function playStep(s, t, st) {
 setInterval(() => {
   if (!ac || !curTrack || save.muted || save.musicOff || SAMPLES['bgm_' + trackName]) { mNext = 0; return; }
   if (['pause', 'revive', 'dead', 'bless'].includes(state)) { mNext = 0; return; }
-  if (mNext < ac.currentTime) mNext = ac.currentTime + 0.06;
+  if (mNext < ac.currentTime) { mNext = ac.currentTime + 0.06; synthT0 = mNext - mStep * (60 / (curTrack.bpm * (musicFever ? 1.1 : 1)) / 4); }
   const st = 60 / (curTrack.bpm * (musicFever ? 1.1 : 1)) / 4;
   while (mNext < ac.currentTime + 0.18) { playStep(mStep, mNext, st); mStep++; mNext += st; }
 }, 25);
 
 // ───────── 일레븐랩스 소리 파일 (assets/audio/list.json 에 있는 것만) — 있으면 파일, 없으면 위 합성음 ─────────
 const SAMPLES = {};
-let samplesLoading = false, bgmSrc = null, bgmName = '', bgmGain = null, AUDIO_META = {};
+let samplesLoading = false, bgmSrc = null, bgmName = '', bgmGain = null, AUDIO_META = {}, bgmStartAt = null, bgmStartOff = 0, duckUntil = 0;
+// 큰 사건 때 음악을 잠깐 낮춤(효과음이 또렷하게)
+function duckMusic(sec) { if (!ac) return; duckUntil = Math.max(duckUntil, ac.currentTime + sec); if (bgmGain) bgmGain.gain.setTargetAtTime(0.42, ac.currentTime, 0.04); }
 async function loadSamples() {
   if (samplesLoading || !ac) return; samplesLoading = true;
   let list = [];
@@ -242,11 +244,11 @@ function bgmTick() {
       bgmSrc = ac.createBufferSource(); bgmSrc.buffer = SAMPLES['bgm_' + want]; bgmSrc.loop = true;
       if (mt.loopEnd) { bgmSrc.loopStart = mt.loopStart || 0; bgmSrc.loopEnd = mt.loopEnd; }
       bgmSrc.connect(bgmGain); bgmSrc.start(0, mt.loopStart || 0); // 조용한 앞부분 건너뛰고 바로 신나게
+      bgmStartAt = ac.currentTime; bgmStartOff = mt.loopStart || 0; // 박자 시계
     }
   }
   if (bgmSrc) {
-    bgmGain.gain.setTargetAtTime(paused ? 0.0001 : 0.9, ac.currentTime, 0.2);
-    bgmSrc.playbackRate.setTargetAtTime(musicFever ? 1.08 : 1, ac.currentTime, 0.3);
+    bgmGain.gain.setTargetAtTime(paused ? 0.0001 : ac.currentTime < duckUntil ? 0.42 : 0.9, ac.currentTime, 0.2); // 빠르기는 안 바꿈(박자 시계가 어긋나지 않게)
   }
 }
 setInterval(bgmTick, 100);

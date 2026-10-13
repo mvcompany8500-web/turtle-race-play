@@ -13,7 +13,7 @@ const LETTERS = ['알', '소', '나', '기'];
 const STOMP_NO = { urchin: '가시가 있어요!', mine: '펑!', whirlpool: '' };
 
 const hasPerk = (k) => Object.keys(LV_PERKS).some((lv) => LV_PERKS[lv].k === k && save.lv >= +lv);
-const maxJumps = () => (hasPerk('triple') ? 3 : 2);
+const maxJumps = () => (hasPerk('triple') ? 3 : 2) + (typeof abStar === 'function' ? abStar('triple') : 0);
 const maxHearts = () => [4, 3, 2][save.diff] + ['heart', 'heart2', 'heart3'].filter(hasPerk).length;
 const xpNeed = (lv) => Math.round(60 + 55 * Math.pow(lv, 1.45)); // docs/balance.md: Lv5 ≈ 4번 바다, Lv10 ≈ 25번 바다, Lv20 = 끝까지 깨고도 더
 
@@ -55,6 +55,7 @@ function slideDown() {
   const p = G.p;
   p.slideHold = true;
   if (!p.onG && p.vy < 700) { p.vy = 760; p.dive = 0.3; if (ac) sfx.swoosh(); }
+  else if (p.onG && !p.slide) beatJudge(); // 숙이기도 박자 판정
   if (G.tut) G.tut.did = 'slide';
 }
 function slideUp() { if (G && G.run) G.p.slideHold = false; }
@@ -62,7 +63,8 @@ function releaseRunInput() { if (G && G.run) { G.p.holdJ = false; G.p.slideHold 
 
 function doJump(first) {
   const p = G.p;
-  const k = (G.grabT > 0 ? 0.72 : 1) * (G.eff.giant > 0 ? 1.06 : 1);
+  const k = (G.grabT > 0 ? 0.72 : 1) * (G.eff.giant > 0 ? 1.06 : 1) * (1 + abStar('jump') * 0.06);
+  if (first && p.onG) beatJudge(); // 땅에서 뛸 때 박자 판정
   p.vy = -(first ? JUMP_V : JUMP2_V) * k * (p.holdJ ? 1 : 0.62);
   p.jumps = first ? 1 : Math.max(2, p.jumps + 1); // 발판에서 떨어진 뒤 공중 점프는 두 번째로 셈
   p.onG = false; p.coyote = 0; p.buf = 0; p.slide = false; p.bounced = false;
@@ -156,9 +158,11 @@ function stomp(e) {
   if (c === 3) reaction(1, '3단 밟기!');
   if (c === 5) reaction(3, '밟기 장인!!');
   if (hasPerk('stompEgg')) earn('perk', 1);
+  if (abStar('stomp')) earn('perk', abStar('stomp'));
+  runXp(6); hitStar(e.x, e.y - 10, false, true); hitStop('big');
   if (e.type === 'jelly') { p.vy = -1000; pop(p.x, p.y - 60, '통통!', '#ff8fd0', 24); } // 해파리는 트램펄린
   killEnemy(e, 'stomp');
-  if (hasPerk('shockStomp')) for (const o of G.enemies) if (!o.dead && o !== e && Math.hypot(o.x - e.x, o.y - e.y) < 150 && STOMP_NO[o.type] == null) killEnemy(o, 'stomp');
+  if (hasPerk('shockStomp') || abStar('stomp') >= 2) for (const o of G.enemies) if (!o.dead && o !== e && Math.hypot(o.x - e.x, o.y - e.y) < 150 && STOMP_NO[o.type] == null) killEnemy(o, 'stomp');
   track('stomp');
   return true;
 }
@@ -280,7 +284,9 @@ function runCourse() {
     let pat;
     if (G.tut && G.tut.seq.length) pat = PAT_BY[G.tut.seq.shift()];
     else pat = choosePat();
-    const len = pat[3](x);
+    const before = { e: G.enemies.length, o: G.obs.length, b: G.breaks.length, g: G.eggsArr.length, x: G.boxes.length, w: G.warns.length };
+    let len = pat[3](x);
+    len += snapToBeat(before); // 누를 때가 음악 박에 오게
     G.lastPat = pat[0]; G.pats++;
     // 글자는 정해진 거리마다 높은 곳에
     if (!cfg.endless && G.letterAt.length && G.dist + x >= G.letterAt[0]) { G.letterAt.shift(); letter(x + len * 0.5, GROUND - 230 - rand(0, 30)); }
@@ -327,7 +333,7 @@ function updateObs(dt, scroll) {
     if (o.k === 'pillar') {
       const cx = clamp(p.x, o.x, o.x + o.w), cy = clamp(p.y, CEIL, o.y1);
       if ((p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.r * p.scale) ** 2) { if (mighty) smashPillar(o); else hitPlayer({ type: 'rock' }); }
-      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide) { G.boost = Math.min(100, G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }
+      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide) { G.boost = Math.min(BMAX(), G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }
     } else if (o.k === 'qb') {
       const head = p.fy - STAND_R * 2 * p.scale, near = Math.abs(p.x - o.x) < 46;
       if (!o.hit && near && p.vy < 0 && head < o.y + 26 && head > o.y - 70) bumpBlock(o); // 밑에서 박기
@@ -476,9 +482,9 @@ function drawRunHud(L) {
   }
   for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, 60, 24); hx += 28; }
   if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, 60, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
-  // 알·소·나·기 글자
+  // 알·소·나·기 글자 (보스전엔 체력바 자리라 숨김)
   const lx = W / 2 - 66, ly = 52;
-  LETTERS.forEach((c, i) => {
+  if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => {
     const on = G.letters[i];
     ctx.fillStyle = on ? C.yellow : 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(lx + i * 44, ly, 16, 0, Math.PI * 2); ctx.fill();
     if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }

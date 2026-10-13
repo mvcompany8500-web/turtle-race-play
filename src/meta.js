@@ -160,7 +160,7 @@ function enterMap(fromClear) {
     map.cam = camFor(map.x);
   }
 }
-function mapPlay() { if (map.path.length || map.unlock) return; startLevel(map.cur === 0 ? ENDLESS : map.cur); }
+function mapPlay() { if (map.path.length || map.unlock) return; openReady(map.cur === 0 ? ENDLESS : map.cur); } // 판 전 목표 카드
 function mapStep(d) {
   if (map.path.length || map.unlock) return;
   const t = map.cur === 0 ? (d > 0 ? 1 : 0) : map.cur + d;
@@ -788,8 +788,10 @@ function drawHatch() {
 // ───────── 산호 쉼터 (축복 카드) ─────────
 function drawBless() {
   ctx.fillStyle = 'rgba(16,16,18,.72)'; ctx.fillRect(-OX(), 0, W, H);
-  text('산호 쉼터', 480, 70, 40, C.yellow, { lw: 8 });
-  text('잠깐 쉬어 가요. 하나만 골라요!', 480, 116, 18, C.text, { body: true });
+  const lv = G.blessKind === 'lv';
+  if (lv) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(480, 80); ctx.rotate(T * 0.4); drawImg(IMG.x_lvup_burst, 0, 0, 300); ctx.restore(); }
+  text(lv ? `레벨 업! Lv ${G.rlv}` : '산호 쉼터', 480, 70, 40, C.yellow, { lw: 8 });
+  text(lv ? '능력 하나를 골라요 · 같은 걸 고르면 ★이 올라가요' : '잠깐 쉬어 가요. 하나만 골라요!', 480, 116, 18, C.text, { body: true });
   (G.bless || []).forEach((b, i) => withRise(i, () => {
     const x = 140 + i * 236, y = 140, w = 220, h = 300;
     const hover = mouse.x >= x + OX() && mouse.x <= x + OX() + w && mouse.y >= y && mouse.y <= y + h;
@@ -799,6 +801,10 @@ function drawBless() {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x + w / 2, y + 80, 80, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     drawItemIcon(b.icon, x + w / 2, y + 72 + Math.sin(T * 3 + i) * 4, 68);
     text(b.name, x + w / 2, y + 140, 20, C.text, { stroke: false });
+    if (b.lv) {
+      if (b.max > 1 && b.max < 9) for (let k = 0; k < b.max; k++) text('★', x + w / 2 + (k - (b.max - 1) / 2) * 22, y + 112, 18, k < b.star + 1 ? C.yellow : 'rgba(255,255,255,.2)', { stroke: false });
+      if (!b.star) { ctx.fillStyle = C.danger; rr(x + w - 58, y + 10, 46, 22, 11); ctx.fill(); text('NEW', x + w - 35, y + 21, 13, '#fff', { stroke: false }); }
+    }
     const lh = fs(14) * 1.3; // 줄 간격은 실제 글자 크기 기준 (폰에서 글자가 커져도 안 겹치게)
     wrapText(b.desc, w - 28, 14).slice(0, 2).forEach((l, k) => text(l, x + w / 2, y + 140 + fs(20) * 0.9 + 8 + k * lh, 14, C.sub, { body: true, stroke: false }));
     button(x + 20, y + h - 58, w - 40, 46, isTouch ? '고르기' : `고르기 (${i + 1})`, () => chooseBless(i), { size: 15 });

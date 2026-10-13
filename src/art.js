@@ -315,11 +315,12 @@ function drawSpriteEnemy(e) {
   if (e.type === 'eel') h = (e.len + 50) * im.naturalHeight / im.naturalWidth;
   const bob = Math.sin(e.t * 3 + (e.ph || 0)) * 3, tilt = Math.sin(e.t * 2.2 + (e.ph || 0)) * 0.07, sq = 1 + Math.sin(e.t * 6 + (e.ph || 0)) * 0.035;
   const cx = e.type === 'eel' ? e.x + e.len / 2 : e.x;
-  ctx.save(); ctx.translate(cx, e.y + bob); ctx.rotate(tilt + (e.roll > 0 ? -e.t * 10 : 0)); ctx.scale(1 / sq, sq);
+  const sk = e.sq || 0;
+  ctx.save(); ctx.translate(cx + (e.kx || 0), e.y + bob); ctx.rotate(tilt + (e.roll > 0 ? -e.t * 10 : 0) + (e.kx || 0) * 0.012); ctx.scale((1 / sq) * (1 + sk), sq * (1 - sk));
   if (e.top && e.type === 'urchin') ctx.scale(1, -1);
   if (e.type === 'phantom') ctx.globalAlpha *= e.vis == null ? 1 : e.vis;
   drawImg(im, 0, 0, h);
-  if (e.hitT > 0) drawImg(silhouette(key, '#ffffff'), 0, 0, h, 0, Math.min(1, e.hitT / 0.12) * 0.85);
+  if (T - (e.hitAt == null ? -9 : e.hitAt) < 0.26) flashOver(key, h, e); // 몸 모양 그대로 번쩍(흰 → 빨강)
   else if (e.frozen) drawImg(silhouette(key, '#bfefff'), 0, 0, h, 0, 0.5);
   else if (e.rage > 0 || (e.sp && !e.sp.done)) drawImg(silhouette(key, '#ff3355'), 0, 0, h, 0, 0.3 + 0.2 * Math.sin(T * 30));
   ctx.restore();
@@ -750,7 +751,10 @@ function drawInk(k) {
   ctx.restore();
 }
 // ───────── 아이템 상자·아이콘 ─────────
+const ITEM_ART = { magnet: 'x_it_magnet', bubble: 'x_it_bubble', double: 'x_it_star', freeze: 'x_it_ice', giant: 'x_it_up', bolt: 'x_it_bolt', whirl: 'x_it_swirl' };
 function drawItemIcon(key, x, y, size) {
+  if (ITEM_ART[key] && ready(IMG[ITEM_ART[key]])) return drawImg(IMG[ITEM_ART[key]], x, y, size * 1.15);
+  if (typeof key === 'string' && key.startsWith('x_')) return drawImg(IMG[key], x, y, size * 1.15);
   const it = ITEMS[key] ? ITEMS[key].icon : key;
   if (it === 'egg') return drawImg(IMG.egg, x, y, size);
   if (it.startsWith('e_')) return icon(it, x, y, size);
