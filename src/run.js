@@ -34,6 +34,7 @@ function runInit() {
   G.bestFlag = null;
   const bd = G.cfg.endless ? (save.endlessBest || 0) * 40 : ((save.best[G.n] || 0) / 100) * G.cfg.length;
   if (bd > W && (G.cfg.endless || (save.best[G.n] || 0) < 100)) G.bestFlag = { d: bd, x: null, passed: false };
+  if (G.helped) later(1200, () => G && G.helped && pop(W / 2, H / 2 - 90, '도와줄게! 방패 하나 ♥', '#ffc4dc', 30, true));
 }
 
 // ───────── 입력 ─────────

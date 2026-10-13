@@ -120,6 +120,7 @@ cvs.addEventListener('pointercancel', endDrag);
 let last = performance.now(), prevState = state;
 // 프레임 재기: 2초 동안 평균이 느리면(45프레임 아래) 화질을 낮춰 조작이 굼뜨지 않게
 let fpsAcc = 0, fpsN = 0;
+let flashPrev = 0; const flashHits = [];
 function frame(now) {
   const raw = (now - last) / 1000;
   const dt = Math.min(0.05, raw); last = now; T += dt;
@@ -201,7 +202,12 @@ function render() {
   } else {
     drawBackground(state === 'shop' ? clamp(shop.next === ENDLESS ? 1 : shop.next, 1, LAST) : state === 'ready' && ready_ ? clamp(ready_.n === ENDLESS ? 1 : ready_.n, 1, LAST) : state === 'story' && story ? (story.w - 1) * 10 + 1 : 1, T * 90);
   }
-  if (flash > 0) { ctx.globalAlpha = flash * 0.8; ctx.fillStyle = flashColor; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  if (flash > 0) { // 번쩍임: 1초에 3번 넘으면 약하게(빛 민감한 사람 보호), 한 번도 0.45 넘지 않게
+    if (flash > flashPrev + 0.05) { const now = performance.now(); flashHits.push(now); while (flashHits.length && now - flashHits[0] > 1000) flashHits.shift(); }
+    const a = Math.min(flash, 0.55) * 0.8 * (flashHits.length > 3 ? 0.25 : 1);
+    ctx.globalAlpha = a; ctx.fillStyle = flashColor; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+  }
+  flashPrev = flash;
   // 메뉴 화면: 가운데 960 폭
   ctx.save();
   if (shake > 0 && (state === 'map' || state === 'intro')) ctx.translate(rand(-shake, shake) * 0.5, rand(-shake, shake) * 0.5);

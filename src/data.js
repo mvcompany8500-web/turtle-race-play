@@ -148,12 +148,12 @@ const HATCH_BASE = 200, HATCH_STEP = 100, PET_LV_COST = [100, 220, 450, 900];
 const hatchCost = () => HATCH_BASE + HATCH_STEP * save.pets.length;
 const UPS = [
   // 값 = 기본값 × 1.8~2.4^단계 — docs/balance.md(실험실 수입으로 계산): 1판 = 1단계, 전부 = 47번 바다 무렵
-  { k: 'slow', name: '느긋한 등껍질', desc: '물살이 7% 느려져요', max: 5, cost: [85, 160, 295, 550, 1015] },
-  { k: 'boost', name: '질주 엔진', desc: '질주가 30% 빨리 차요', max: 5, cost: [85, 160, 295, 550, 1015] },
-  { k: 'shield', name: '거품 방패', desc: '판마다 한 번 막아 줘요', max: 3, cost: [175, 420, 1000] },
-  { k: 'magnet', name: '진주 자석', desc: '가까운 진주를 끌어와요', max: 3, cost: [100, 225, 495] },
-  { k: 'fire', name: '물방울 연사', desc: '큰 적 공격이 빨라져요', max: 5, cost: [70, 140, 245, 455, 850] },
-  { k: 'power', name: '물방울 위력', desc: '큰 적 공격이 세져요', max: 5, cost: [100, 190, 350, 645, 1190] },
+  { k: 'slow', name: '느긋한 등껍질', desc: '물살이 느려져요', max: 5, cost: [85, 160, 295, 550, 1015], eff: (l) => (l ? `-${l * 7}%` : '0%') },
+  { k: 'boost', name: '질주 엔진', desc: '질주가 빨리 차요', max: 5, cost: [85, 160, 295, 550, 1015], eff: (l) => (l ? `+${l * 30}%` : '0%') },
+  { k: 'shield', name: '거품 방패', desc: '부딪혀도 막아 줘요', max: 3, cost: [175, 420, 1000], eff: (l) => (l ? `${l}번 막기` : '없음') },
+  { k: 'magnet', name: '진주 자석', desc: '진주를 끌어와요', max: 3, cost: [100, 225, 495], eff: (l) => ['없음', '가까이', '보통', '멀리'][l] },
+  { k: 'fire', name: '물방울 연사', desc: '보스 공격이 빨라요', max: 5, cost: [70, 140, 245, 455, 850], eff: (l) => (l ? `+${l * 12}%` : '0%') },
+  { k: 'power', name: '물방울 위력', desc: '보스 공격이 세져요', max: 5, cost: [100, 190, 350, 645, 1190], eff: (l) => `×${(1 + l * 0.5).toFixed(1)}` },
 ];
 // Codex 로 만든 그림 (assets/sprites/*.webp) — 없으면 코드 그림으로
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',

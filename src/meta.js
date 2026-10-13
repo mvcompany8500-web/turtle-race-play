@@ -679,7 +679,7 @@ function buyUp(i) {
   if (c == null) { sfx.no(); shopSay('이미 최고 단계예요'); return; }
   if (save.eggs < c) { sfx.no(); shopSay(`진주가 ${c - save.eggs}개 부족해요`); return; }
   save.eggs -= c; save.up[u.k]++; persist(); sfx.levelup(); haptic(25);
-  shopSay(`${u.name} ${save.up[u.k]}단계!`);
+  shopSay(`${u.name} Lv ${save.up[u.k]}! 이제 ${u.eff(save.up[u.k])}`);
 }
 function wearSkin(k) {
   if (save.skin === k) return;
@@ -712,6 +712,7 @@ function levelPet(k) {
 }
 function updateShop(dt) {
   if (shop.msgT > 0) shop.msgT -= dt;
+  if (shop.upFlash) { shop.upFlash.t += dt; if (shop.upFlash.t > 0.6) shop.upFlash = null; }
   if (shop.turn) {
     const tr = shop.turn; tr.t += dt / 0.92; tr.n = tr.n || 0;
     // 몸이 옆→뒤→옆으로 바뀌는 순간(easeInOutCubic 이 1/4·2/4·3/4 를 지나는 t)에 휙 소리, 앞으로 돌아오면 짠
@@ -757,14 +758,37 @@ function drawShop() {
   if (shop.tab === 'up') {
     const icons = { slow: 'e_snow', boost: 'e_rocket', shield: 'e_shield', magnet: 'e_gem', fire: 'e_sparkles', power: 'e_fire' };
     UPS.forEach((u, i) => withRise(i, () => {
-      const x = 40 + (i % 3) * 296, y = 116 + Math.floor(i / 3) * 176, w = 284, h = 166, lv = save.up[u.k], c = upCost(u);
-      panel(x, y, w, h);
-      icon(icons[u.k], x + 52, y + 56, 60, Math.sin(T * 2 + i) * 0.08);
-      text(u.name, x + 100, y + 34, 19, C.text, { align: 'left', stroke: false });
-      text(u.desc, x + 100, y + 62, 14, C.sub, { align: 'left', body: true, stroke: false });
-      for (let k = 0; k < u.max; k++) { ctx.fillStyle = k < lv ? C.blueD : C.line; rr(x + 100 + k * 26, y + 84, 20, 10, 5); ctx.fill(); }
-      if (c == null) text('최고 단계', x + w / 2, y + 134, 17, C.ok, { stroke: false });
-      else button(x + 20, y + 110, w - 40, 44, `진주 ${c}`, () => buyUp(i), { size: 17, disabled: save.eggs < c });
+      const x = 40 + (i % 3) * 296, y = 116 + Math.floor(i / 3) * 176, w = 284, h = 166, lv = save.up[u.k], c = upCost(u), maxed = c == null;
+      const fl = shop.upFlash && shop.upFlash.i === i ? Math.max(0, 1 - shop.upFlash.t / 0.6) : 0;
+      panel(x, y, w, h, { sel: maxed, fill: maxed ? 'rgba(60,52,20,.92)' : undefined });
+      if (fl > 0) { ctx.save(); ctx.globalAlpha = fl; ctx.strokeStyle = C.yellow; ctx.lineWidth = 3 + fl * 5; rr(x - 2, y - 2, w + 4, h + 4, 22); ctx.stroke(); ctx.restore(); }
+      // 왼쪽: 아이콘 동그라미
+      ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); ctx.arc(x + 46, y + 50, 32, 0, Math.PI * 2); ctx.fill();
+      icon(icons[u.k], x + 46, y + 50 - fl * 8, 48 * (1 + fl * 0.25), Math.sin(T * 2 + i) * 0.08);
+      // 위: 이름 + 단계 배지
+      text(u.name, x + 90, y + 28, 18, C.text, { align: 'left', stroke: false });
+      ctx.save(); rr(x, y, w, h, 20); ctx.clip();
+      text(u.desc, x + 90, y + 54, 13, C.sub, { align: 'left', body: true, stroke: false });
+      const badge = maxed ? 'MAX' : `Lv ${lv}/${u.max}`;
+      ctx.font = `800 ${fs(13)}px ${FONT}`; const bw = ctx.measureText(badge).width + 16;
+      ctx.fillStyle = maxed ? C.yellow : 'rgba(255,255,255,.12)'; rr(x + w - 14 - bw, y + 14, bw, 26, 13); ctx.fill();
+      text(badge, x + w - 14 - bw / 2, y + 27, 13, maxed ? '#3a2a00' : C.text, { stroke: false });
+      // 가운데: 지금 → 다음
+      if (maxed) text(`${u.eff(lv)} · 최고 단계`, x + 90, y + 80, 15, C.yellow, { align: 'left', body: true, stroke: false });
+      else {
+        ctx.font = `600 ${fs(15)}px ${FONT}`; const cur = u.eff(lv), cw = ctx.measureText(cur).width;
+        text(cur, x + 90, y + 80, 15, C.sub, { align: 'left', body: true, stroke: false });
+        text('→', x + 90 + cw + 14, y + 80, 15, C.sub, { stroke: false });
+        text(u.eff(lv + 1), x + 90 + cw + 28, y + 80, 16, '#8dff7a', { align: 'left', stroke: false });
+      }
+      // 단계 칸
+      const pw = (w - 104) / u.max;
+      for (let k = 0; k < u.max; k++) { ctx.fillStyle = k < lv ? (maxed ? C.yellow : C.blue) : 'rgba(255,255,255,.12)'; rr(x + 90 + k * pw, y + 97, pw - 5, 7, 3.5); ctx.fill(); }
+      ctx.restore();
+      // 아래: 설명 한 줄(넓은 화면만) + 사기 단추
+      if (maxed) text('다 키웠어요!', x + w / 2, y + 134, 17, C.yellow, { stroke: false });
+      else if (save.eggs < c) button(x + 16, y + 114, w - 32, 40, `진주 ${c - save.eggs}개 더 모으면`, () => buyUp(i), { size: 15, disabled: true });
+      else button(x + 16, y + 114, w - 32, 40, `키우기 · 진주 ${c}`, () => { buyUp(i); shop.upFlash = { i, t: 0 }; }, { size: 16 });
     }));
   } else if (shop.tab === 'fx') {
     TRAILS.forEach((t, i) => withRise(i, () => {
@@ -947,9 +971,9 @@ function drawDead() {
   rewardRow(RC.y + 210, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggs}`, C.yellow, `가진 진주 ${save.eggs.toLocaleString()}`);
   rewardRow(RC.y + 244, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
   if (G.appEgg) rewardRow(RC.y + 278, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : G.appEgg.short ? '짧은 판' : '오늘 3판 다 받음');
-  const tip = HIT_TIPS[G.lastHit] || '박자에 맞춰 뛰면 타이밍이 쉬워요';
-  ctx.fillStyle = 'rgba(255,213,74,.1)'; rr(RL, RC.y + 304, RR - RL, 34, 10); ctx.fill();
-  text(`💡 ${tip}`, RL + 14, RC.y + 322, 13, C.yellow, { align: 'left', body: true, stroke: false });
+  const tip = G.helpNext ? '다음 판은 방패 하나를 그냥 줄게요 ♥ 같이 가요!' : HIT_TIPS[G.lastHit] || '박자에 맞춰 뛰면 타이밍이 쉬워요';
+  ctx.fillStyle = G.helpNext ? 'rgba(255,111,168,.16)' : 'rgba(255,213,74,.1)'; rr(RL, RC.y + 304, RR - RL, 34, 10); ctx.fill();
+  text(G.helpNext ? tip : `💡 ${tip}`, RL + 14, RC.y + 322, 13, G.helpNext ? '#ffc4dc' : C.yellow, { align: 'left', body: true, stroke: false });
   ctx.restore();
   bottomButtons('다시 하기 ▶', () => startLevel(G.n), [['상점', () => openShop(G.n)], ['지도로', () => enterMap()], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();

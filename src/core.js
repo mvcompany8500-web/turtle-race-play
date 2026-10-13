@@ -210,8 +210,14 @@ const haptic = (() => {
       document.body.append(i, l); lbl = l;
     } catch (e) { /* 지원 안 하면 조용히 */ }
   }
+  let last = 0; const recent = [];
   return (p) => {
     if (!save.haptics || !userActed) return; // 처음 누르기 전에는 브라우저가 막는다
+    // 너무 잦은 떨림 막기: 70ms 안에 또는 1초에 4번 넘게는 건너뜀(배터리·피로)
+    const now = performance.now(); if (now - last < 70) return;
+    while (recent.length && now - recent[0] > 1000) recent.shift();
+    if (recent.length >= 4) return;
+    last = now; recent.push(now);
     try { if (navigator.vibrate) navigator.vibrate(p); else if (lbl) lbl.click(); } catch (e) { /* 무시 */ }
   };
 })();

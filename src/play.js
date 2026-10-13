@@ -33,7 +33,7 @@ function startLevel(n) {
   G = {
     n, cfg, D: cfg.D, dist: 0, t: 0, eggs: 0, combo: 0, comboT: 0,
     boost: n === ENDLESS ? 30 : Math.min(60, (n - 1) * 3), boosting: 0,
-    shield: save.up.shield + (petIs('whale') ? (petLv() >= 4 ? 2 : 1) : 0),
+    shield: save.up.shield + (petIs('whale') ? (petLv() >= 4 ? 2 : 1) : 0) + (save.helpShield === n ? 1 : 0), helped: save.helpShield === n, // 같은 바다 2번 연속 실패 → 공짜 방패 하나
     enemies: [], eggsArr: [], shots: [], warns: [], inks: [], boxes: [], sweeps: [], hazards: [], spCD: 4,
     bullets: [], fireT: 0.5, breaks: [], brkT: 5, shotKills: 0, darkT: 0, grabT: 0,
     spawnT: 1.8, eggT: 0.9, boxT: 4, boss: null, bossDone: !cfg.boss, bossWarnT: null, goal: null,
@@ -72,6 +72,12 @@ function bank(cleared) {
   G.banked = true;
   if (cleared) { G.clearBonus = 8 + Math.floor((G.n === ENDLESS ? 0 : G.n) * 0.6); earn('clear', G.clearBonus); } // 도착 보너스: 뒤 바다일수록 조금 더
   G.settle = [];
+  if (save.helpShield === G.n) save.helpShield = null; // 도움 방패는 한 판만
+  if (G.n !== ENDLESS) { // 막힌 사람 돕기: 같은 바다 연속 실패 수
+    save.failRow = save.failRow || {};
+    if (cleared) delete save.failRow[G.n];
+    else if (progress() >= 0.05 || G.t > 8) { save.failRow[G.n] = (save.failRow[G.n] || 0) + 1; if (save.failRow[G.n] >= 2) { save.helpShield = G.n; G.helpNext = true; } }
+  }
   if (cleared && G.run) { const h = Math.max(0, G.hp); if (h) { earn('settle', h * 5); G.settle.push({ s: `남은 하트 ♥×${h}`, v: h * 5 }); } if (G.beatBest >= 5) { earn('settle', 5); G.settle.push({ s: `박자 최고 ${G.beatBest}연속`, v: 5 }); } if (G.stomps) { const v = Math.min(10, G.stomps); earn('settle', v); G.settle.push({ s: `밟기 ${G.stomps}번`, v }); } } // 끝나면 하나씩 반짝이며 더해짐
   G.diffBonus = Math.round(G.eggs * (G.D.eggs - 1));
   G.eggs = Math.max(0, G.eggs + G.diffBonus);
@@ -941,6 +947,11 @@ function updatePlay(dt) {
 
   // 생성
   const finishing = !cfg.endless && G.dist >= cfg.length;
+  // 막판 긴장: 85% 지점에서 한 번 「조금만 더!」 + 금빛 테두리 + 올라가는 소리
+  if (!p.dead && !cfg.endless && !G.lastPush && !G.tut && G.dist >= cfg.length * 0.85 && !finishing) {
+    G.lastPush = true; reaction(2, cfg.boss ? '보스가 가까워졌어!' : '조금만 더!'); edgeFlash(cfg.boss ? '#ff5470' : '#ffd54a', 1.1);
+    if (!playSample('sfx_riser', 0.6)) snd('ready', 0.6);
+  }
   if (!p.dead) {
     const D = G.D;
     if (G.run) {
