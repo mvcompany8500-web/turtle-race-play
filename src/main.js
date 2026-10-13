@@ -54,7 +54,8 @@ function onKey(c) {
       else if ((c === 'Escape' || c === 'KeyP') && !G.p.dead) state = 'pause';
       break;
     case 'bless': if (c >= 'Digit1' && c <= 'Digit3') chooseBless(+c.slice(5) - 1); break;
-    case 'ready': if (go && ready_) { const k = ready_.n; ready_ = null; startLevel(k); } else if (c === 'Escape') { ready_ = null; enterMap(); } break;
+    case 'story': if (go || c === 'ArrowRight') storyTap(); break;
+    case 'ready': if (go && ready_) { const k = ready_.n; ready_ = null; startLevel(k); applyBoosters(); } else if (c === 'Escape') { ready_ = null; enterMap(); } break;
     case 'pause':
       if (c === 'Escape' || c === 'KeyP' || go) state = 'play';
       else if (c === 'KeyQ') { bank(false); enterMap(); }
@@ -92,6 +93,7 @@ cvs.addEventListener('pointerdown', (e) => {
   if (state === 'title') { if (lx > 100 && lx < 400 && pt.y > 130 && pt.y < 450) buddyAct(); else startGame(); }
   else if (state === 'intro') introAdvance();
   else if (state === 'ending') endingTap();
+  else if (state === 'story') storyTap();
   else if (state === 'map' && !map.overlay) mapDown(pt);
   else if (state === 'play' && !G.p.dead && G.run) {
     if (pt.x < W / 2) { G.touch.j = e.pointerId; jumpDown(); } else { G.touch.s = e.pointerId; slideDown(); }
@@ -200,7 +202,7 @@ function render() {
   } else if (state === 'map' || state === 'intro') {
     if (state === 'intro') drawBackground(1, T * 20);
   } else {
-    drawBackground(state === 'shop' ? clamp(shop.next === ENDLESS ? 1 : shop.next, 1, LAST) : state === 'ready' && ready_ ? clamp(ready_.n === ENDLESS ? 1 : ready_.n, 1, LAST) : 1, T * 90);
+    drawBackground(state === 'shop' ? clamp(shop.next === ENDLESS ? 1 : shop.next, 1, LAST) : state === 'ready' && ready_ ? clamp(ready_.n === ENDLESS ? 1 : ready_.n, 1, LAST) : state === 'story' && story ? (story.w - 1) * 10 + 1 : 1, T * 90);
   }
   if (flash > 0) { ctx.globalAlpha = flash * 0.8; ctx.fillStyle = flashColor; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
   // 메뉴 화면: 가운데 960 폭
@@ -212,6 +214,7 @@ function render() {
   else if (state === 'intro') drawIntro();
   else if (state === 'shop') drawShop();
   else if (state === 'ready') drawReady();
+  else if (state === 'story') drawStory();
   else if (state === 'pause') drawPause();
   else if (state === 'bless') drawBless();
   else if (state === 'revive') drawRevive();
@@ -224,6 +227,7 @@ function render() {
   drawScreenFxTop();
   drawEggFly();
   drawToasts();
+  drawBuyConfirm(); // 결제 확인 창은 맨 위
 }
 requestAnimationFrame(frame);
 
@@ -234,4 +238,6 @@ window.__turtle = {
   bless: () => openBless(), jump: () => { jumpDown(); setTimeout(jumpUp, 200); }, slide: (ms = 600) => { slideDown(); setTimeout(slideUp, ms); }, xp: (n) => { save.xp += n; }, boss: () => { G.dist = G.cfg.length; }, die: () => { G.p.inv = 0; G.shield = 0; hitPlayer({ type: 'test' }); },
   win: () => levelClear(), special: (t) => { spawnEnemy(t); const e = G.enemies[G.enemies.length - 1]; if (e) { e.x = W * 0.62; e.sp = { t: 0, wind: 0.75, done: false }; } }, set: (k, v) => { save[k] = v; persist(); }, spawn: (t) => spawnEnemy(t),
 };
+// 오프라인 실행(https 공개본에서만 — 개발 중엔 안 씀)
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 if (new URLSearchParams(location.search).has('lab')) { const s = document.createElement('script'); s.src = 'tools/lab.js?' + Date.now(); document.body.append(s); } // 개발용 실험실

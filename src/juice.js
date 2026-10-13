@@ -112,7 +112,7 @@ function drawHitNums() {
 }
 
 // ───────── ③ 보스: 등장·체력바·도발 ─────────
-const TAUNTS = { shark: ['크하하! 그 정도야?', '느림보 거북이 주제에!'], octopus: ['먹물 맛 좀 봐라~', '키득키득, 못 피하지?'], angler: ['깜깜하지? 키키키', '반짝이는 건 다 내 거야~'], king: ['공주는 내 거다! 크하하!', '여기까지 온 걸 후회하게 해 주마!'] };
+const TAUNTS = { jelly: ['찌릿찌릿~ 감전되고 싶니?', '번쩍! 눈 감아도 소용없어~'], crab: ['집게 맛 좀 볼래?', '내 모래성에서 나가!'], shark: ['크하하! 그 정도야?', '느림보 거북이 주제에!'], octopus: ['먹물 맛 좀 봐라~', '키득키득, 못 피하지?'], angler: ['깜깜하지? 키키키', '반짝이는 건 다 내 거야~'], king: ['공주는 내 거다! 크하하!', '여기까지 온 걸 후회하게 해 주마!'] };
 let taunt = null, lastTauntAt = -99;
 function bossTaunt(force = false) {
   const b = G && G.boss; if (!b || b.dead || REDUCE) return;
@@ -424,7 +424,11 @@ function applyAbility(a) {
 
 // ───────── ⑦ 판 전 목표 카드 ─────────
 let ready_ = null;
-function openReady(n) { ready_ = { n, t: 0 }; state = 'ready'; sfx.click(); }
+function openReady(n) {
+  const w = typeof chapterFor === 'function' ? chapterFor(n) : null;
+  if (w) { playStory(w, () => openReady(n)); return; } // 새 세계 첫 판: 장 이야기 먼저
+  ready_ = { n, t: 0 }; state = 'ready'; sfx.click();
+}
 function drawReady() {
   const n = ready_.n, st = STAGES[n], endless = n === ENDLESS;
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
@@ -459,11 +463,11 @@ function drawReady() {
   withRise(3, () => {
     const best = endless ? `최고 ${save.endlessBest}미터` : save.best[n] ? `최고 기록 ${save.best[n]}%` : '처음 도전!';
     text(`${best} · 하트 ${maxHearts()}개 · 거북 Lv ${save.lv}`, 480, 348, 15, C.text, { body: true, stroke: false });
-    text('박자에 맞춰 뛰면 「박자 딱!」 · 필살 게이지는 3단까지 모여요', 480, 374, 13, C.sub, { body: true, stroke: false });
   });
   withRise(4, () => {
-    button(260, 400, 300, 64, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); }, { size: 26 });
-    button(576, 400, 152, 64, '지도로', () => { ready_ = null; enterMap(); }, { size: 17, kind: 'soft' });
+    drawBoosterRow(228, 388);
+    button(260, 430, 300, 58, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); applyBoosters(); }, { size: 24 });
+    button(576, 430, 152, 58, '지도로', () => { ready_ = null; boostPick = {}; enterMap(); }, { size: 17, kind: 'soft' });
   });
 }
 

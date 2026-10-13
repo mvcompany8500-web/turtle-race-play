@@ -40,7 +40,7 @@ const STAGES = [null,
   { name: '눈송이 해류', tip: '물살은 느려도 적은 많아요. 침착하게!' },
   { name: '기뢰 밭', tip: '기뢰는 깜빡이다 터져요. 회오리로 날리거나 방패로 막아요', fresh: 'mine' },
   { name: '열수구 지대', tip: '뜨거운 물기둥 사이로 헤엄쳐요' },
-  { name: '대왕 문어의 귀환', tip: '더 화난 대왕 문어! 먹물이 두 배예요', boss: 'octopus2' },
+  { name: '번개 해파리 여왕의 궁전', tip: '번개 줄은 ↑ 뛰거나 가만히! 낮게 내려올 때 머리를 밟아요', boss: 'jellyq' },
   { name: '불꽃 협곡', tip: '모든 적이 다 나와요. 아이템을 아끼지 마세요' },
   { name: '얼음 동굴', tip: '깜깜한 얼음 동굴. 등불이 최고예요', dark: true },
   { name: '폭풍 바다', tip: '기뢰와 소용돌이가 같이 와요!' },
@@ -62,7 +62,7 @@ const STAGES = [null,
   { name: '유령 해파리 정원', tip: '유령 해파리는 사라졌다 나타나요. 등불이면 다 보여요', fresh: 'phantom' },
   { name: '무너진 기둥 길', tip: '모든 적이 다 나와요' },
   { name: '빛 없는 회랑', tip: '등불, 등불, 등불!', dark: true },
-  { name: '상어 대장의 마지막 결투', tip: '상어 대장이 마지막으로 덤벼요!', boss: 'shark3' },
+  { name: '왕꽃게의 모래성', tip: '쿵 하면 모래 파도가 와요 — 점프! 집게는 숙여서!', boss: 'crabk' },
   { name: '심연의 소용돌이', tip: '소용돌이가 셋 넷!' },
   { name: '얼어붙은 왕좌', tip: '느려도 괜찮아요. 포기만 하지 마세요' },
   { name: '불타는 회랑', tip: '정예 몬스터가 많아요' },
@@ -157,7 +157,7 @@ const UPS = [
 ];
 // Codex 로 만든 그림 (assets/sprites/*.webp) — 없으면 코드 그림으로
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
-  'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
+  'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'boss_jelly', 'boss_crab', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
   'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock'];
 
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────

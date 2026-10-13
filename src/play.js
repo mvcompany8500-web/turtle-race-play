@@ -100,6 +100,7 @@ function bank(cleared) {
   G.letterShow = cleared && PRINCESS_LETTERS[G.n] && !save.letters[G.n] ? { shown: 0 } : null;
   if (cleared && G.n === 1 && G.run) save.tutRun = true;
   appEggs(cleared); // 앱 거북알(하루 3판·5~15개)
+  storeAfterRun();
   persist();
 }
 
@@ -387,6 +388,11 @@ function updateHazards(dt) {
       if (h.t > 0.6) h.done = true; continue;
     }
     if (h.k === 'cloud') { h.x -= G.cfg.speed * 0.5 * dt; if (!p.dead && !h.hit && h.t > 0.4 && Math.hypot(p.x - h.x, p.y - h.y) < h.r * 0.8) { h.hit = true; if (!safe()) hitPlayer({ type: 'puffer' }); } if (h.t > h.dur) h.done = true; continue; }
+    if (h.k === 'wave') { // 왕꽃게 모래 파도: 바닥을 따라 밀려옴 → 점프
+      h.x -= (640 + G.cfg.speed * 0.3) * dt;
+      if (!h.hit && !p.dead && Math.abs(p.x - h.x) < 36 && p.fy > GROUND - 40) { h.hit = true; if (!safe()) hitPlayer({ type: 'boss' }); }
+      if (h.x < -80) h.done = true; continue;
+    }
     if (h.k === 'grab') { if (h.t > h.dur || !h.src || h.src.dead) { h.done = true; G.grabT = 0; } continue; }
     if (h.k === 'shock') {
       h.r = Math.min(h.max, h.r + h.spd * dt); h.x -= G.cfg.speed * 0.3 * dt;
@@ -532,6 +538,8 @@ const BOSS_DEF = {
   octopus3: { name: '해적 문어 선장', hp: 8, kind: 'octopus', s: 3.5, spd: 1.4, triple: true },
   angler2: { name: '아귀 여왕', hp: 7, kind: 'angler', s: 3.2, spd: 1.3 },
   shark3: { name: '상어 대장', hp: 8, kind: 'shark', c1: '#d8b06a', c2: '#6a4a1a', s: 2.8, spd: 1.45 },
+  jellyq: { name: '번개 해파리 여왕', hp: 7, kind: 'jelly', s: 3, spd: 1.25 },
+  crabk: { name: '왕꽃게', hp: 8, kind: 'crab', s: 3, spd: 1.35 },
   king: { name: '상어왕', hp: 11, kind: 'shark', c1: '#8a6bd6', c2: '#3f2a7a', s: 3.1, spd: 1.35, king: true },
 };
 function spawnBoss() {
@@ -629,6 +637,48 @@ function updateBoss(dt) {
         break;
       case 'retreat': b.st = 'idle'; break;
       case 'knock': b.x = lerp(b.x, homeX + 50, sdt * 5); if (b.t > 0.6) b.st = 'idle'; break;
+    }
+  } else if (b.kind === 'jelly') { // 번개 해파리 여왕: 떠서 번개 줄 · 새끼 · 급강하(밟을 틈)
+    const hover = GROUND - 210 + Math.sin(b.t * 1.4) * 40;
+    switch (b.st) {
+      case 'enter': case 'idle': case 'retreat': case 'knock':
+        b.x = lerp(b.x, homeX, sdt * 3); b.y = lerp(b.y, hover, sdt * 2.5);
+        if (b.st !== 'idle' && b.t > 0.6) b.st = 'idle';
+        b.cd -= sdt;
+        if (b.cd <= 0 && b.st === 'idle') {
+          const r = Math.random();
+          if (r < 0.45) { // 번개 줄: 아래(점프) / 위(가만히), 화나면 두 번
+            const low = { y0: GROUND - 70, y1: GROUND + 6, lane: 'low' }, high = { y0: CEIL + 10, y1: GROUND - 78, lane: 'high' };
+            const first = Math.random() < 0.55 ? low : high;
+            G.sweeps.push({ ...first, t: 0.95, x: W + 60, on: false, zap: true });
+            if (b.rage) G.sweeps.push({ ...(first === low ? high : low), t: 1.7, x: W + 60, on: false, zap: true });
+            sfx.bolt(); b.cd = rand(2.8, 3.6);
+          } else if (r < 0.7) { // 새끼 해파리(밟으면 통통)
+            for (let i = 0; i < (b.rage ? 3 : 2); i++) addEnemy({ type: 'jelly', x: b.x - 60 - i * 90, y: GC() - 6, baseY: GC() - 6, r: 16, amp: 4, vx: -160, t: 0, ph: 0, run: true, noSp: true });
+            snd('bubble', 0.8); b.cd = rand(2, 2.8);
+          } else { b.st = 'windup'; b.t = 0; snd('charge', 0.9); }
+        }
+        break;
+      case 'windup': b.x = homeX + Math.sin(b.t * 60) * 3; if (b.t > 0.7) { b.st = 'lunge'; b.t = 0; snd('lunge', 1); } break;
+      case 'lunge': b.x -= 700 * sdt; b.y = lerp(b.y, GROUND - 76, sdt * 8); if (b.x < -220) { b.x = W + 220; b.st = 'enter'; b.t = 0; b.cd = rand(2, 3); } break; // 낮게 휩쓸고 지나감: 점프로 넘거나 머리 밟기
+    }
+  } else if (b.kind === 'crab') { // 왕꽃게: 쿵(모래 파도) · 집게 던지기(머리 높이) · 옆걸음 돌진
+    const ground = Math.min(maxY, GROUND - 58 * kS + 4);
+    switch (b.st) {
+      case 'enter': case 'idle': case 'knock': case 'retreat':
+        b.x = lerp(b.x, homeX + Math.sin(b.t * 2) * 20, sdt * 3); b.y = lerp(b.y, ground, sdt * 6);
+        if (b.st !== 'idle' && b.t > 0.6) b.st = 'idle';
+        b.cd -= sdt;
+        if (b.cd <= 0 && b.st === 'idle') {
+          const r = Math.random();
+          if (r < 0.4) { b.st = 'hop'; b.t = 0; snd('crab', 1); }
+          else if (r < 0.7) { for (let i = 0; i < (b.rage ? 3 : 2); i++) later(i * 260, () => { if (G.boss === b && !b.dead) { G.shots.push({ x: b.x - 90, y: HEAD_Y, vx: -560, vy: 0, r: 16, t: 0, style: 'claw' }); snd('swoosh', 0.7, 1.3); } }); b.cd = rand(2, 2.8); }
+          else { b.st = 'windup'; b.t = 0; b.laneY = null; sfx.warn(); }
+        }
+        break;
+      case 'hop': b.y = ground - Math.sin(Math.min(1, b.t / 0.55) * Math.PI) * 160; if (b.t > 0.55) { b.y = ground; b.st = 'idle'; b.t = 0; b.cd = rand(2.2, 3); G.hazards.push({ k: 'wave', x: b.x - 90, t: 0 }); if (b.rage) later(420, () => G.hazards.push({ k: 'wave', x: W + 40, t: 0 })); shake = Math.max(shake, 14); snd('thud', 0.8); ring(b.x, GROUND, '#e9d9a8', 160, 0.4, 8); } break;
+      case 'windup': b.x = homeX + 30 * b.t + Math.sin(b.t * 70) * 4; if (b.t > 0.8) { b.st = 'charge'; b.t = 0; snd('lunge', 1); } break;
+      case 'charge': b.x -= 760 * sdt; if (b.x < -260) { b.x = W + 200; b.st = 'enter'; b.t = 0; b.cd = rand(2.2, 3); } break;
     }
   } else { // 아귀: 어둠 속 미끼 → 덥석 → 잠깐 멈춤(때릴 틈) → 물러남
     switch (b.st) {
@@ -740,7 +790,7 @@ function giveUp() { bank(false); state = 'dead'; G.deadT = 0; }
 function updatePlay(dt) {
   const p = G.p, cfg = G.cfg, E = G.eff;
   G.t += dt;
-  juiceUpdate(dt);
+  juiceUpdate(dt); trailTick(dt);
   if (G.run && tryOpenLevelUp()) return;
   if (G.intro > 0) G.intro -= dt;
   for (const k in E) if (E[k] > 0) E[k] -= dt;
@@ -1148,8 +1198,8 @@ function drawEgg(e) {
   if (e.bonus) { ctx.strokeStyle = `hsl(${(T * 200 + e.x) % 360},90%,70%)`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y + bob, 15, 0, Math.PI * 2); ctx.stroke(); }
   drawPearl(e.x, e.y + bob, h, Math.sin(e.t * 3) * 0.15, isGold || e.gold);
 }
-const BOSS_SPR = { shark: 'boss_shark', shark2: 'boss_shark', shark3: 'boss_shark', king1: 'boss_king', king: 'boss_king', octopus: 'boss_octopus', octopus2: 'boss_octopus', octopus3: 'boss_pirate', angler: 'boss_angler', angler2: 'boss_angler' };
-const BOSS_H = { boss_shark: 230, boss_king: 270, boss_octopus: 300, boss_pirate: 300, boss_angler: 280 };
+const BOSS_SPR = { shark: 'boss_shark', shark2: 'boss_shark', shark3: 'boss_shark', king1: 'boss_king', king: 'boss_king', jellyq: 'boss_jelly', crabk: 'boss_crab', octopus: 'boss_octopus', octopus2: 'boss_octopus', octopus3: 'boss_pirate', angler: 'boss_angler', angler2: 'boss_angler' };
+const BOSS_H = { boss_jelly: 250, boss_crab: 230, boss_shark: 230, boss_king: 270, boss_octopus: 300, boss_pirate: 300, boss_angler: 280 };
 function drawBoss(b, px, py) {
   const key = 'spr_' + BOSS_SPR[G.cfg.boss], im = IMG[key];
   if (ready(im)) {
@@ -1229,6 +1279,11 @@ function drawWorld() {
     } else if (h.k === 'cloud') {
       const a = Math.min(1, h.t / 0.4) * (h.t > h.dur - 0.5 ? (h.dur - h.t) / 0.5 : 1);
       ctx.save(); ctx.globalAlpha = a * 0.75; for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#7bd44a' : '#a8f06a'; ctx.beginPath(); ctx.arc(h.x + Math.cos(i * 1.1 + h.t) * h.r * 0.45, h.y + Math.sin(i * 1.7 + h.t) * h.r * 0.35, h.r * 0.5, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+    } else if (h.k === 'wave') {
+      ctx.save(); ctx.fillStyle = '#e9d9a8'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(h.x - 40, GROUND + 4); ctx.quadraticCurveTo(h.x - 10, GROUND - 46, h.x + 26, GROUND - 30); ctx.quadraticCurveTo(h.x + 40, GROUND - 10, h.x + 60, GROUND + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      for (let i = 0; i < 3; i++) { ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(h.x - 6 + i * 12, GROUND - 38 + Math.sin(T * 20 + i) * 3, 3, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
     } else if (h.k === 'grab' && h.src && !h.src.dead) {
       ctx.strokeStyle = '#d0457f'; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(h.src.x - 20, h.src.y + 10);
       ctx.quadraticCurveTo((h.src.x + p.x) / 2, Math.max(h.src.y, p.y) + 60 + Math.sin(T * 10) * 10, p.x + 10, p.y); ctx.stroke();
@@ -1257,6 +1312,17 @@ function drawWorld() {
   // 문어 다리
   for (const s of G.sweeps) {
     if (!s.on) { ctx.fillStyle = `rgba(255,60,90,${0.18 + 0.15 * Math.sin(T * 30)})`; ctx.fillRect(0, s.y0, W, s.y1 - s.y0); if (s.lane) text(s.lane === 'low' ? '↑ 점프!' : '뛰지 마요!', W / 2, (s.y0 + s.y1) / 2, 34, '#ffffff', { stroke: 'rgba(200,20,50,.9)', lw: 7 }); continue; }
+    if (s.zap) { // 번개 줄: 줄 전체에 찌릿한 번개
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 4; k++) {
+        ctx.strokeStyle = k % 2 ? '#ffffff' : '#7cf0ff'; ctx.lineWidth = k % 2 ? 2 : 6; ctx.beginPath();
+        const yy = s.y0 + ((k + 0.5) / 4) * (s.y1 - s.y0); ctx.moveTo(s.x - 40, yy);
+        for (let x = s.x - 40; x < W + 60; x += 34) ctx.lineTo(x, yy + rand(-14, 14));
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(124,240,255,.12)'; ctx.fillRect(s.x - 40, s.y0, W - s.x + 100, s.y1 - s.y0);
+      ctx.restore(); continue;
+    }
     if (ready(IMG.x_fx_tentacle)) { // 그림 문어 다리를 줄 따라 이어 붙임(대왕 문어 색으로 물들임)
       const th = s.y1 - s.y0, sz = Math.min(th * 1.15, 220), red = silhouette('x_fx_tentacle', '#e8455e');
       for (let x = s.x, i = 0; x < W + sz; x += sz * 0.62, i++) {

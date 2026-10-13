@@ -355,6 +355,7 @@ function drawMap() {
   const L = SAFE + 14, R = W - SAFE - 14;
   eggBadge(L + 34, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
   drawLvBadge(L + 6, 64);
+  gemBadge(L + 22, 112, save.gems, 22);
   const cr = chestReady();
   button(L + 130, 14, 156, 42, `별 ${totalStars()} · ${cr ? '상자 열기!' : '상자 ' + chestGoal()}`, openChest, { size: 14, kind: cr ? 'yellow' : 'soft' });
   if (save.streak.day) text(`출석 ${save.streak.day}일째`, L + 300, 35, 14, C.yellow, { align: 'left', body: true });
@@ -365,6 +366,8 @@ function drawMap() {
     ['도감', () => { map.overlay = 'dex'; sfx.click(); }, 'e_dex', null],
     ['도전', () => { map.overlay = 'missions'; sfx.click(); }, 'e_target', null],
     [gr ? '선물!' : giftLeft(), openGift, 'e_gift', null],
+    ['패스', () => { map.overlay = 'pass'; passPage = Math.floor(Math.max(0, passTier() - 1) / 6); sfx.click(); }, 'e_medal', null],
+    ['업적', () => { map.overlay = 'ach'; sfx.click(); }, 'e_trophy', null],
   ];
   btns.forEach(([label, on, ic, sym], i) => {
     const bx = R - 60 - i * 70, by = 10;
@@ -372,6 +375,7 @@ function drawMap() {
     if (ic) icon(ic, bx + 29, by + 24, 30, ic === 'e_gift' && gr ? Math.sin(T * 10) * 0.2 : 0);
     if (sym === 'gear') { ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(bx + 29, by + 24, 9, 0, Math.PI * 2); ctx.stroke(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(bx + 29 + Math.cos(a) * 11, by + 24 + Math.sin(a) * 11); ctx.lineTo(bx + 29 + Math.cos(a) * 15, by + 24 + Math.sin(a) * 15); ctx.stroke(); } }
     text(label, bx + 29, by + 48, 13, C.text, { stroke: false, weight: 700 });
+    if (i === 6 && achReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(achReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
     if (i === 3 && missionsReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(missionsReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
   });
   // 아래: 바다 정보 · 난이도 · 출발
@@ -394,6 +398,8 @@ function drawMap() {
   if (map.overlay === 'missions') drawMissions();
   else if (map.overlay === 'dex') drawDex();
   else if (map.overlay === 'settings') drawSettings();
+  else if (map.overlay === 'pass') drawPass();
+  else if (map.overlay === 'ach') drawAch();
 }
 function overlayBase(x, y, w, h, title, ic) {
   ctx.fillStyle = 'rgba(16,16,18,.7)'; ctx.fillRect(-OX(), 0, W, H);
@@ -483,8 +489,12 @@ function drawSettings() {
   }));
   text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', 480, 340, 14, C.sub, { body: true, stroke: false });
   button(312, 366, 338, 44, '꽉 찬 화면으로 보기', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
-  button(312, 418, 338, 44, '첫 이야기 다시 보기', startIntro, { size: 15, kind: 'soft' });
-  text('진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 486, 13, C.sub, { body: true, stroke: false });
+  button(312, 418, 166, 44, '첫 이야기', startIntro, { size: 14, kind: 'soft' });
+  button(484, 418, 80, 44, '저장↑', exportSave, { size: 13, kind: 'soft' });
+  button(570, 418, 80, 44, '불러오기', importSave, { size: 13, kind: 'soft' });
+  button(312, 468, 108, 32, '이용약관', () => window.open('legal/terms.html', '_blank'), { size: 13, kind: 'soft' });
+  button(426, 468, 120, 32, '개인정보', () => window.open('legal/privacy.html', '_blank'), { size: 13, kind: 'soft' });
+  button(552, 468, 98, 32, '만든 사람', () => window.open('legal/credits.html', '_blank'), { size: 13, kind: 'soft' });
 }
 
 // ───────── 첫 이야기: 공주 납치 ─────────
@@ -610,7 +620,17 @@ function startGame() {
     else goFullscreen();
   }
   if (!save.introSeen) startIntro(); else { placeHero(Math.min(save.unlocked, LAST)); enterMap(); } }
+// 첫 화면 불러오기 막대(그림이 다 올 때까지)
+function drawLoadBar() {
+  const ims = Object.values(IMG).filter((i) => i && i.complete !== undefined), done = ims.filter((i) => i.complete).length;
+  if (!ims.length || done >= ims.length) return;
+  const k = done / ims.length;
+  ctx.fillStyle = 'rgba(16,16,18,.6)'; rr(330, 500, 300, 14, 7); ctx.fill();
+  ctx.fillStyle = C.blueD; rr(330, 500, Math.max(14, 300 * k), 14, 7); ctx.fill();
+  text(`바다 준비 중 ${Math.round(k * 100)}%`, 480, 484, 14, C.text, { body: true });
+}
 function drawTitle() {
+  drawLoadBar();
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(250, 290, 20, 250, 290, 220);
   g.addColorStop(0, 'rgba(120,230,255,.35)'); g.addColorStop(1, 'rgba(120,230,255,0)');
@@ -709,10 +729,11 @@ function drawTurnPreview(x, y, size) {
 }
 function drawShop() {
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
-  text('진주 상점', 480, 34, 32, C.text, { stroke: false });
+  text(shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : '진주 상점', 480, 34, 32, C.text, { stroke: false });
   eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
-  [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫']].forEach(([k, label], i) => {
-    button(480 - 300 + i * 204, 62, 192, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 16, kind: shop.tab === k ? 'primary' : 'soft' });
+  gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26);
+  [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['fx', '꼬리 효과'], ['gem', '보석']].forEach(([k, label], i) => {
+    button(55 + i * 172, 62, 164, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 15, kind: shop.tab === k ? (k === 'gem' ? 'yellow' : 'primary') : 'soft' });
   });
   if (shop.tab === 'up') {
     const icons = { slow: 'e_snow', boost: 'e_rocket', shield: 'e_shield', magnet: 'e_gem', fire: 'e_sparkles', power: 'e_fire' };
@@ -726,6 +747,44 @@ function drawShop() {
       if (c == null) text('최고 단계', x + w / 2, y + 134, 17, C.ok, { stroke: false });
       else button(x + 20, y + 110, w - 40, 44, `진주 ${c}`, () => buyUp(i), { size: 17, disabled: save.eggs < c });
     }));
+  } else if (shop.tab === 'fx') {
+    TRAILS.forEach((t, i) => withRise(i, () => {
+      const x = 40 + (i % 4) * 222, y = 116 + Math.floor(i / 4) * 176, w = 210, h = 166, own = save.trails.includes(t.k), on = save.trail === t.k;
+      panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined });
+      for (let k = 0; k < 9; k++) { // 미리보기: 꼬리 색 점
+        const c = t.k === 'none' ? 'rgba(255,255,255,.15)' : t.k === 'rainbow' ? `hsl(${(T * 200 + k * 40) % 360},95%,65%)` : (TRAIL_COL[t.k] || ['#fff'])[k % (TRAIL_COL[t.k] || ['#fff']).length];
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 30 + k * 18, y + 50 + Math.sin(T * 6 + k) * 8, 6 - k * 0.4, 0, Math.PI * 2); ctx.fill();
+      }
+      drawImg(IMG.side, x + w - 40, y + 50, 64);
+      text(t.name, x + w / 2, y + 96, 17, C.text, { stroke: false });
+      if (t.how && !own) text(t.how, x + w / 2, y + 118, 12, C.sub, { body: true, stroke: false });
+      button(x + 16, y + 126, w - 32, 32, on ? '쓰는 중' : own ? '쓰기' : t.gems ? `보석 ${t.gems}` : '얻는 곳 보기', () => buyTrail(t), { size: 14, kind: on ? 'soft' : own ? 'soft' : t.gems ? 'yellow' : 'soft', disabled: on });
+    }));
+  } else if (shop.tab === 'gem') {
+    GEM_PACKS.forEach((p, i) => withRise(i, () => {
+      const x = 40 + i * 222, y = 116, w = 210, h = 176;
+      panel(x, y, w, h);
+      if (p.tag) { ctx.fillStyle = C.danger; rr(x + w - 70, y + 10, 58, 22, 11); ctx.fill(); text(p.tag, x + w - 41, y + 21, 12, '#fff', { stroke: false }); }
+      for (let k = 0; k < 1 + i; k++) icon('e_gem', x + w / 2 - i * 14 + k * 28, y + 52, 44);
+      text(p.name, x + w / 2, y + 96, 17, C.text, { stroke: false });
+      text(`보석 ${(p.gems + p.bonus).toLocaleString()}${p.bonus ? ` (+${p.bonus})` : ''}`, x + w / 2, y + 118, 14, '#9fe3ff', { body: true, stroke: false });
+      button(x + 16, y + 132, w - 32, 36, won(p.won), () => buyGemPack(p), { size: 16, kind: 'yellow' });
+    }));
+    withRise(3, () => { // 스타터 팩
+      const x = 706, y = 116, w = 214, h = 176;
+      panel(x, y, w, h, { sel: !save.starter });
+      text('한 번만!', x + w / 2, y + 20, 13, C.danger, { stroke: false });
+      drawImg(IMG.x_chest_gold_closed, x + w / 2, y + 54, 56);
+      text(STARTER.name, x + w / 2, y + 92, 15, C.text, { stroke: false });
+      text(STARTER.desc, x + w / 2, y + 114, 12, C.sub, { body: true, stroke: false });
+      button(x + 16, y + 134, w - 32, 34, save.starter ? '샀어요 ✓' : won(STARTER.won), buyStarter, { size: 14, kind: 'yellow', disabled: save.starter });
+    });
+    withRise(4, () => { // 보석 → 진주
+      panel(40, 306, 880, 120);
+      text('보석으로 진주 바꾸기', 70, 334, 16, C.text, { align: 'left', stroke: false });
+      EXCHANGE.forEach((x2, i) => button(70 + i * 250, 352, 230, 52, `보석 ${x2.gems} → 진주 ${x2.pearls.toLocaleString()}`, () => exchange(x2), { size: 14, kind: 'soft', disabled: save.gems < x2.gems }));
+      text(`보석 ${save.gems} · 이어하기 보석 ${REVIVE_GEMS}`, 600, 378, 14, '#9fe3ff', { align: 'left', body: true, stroke: false });
+    });
   } else if (shop.tab === 'skin') {
     panel(40, 118, 250, 350);
     drawTurnPreview(165, 266, 220);
@@ -742,7 +801,8 @@ function drawShop() {
     panel(40, 118, 270, 350);
     drawImg(IMG.egg, 175, 240, 130, Math.sin(T * 6) * 0.12);
     text('알 부화', 175, 336, 22, C.text, { stroke: false });
-    text('어떤 펫이 나올까요?', 175, 364, 14, C.sub, { body: true, stroke: false });
+    const left = PETS.length - save.pets.length;
+    text(left ? `안 가진 펫 ${left}마리 중 하나 · 각 ${(100 / left).toFixed(1)}%` : '다 모았어요', 175, 364, 13, C.sub, { body: true, stroke: false }); // 확률 공개
     const all = save.pets.length >= PETS.length;
     button(64, 396, 222, 52, all ? '다 모았어요!' : `진주 ${hatchCost()}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < hatchCost() });
     PETS.forEach((p, i) => withRise(i, () => {
@@ -759,7 +819,7 @@ function drawShop() {
     }));
   }
   if (shop.msgT > 0) text(shop.msg, 480, 482, 18, '#ffffff', { stroke: false });
-  else text('진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 482, 13, C.sub, { body: true, stroke: false });
+  else text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 482, 13, C.sub, { body: true, stroke: false });
   button(480 - 230, H - 50, 220, 44, `${nameOf(shop.next)} 출발!`, () => startLevel(shop.next), { size: 17 });
   button(480 + 10, H - 50, 220, 44, '지도로', () => enterMap(), { size: 17, kind: 'soft' });
   if (shop.hatch) drawHatch();
@@ -826,7 +886,8 @@ function drawRevive() {
   else text(`지금 ${meters()}미터 — 조금만 더!`, 620, 310, 18, C.yellow, { body: true });
   const cost = reviveCost(), ok = canRevive();
   button(460, 340, 320, 56, G.freeRevive ? '공짜로 일어나기!' : ok ? `이어하기 · 진주 ${cost}` : `진주 ${cost}개가 필요해요`, doRevive, { size: 19, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
-  button(520, 410, 200, 44, '괜찮아요', giveUp, { size: 16, kind: 'soft' });
+  if (!ok && !G.freeRevive) button(460, 404, 320, 44, `보석 ${REVIVE_GEMS}개로 이어하기 (보석 ${save.gems})`, () => { if (G.revives < 3 && spendGems(REVIVE_GEMS)) { G.freeRevive = true; doRevive(); } }, { size: 15, kind: 'yellow', disabled: save.gems < REVIVE_GEMS || G.revives >= 3 });
+  button(520, ok || G.freeRevive ? 410 : 456, 200, 40, '괜찮아요', giveUp, { size: 16, kind: 'soft' });
 }
 function drawDead() {
   const a = Math.min(1, G.deadT / 0.3);
@@ -863,11 +924,11 @@ const BOSS_LINES = {
   10: '대왕 문어가 그러는데... 공주님은 깊은 바다로 갔대요!',
   15: '아귀 대왕도 이겼어요! 공주님 목소리가 가까워져요!',
   20: '상어 대장이 도망쳤어요! 이제 얼음 불꽃 바다로!',
-  25: '대왕 문어가 길을 비켜 줬어요. 상어왕의 성이 코앞!',
+  25: '번개 해파리 여왕이 길을 열어 줬어요. 상어왕의 성이 코앞!',
   30: '상어왕이 공주님을 데리고 노을 바다로 도망쳤어요! 쫓아가요!',
   35: '해적 문어 선장이 보물 지도를 떨어뜨렸어요. 공주님은 더 깊은 곳에!',
   40: '아귀 여왕의 보물고 너머에 심연의 왕궁이 보여요!',
-  45: '상어 대장이 드디어 항복! 이제 상어왕만 남았어요!',
+  45: '왕꽃게가 집게를 내려놨어요! 이제 상어왕만 남았어요!',
 };
 const STAR_AT = [0.5, 0.95, 1.4];
 function updateClear() {
