@@ -23,6 +23,7 @@ const xpNeed = (lv) => Math.round(60 + 55 * Math.pow(lv, 1.45)); // docs/balance
 function runInit() {
   const p = G.p;
   G.run = true;
+  POSE_KEYS.forEach((k) => outfitPose(k)); // 입은 옷의 동작 그림 7장을 미리 불러 둠(첫 점프부터 그 옷)
   G.en = G.maxEn = G.enShow = maxEnergy();
   if (hasTr('compass')) G.boost = Math.max(G.boost, 30);
   if (hasTr('charm')) G.shield++; G.enHealT = 0; G.potionT = 9;
@@ -605,12 +606,13 @@ const poseCache = {};
 // 투명 여백을 잘라 둔 그림(발끝 = 그림 아래 끝) + 옷의 모자 색
 // 옷마다 그린 달리기 동작(o_<옷>_<동작>.webp) — 있으면 그걸, 없으면 기본 그림 + 모자 색
 const OUTFIT_POSES = ['raincoat', 'chef', 'barista', 'delivery', 'cape14', 'suit', 'crown7', 'pirate', 'wizard', 'hanbok', 'astronaut', 'firefighter', 'diver'];
-let outfitList = null;
-fetch('assets/sprites/list.json').then((r) => r.json()).then((l) => { outfitList = new Set(l); }).catch(() => { outfitList = new Set(); });
+const outfitMiss = new Set(); // 그림 파일이 없는 동작(404) — 기본 그림 + 모자 색으로
+// 높은 모자·투구가 있는 옷은 그림 키에 모자가 들어가 몸이 작아 보임 → 그만큼 키움(몸 크기를 기본 터틀이와 맞춤)
+const OUTFIT_H = { chef: 1.16, wizard: 1.3, pirate: 1.12, firefighter: 1.1, astronaut: 1.07, diver: 1.08, crown7: 1.08, raincoat: 1.04, hanbok: 1.04 };
 function outfitPose(key) {
-  const sk = save.skin; if (!sk || sk === 'basic' || !OUTFIT_POSES.includes(sk) || !outfitList) return null;
-  const n = `o_${sk}_${key}`; if (!outfitList.has(n)) return null;
-  if (!IMG['pose_' + n]) load('pose_' + n, `assets/sprites/${n}.webp`);
+  const sk = save.skin; if (!sk || sk === 'basic' || !OUTFIT_POSES.includes(sk)) return null;
+  const n = `o_${sk}_${key}`; if (outfitMiss.has(n)) return null;
+  if (!IMG['pose_' + n]) { const im = load('pose_' + n, `assets/sprites/${n}.webp`); im.onerror = () => outfitMiss.add(n); }
   return ready(IMG['pose_' + n]) ? n : null;
 }
 function pose(key, cap) {
@@ -671,7 +673,7 @@ function drawRunHero(face, blink, alpha) {
   const p = G.p, cap = (SIDE_STYLE[save.skin] || {}).cap; let key = heroPose(), c = pose(key, cap);
   if (!c && key === 'hero_fall') { key = 'hero_jump'; c = pose(key, cap); } // 그림이 없으면 점프 그림으로
   if (!c) return drawRunHeroOld(face, blink, alpha);
-  const base = HERO_H * 0.96 * p.scale; let h = base * POSE_H[key], rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
+  const base = HERO_H * 0.96 * p.scale; let h = base * POSE_H[key] * (outfitPose(key) ? OUTFIT_H[save.skin] || 1 : 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
   if (key === 'hero_ball') { rot = Math.PI * 2 * easeInOutCubic(1 - p.spin); feet = p.fy - base * 0.12; }
   else if (key === 'hero_shell') { rot = Math.sin(T * 30) * 0.03; x += Math.sin(T * 20) * 1.5; }
   else if (key === 'hero_hurt') { rot = -0.18 + Math.sin(T * 25) * 0.05; if (p.dead) { feet = p.y + base * 0.5; rot = p.rot; } }
