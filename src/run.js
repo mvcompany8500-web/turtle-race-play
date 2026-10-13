@@ -319,7 +319,9 @@ function bumpBlock(o) {
   } else {
     const gold = Math.random() < 0.3, n = gold ? 3 : 3;
     for (let i = 0; i < n; i++) later(i * 90, () => { fx.push({ k: 'eggfly', sx: o.x, sy: o.y - 30, life: 0.5, max: 0.5, gold: gold && i === 0 }); });
-    earn('qb', gold ? 5 : 3); sfx.gold();
+    earn('qb', gold ? 5 : 3);
+    for (let i = 0; i < n; i++) snd('egg', 0.6, comboRate(3 + i * 2), 0, 0.06 + i * 0.09); // 진주가 하나씩 튈 때마다 「딩·딩·딩」 올라감(나는 모습과 같은 박)
+    if (gold) snd('gold', 0.8, 1, 0, 0.3);
     pop(o.x, o.y - 56, gold ? '황금 진주! +5' : '진주 +3', C.yellow, 26, true);
   }
   runXp(5);
@@ -393,9 +395,47 @@ function updateTutor() {
 }
 
 // ───────── 그리기 ─────────
+// 코덱스 그림 장애물: 끝은 원래 모양 그대로, 가운데만 늘리거나 반복(찌그러지지 않게)
+// 그림의 투명 여백은 한 번 재서 잘라 씀(얇은 선처럼 보이지 않게)
+const oboxCache = new Map();
+function obox(im) {
+  let b = oboxCache.get(im); if (b) return b;
+  const w = im.naturalWidth, h = im.naturalHeight, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(im, 0, 0); const d = g.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  b = x1 > x0 ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : { x: 0, y: 0, w, h };
+  oboxCache.set(im, b); return b;
+}
+function drawLedgeArt(o) {
+  const im = IMG.spr_ledge; if (!im || !ready(im)) return false;
+  const b = obox(im), h = 44, k = h / b.h, cap = Math.min(b.w * 0.16, (o.w / 2) / k);
+  const y = o.y - 8; // 그림 윗면 ≈ 밟는 줄
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(o.x + o.w / 2, o.y + 44, o.w / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.drawImage(im, b.x, b.y, cap, b.h, o.x, y, cap * k, h);
+  ctx.drawImage(im, b.x + cap, b.y, b.w - cap * 2, b.h, o.x + cap * k, y, Math.max(0, o.w - cap * k * 2), h);
+  ctx.drawImage(im, b.x + b.w - cap, b.y, cap, b.h, o.x + o.w - cap * k, y, cap * k, h);
+  return true;
+}
+function drawPillarArt(o) {
+  const body = IMG.spr_pillar_body, tip = IMG.spr_pillar_tip; if (!body || !tip || !ready(body) || !ready(tip)) return false;
+  const bb = obox(body), tb = obox(tip), w = o.w + 14, x = o.x - 7;
+  const th = (w * tb.h) / tb.w, bw = w * 0.78, bh = (bw * bb.h) / bb.w;
+  const tipTop = o.y1 + 4 - th;
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 4, CEIL - 40, w + 8, tipTop - (CEIL - 40) + 10); ctx.clip();
+  for (let y = tipTop - bh + 10; y > CEIL - 40 - bh; y -= bh - 2) ctx.drawImage(body, bb.x, bb.y, bb.w, bb.h, x + (w - bw) / 2, y, bw, bh); // 아래에서 위로 반복
+  ctx.restore();
+  ctx.drawImage(tip, tb.x, tb.y, tb.w, tb.h, x, tipTop, w, th);
+  // 끝 가시가 빨갛게 숨쉬기 — 「여기 닿으면 아파요」
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.25 + 0.2 * Math.sin(T * 8);
+  const g = ctx.createRadialGradient(o.x + o.w / 2, o.y1, 4, o.x + o.w / 2, o.y1, w * 0.8); g.addColorStop(0, 'rgba(255,60,90,1)'); g.addColorStop(1, 'rgba(255,60,90,0)');
+  ctx.fillStyle = g; ctx.fillRect(x - w * 0.3, o.y1 - w * 0.8, w * 1.6, w * 1.6); ctx.restore();
+  if (G.tut && G.tut.hint === 'slide' && G.tut.obj === o) { ctx.strokeStyle = `rgba(255,213,74,${0.6 + 0.4 * Math.sin(T * 10)})`; ctx.lineWidth = 4; ctx.setLineDash([10, 8]); ctx.strokeRect(o.x - 8, o.y1 - 2, o.w + 16, GROUND - o.y1); ctx.setLineDash([]); }
+  return true;
+}
 function drawRunObs() {
   for (const o of G.obs) {
-    if (o.k === 'pillar') {
+    if (o.k === 'pillar' && drawPillarArt(o)) { /* 코덱스 그림 */ } else if (o.k === 'pillar') {
       const x = o.x, w = o.w, y1 = o.y1;
       const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, '#3a2350'); g.addColorStop(0.5, '#6a3f86'); g.addColorStop(1, '#3a2350');
       ctx.fillStyle = g; rr(x, CEIL - 30, w, y1 - CEIL + 18, 14); ctx.fill();
@@ -409,6 +449,7 @@ function drawRunObs() {
       for (let i = 0; i < n; i++) { const a = x + (i / n) * w, b = x + ((i + 1) / n) * w; ctx.moveTo(a, y1 - 12); ctx.lineTo((a + b) / 2, y1 + 4); ctx.lineTo(b, y1 - 12); }
       ctx.fill();
       if (G.tut && G.tut.hint === 'slide' && G.tut.obj === o) { ctx.strokeStyle = `rgba(255,213,74,${0.6 + 0.4 * Math.sin(T * 10)})`; ctx.lineWidth = 4; ctx.setLineDash([10, 8]); ctx.strokeRect(x - 8, y1 - 2, w + 16, GROUND - y1); ctx.setLineDash([]); }
+    } else if (o.k === 'plat' && drawLedgeArt(o)) { /* 코덱스 그림 */
     } else if (o.k === 'plat') {
       const g = ctx.createLinearGradient(0, o.y, 0, o.y + 26); g.addColorStop(0, '#ffb3c8'); g.addColorStop(1, '#b5527a');
       ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(o.x + 6, o.y + 8, o.w, 24, 12); ctx.fill();
@@ -419,10 +460,16 @@ function drawRunObs() {
       const by = o.y - (o.bumpT > 0 ? Math.sin(o.bumpT / 0.25 * Math.PI) * 14 : 0) + Math.sin(o.t * 3) * 2;
       ctx.save(); ctx.translate(o.x, by);
       if (!o.hit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(0, 0, 4, 0, 0, 46); gg.addColorStop(0, 'rgba(255,220,90,.45)'); gg.addColorStop(1, 'rgba(255,220,90,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-      ctx.fillStyle = o.hit ? '#8a7a66' : '#ffc93a'; rr(-24, -24, 48, 48, 12); ctx.fill();
-      ctx.strokeStyle = o.hit ? '#5a4a3a' : '#a26a00'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = o.hit ? 'rgba(0,0,0,.2)' : '#fff6cf'; rr(-18, -19, 36, 8, 4); ctx.fill();
-      if (!o.hit) text('?', 0, 4, 28, '#7a4a00', { stroke: '#fff3c0', lw: 4 });
+      const qi = IMG[o.hit ? 'spr_qblock_used' : 'spr_qblock'];
+      if (qi && ready(qi)) { // 코덱스 그림: 맞으면 위로 튀며 납작했다가 길쭉(용수철)
+        const k = o.bumpT > 0 ? o.bumpT / 0.25 : 0, sq = Math.sin(k * Math.PI) * 0.18;
+        const qb = obox(qi); ctx.save(); ctx.scale(1 + sq, 1 - sq); ctx.drawImage(qi, qb.x, qb.y, qb.w, qb.h, -27, -27, 54, 54); ctx.restore(); // 판정 48칸에 맞춤
+      } else {
+        ctx.fillStyle = o.hit ? '#8a7a66' : '#ffc93a'; rr(-24, -24, 48, 48, 12); ctx.fill();
+        ctx.strokeStyle = o.hit ? '#5a4a3a' : '#a26a00'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = o.hit ? 'rgba(0,0,0,.2)' : '#fff6cf'; rr(-18, -19, 36, 8, 4); ctx.fill();
+        if (!o.hit) text('?', 0, 4, 28, '#7a4a00', { stroke: '#fff3c0', lw: 4 });
+      }
       ctx.restore();
     } else if (o.k === 'letter') {
       const y = o.y + Math.sin(o.t * 4) * 6, s = 1 + Math.sin(o.t * 6) * 0.06;
