@@ -873,7 +873,7 @@ function updatePlay(dt) {
   } else if (!p.dead) {
     const before = G.boost;
     G.boost = Math.min(BMAX(), G.boost + (cfg.boostRate + (bossFight ? 12 : 0)) * dt * (1 + abStar('ult') * 0.25));
-    if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); sfx.ready(); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '질주 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); if (lv >= 2 && ac) playSample('sfx_riser', 0.8, 1 + lv * 0.12); }
+    if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); sfx.ready(); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '질주 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); if (lv >= 2) snd('double', 0.8); } // 게이지 단계: 짧은 칼림바(예전 「츄아아압」 상승음은 거슬려서 뺌)
   }
   if (G.comboT > 0) G.comboT -= dt;
   if (G.chainT > 0) {
@@ -986,7 +986,7 @@ function updatePlay(dt) {
   // 막판 긴장: 85% 지점에서 한 번 「조금만 더!」 + 금빛 테두리 + 올라가는 소리
   if (!p.dead && !cfg.endless && !G.lastPush && !G.tut && G.dist >= cfg.length * 0.85 && !finishing) {
     G.lastPush = true; reaction(2, cfg.boss ? '보스가 가까워졌어!' : '조금만 더!'); edgeFlash(cfg.boss ? '#ff5470' : '#ffd54a', 1.1);
-    if (!playSample('sfx_riser', 0.6)) snd('ready', 0.6);
+    snd('ready', 0.7); snd('ready', 0.6, 1.26, 0, 0.12); // 마림바 두 음(상승음 대신)
   }
   if (!p.dead) {
     const D = G.D;

@@ -850,7 +850,9 @@ function drawShop() {
       ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); ctx.arc(x + 46, y + 50, 32, 0, Math.PI * 2); ctx.fill();
       icon(icons[u.k], x + 46, y + 50 - fl * 8, 48 * (1 + fl * 0.25), Math.sin(T * 2 + i) * 0.08);
       // 위: 이름 + 단계 배지
-      text(u.name, x + 90, y + 28, 18, C.text, { align: 'left', stroke: false });
+      const badgeTxt = save.up[u.k] >= u.max ? 'MAX' : `Lv ${save.up[u.k]}/${u.max}`; ctx.font = `800 ${fs(13)}px ${FONT}`; const bwN = ctx.measureText(badgeTxt).width + 16;
+      let nsz = 18; ctx.font = `800 ${fs(nsz)}px ${FONT}`; while (nsz > 13 && ctx.measureText(u.name).width > w - 90 - 14 - bwN - 8) { nsz--; ctx.font = `800 ${fs(nsz)}px ${FONT}`; } // 긴 이름은 배지와 안 겹치게 줄임
+      text(u.name, x + 90, y + 28, nsz, C.text, { align: 'left', stroke: false });
       ctx.save(); rr(x, y, w, h, 20); ctx.clip();
       text(u.desc, x + 90, y + 54, 13, C.sub, { align: 'left', body: true, stroke: false });
       const badge = maxed ? 'MAX' : `Lv ${lv}/${u.max}`;

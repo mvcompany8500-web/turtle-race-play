@@ -163,7 +163,7 @@ function frame(now) {
   const dt = Math.min(0.05, raw); last = now; T += dt;
   if (state === 'play' && !LOWFX && raw < 0.5) {
     fpsAcc += raw; fpsN++;
-    if (fpsAcc > 2) { if (fpsN / fpsAcc < 45) { LOWFX = true; resize(); try { Object.defineProperty(ctx, 'shadowBlur', { get: () => 0, set() {}, configurable: true }); } catch (e) { /* 무시 */ } } fpsAcc = 0; fpsN = 0; } // 느린 폰: 번짐(shadowBlur)도 끔
+    if (fpsAcc > 2) { if (fpsN / fpsAcc < 45 && DPR_CAP > 2 && (devicePixelRatio || 1) > 2) { DPR_CAP = 2; resize(); } else if (fpsN / fpsAcc < 45) { LOWFX = true; resize(); try { Object.defineProperty(ctx, 'shadowBlur', { get: () => 0, set() {}, configurable: true }); } catch (e) { /* 무시 */ } } fpsAcc = 0; fpsN = 0; } // 느린 폰: 번짐(shadowBlur)도 끔
   }
   update(dt); render();
   requestAnimationFrame(frame);

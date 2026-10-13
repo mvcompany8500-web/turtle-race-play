@@ -520,19 +520,49 @@ function button(x, y, w, h, label, on, o = {}) {
   else if (kind === 'yellow') { fill = C.yellow; fg = '#191F28'; }
   else if (kind === 'off') { fill = C.line; fg = C.mute; }
   else { fill = hover ? '#24365e' : C.soft; fg = C.text; }
+  const art = IMG[{ primary: 'spr_ui_btn_blue', ok: 'spr_ui_btn_green', yellow: 'spr_ui_btn_yellow', off: 'spr_ui_btn_soft', soft: 'spr_ui_btn_soft', danger: 'spr_ui_btn_red' }[kind] || 'spr_ui_btn_soft'];
+  if (art && ready(art) && typeof obox === 'function') { // 코덱스가 그린 사탕 단추(양 끝 둥근 부분은 그대로, 가운데만 늘림)
+    ctx.shadowColor = 'transparent';
+    ctx.save(); if (kind === 'off') ctx.globalAlpha *= 0.5; slice3(art, x, y, w, h); ctx.restore();
+    if (hover && kind !== 'off') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.12; slice3(art, x, y, w, h); ctx.restore(); }
+    const fg2 = kind === 'yellow' ? '#5a3000' : kind === 'off' ? 'rgba(255,255,255,.55)' : '#ffffff';
+    text(label, x + w / 2, y + h / 2 - h * 0.04, o.size || 20, fg2, kind === 'yellow' || kind === 'off' ? { stroke: false, weight: 800 } : { stroke: 'rgba(0,20,60,.45)', lw: 3, weight: 800 });
+  } else {
   ctx.fillStyle = fill; rr(x, y, w, h, Math.min(16, h / 2)); ctx.fill();
   ctx.shadowColor = 'transparent';
   if (hover && kind !== 'off' && kind !== 'soft') { ctx.fillStyle = 'rgba(255,255,255,.1)'; rr(x, y, w, h, Math.min(16, h / 2)); ctx.fill(); }
   text(label, x + w / 2, y + h / 2 + 1, o.size || 20, fg, { stroke: false, weight: 700 });
+  }
   ctx.restore();
   buttons.push({ x: hx, y: hy, w: hw, h: hh, on, key });
 }
+// 코덱스 그림 늘려 쓰기: slice3 = 양 끝 고정·가운데 늘림(단추), slice9 = 네 귀퉁이 고정(판)
+function slice3(im, x, y, w, h) {
+  const b = obox(im), k = h / b.h; let cs = Math.min(b.h * 0.6, b.w / 2), cd = cs * k;
+  if (cd * 2 > w) { cd = w / 2; cs = cd / k; }
+  ctx.drawImage(im, b.x, b.y, cs, b.h, x, y, cd, h);
+  ctx.drawImage(im, b.x + cs, b.y, b.w - cs * 2, b.h, x + cd, y, w - cd * 2, h);
+  ctx.drawImage(im, b.x + b.w - cs, b.y, cs, b.h, x + w - cd, y, cd, h);
+}
+function slice9(im, x, y, w, h, cdst = 30) {
+  const b = obox(im), cs = Math.min(b.w, b.h) * 0.2, cd = Math.min(cdst, w / 2, h / 2);
+  const sx = [b.x, b.x + cs, b.x + b.w - cs], sw = [cs, b.w - cs * 2, cs], sy = [b.y, b.y + cs, b.y + b.h - cs], sh = [cs, b.h - cs * 2, cs];
+  const dx = [x, x + cd, x + w - cd], dw = [cd, w - cd * 2, cd], dy = [y, y + cd, y + h - cd], dh = [cd, h - cd * 2, cd];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) ctx.drawImage(im, sx[i], sy[j], sw[i], sh[j], dx[i], dy[j], dw[i], dh[j]);
+}
 function panel(x, y, w, h, o = {}) {
   ctx.save();
+  const art = IMG.spr_ui_panel;
+  if (art && ready(art) && typeof obox === 'function' && !o.flat) { // 코덱스가 그린 바다 카드 판
+    slice9(art, x, y, w, h, Math.min(34, (o.r || 20) * 1.5));
+    if (o.fill && o.fill !== 'rgba(27,28,31,.94)') { ctx.globalAlpha = 0.45; ctx.fillStyle = o.fill; rr(x + 3, y + 3, w - 6, h - 6, Math.max(4, (o.r || 20) - 3)); ctx.fill(); ctx.globalAlpha = 1; } // 고른 칸·특별 칸 색은 얇게 덧칠
+    if (o.sel) { ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 3; rr(x + 1, y + 1, w - 2, h - 2, o.r || 20); ctx.stroke(); }
+  } else {
   ctx.shadowColor = 'rgba(0,0,0,.1)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
   ctx.fillStyle = o.fill || 'rgba(27,28,31,.94)'; rr(x, y, w, h, o.r || 20); ctx.fill();
   ctx.shadowColor = 'transparent';
   if (o.sel) { ctx.strokeStyle = C.blueD; ctx.lineWidth = 2.5; ctx.stroke(); }
+  }
   ctx.restore();
 }
 function eggBadge(x, y, n, size = 26) {
