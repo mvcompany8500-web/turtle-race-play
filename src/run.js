@@ -731,6 +731,13 @@ function drawRunPads() {
   const tu = G.tut, jh = tu && (tu.hint === 'jump' || tu.hint === 'stomp'), sh = tu && tu.hint === 'slide';
   const pads = [[SAFE + 66, H - 62, '점프', 'e_rocket', jh, !!G.touch.j], [W - SAFE - 66, H - 62, '숙이기', null, sh, !!G.touch.s]];
   for (const [x, y, label, , hi, on] of pads) {
+    const pim = IMG[label === '점프' ? 'spr_ui_pad_jump' : 'spr_ui_pad_slide'];
+    if (pim && ready(pim)) { // 시안: 비눗방울 단추(코덱스)
+      const sz = (hi ? 136 + Math.sin(T * 10) * 10 : 112) * (on ? 0.92 : 1);
+      if (hi) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 20, x, y, sz * 0.75); g.addColorStop(0, 'rgba(255,213,74,.55)'); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, sz * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+      drawImg(pim, x, y - 8, sz, 0, hi ? 1 : on ? 0.95 : save.runs <= 6 ? 0.8 : 0.55);
+      continue;
+    }
     ctx.save();
     ctx.globalAlpha = hi ? 0.95 : on ? 0.55 : save.runs <= 6 ? 0.32 : 0.18;
     const r = hi ? 58 + Math.sin(T * 10) * 6 : 46;
@@ -748,9 +755,10 @@ function drawRunPads() {
 }
 function drawRunHud(L) {
   // 기운 막대(인기 게임 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
-  const bx = L + 30, by = 50, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
+  const bx = L + 30, by = 22, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
   const blink = low && Math.sin(T * 12) > 0;
-  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(bx - 4, by - 4, bw + 8, bh + 8, (bh + 8) / 2); ctx.fill();
+  const gf = IMG.spr_ui_glass_b; // 시안: 유리 틀 안의 기운 막대
+  if (gf && ready(gf)) { ctx.fillStyle = 'rgba(8,30,70,.45)'; rr(bx - 26, by - 9, bw + 40, bh + 18, (bh + 18) / 2); ctx.fill(); slice3(gf, bx - 34, by - 15, bw + 56, bh + 30); } else { ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(bx - 4, by - 4, bw + 8, bh + 8, (bh + 8) / 2); ctx.fill(); }
   if (ks > k) { ctx.fillStyle = '#ff3355'; rr(bx, by, bw * ks, bh, bh / 2); ctx.fill(); } // 잃은 만큼(빨강)
   if (k > 0) {
     ctx.save(); rr(bx, by, Math.max(bh, bw * k), bh, bh / 2); ctx.clip();
@@ -768,9 +776,9 @@ function drawRunHud(L) {
   }
   const hs = 34 * (low ? 1 + Math.abs(Math.sin(T * 4.5)) * 0.18 : G.p.inv > 0 && T - (G.hurtAt || -9) < 0.5 ? 1.15 : 1);
   drawItemIcon('heart', bx - 6, by + bh / 2, hs);
-  let hx = bx + bw + 22;
-  for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, 60, 24); hx += 28; }
-  if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, 60, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
+  let hx = bx + bw + 36;
+  for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, by + bh / 2, 24); hx += 28; }
+  if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, by + bh / 2, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
   // 바·다·축·제 글자 (보스전엔 체력바 자리라 숨김)
   const lx = W / 2 - 66, ly = 52;
   if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => {

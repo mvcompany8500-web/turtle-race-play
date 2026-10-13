@@ -1574,7 +1574,7 @@ const BOOST_BTN = () => (G && G.run ? { x: W - SAFE - 84, y: H - 222, r: 48 } : 
 const ITEM_BTN = () => (G && G.run ? { x: W - SAFE - 206, y: H - 168, r: 38 } : { x: W - SAFE - 214, y: H - 70, r: 44 });
 function drawHUD() {
   const n = G.n, endless = G.cfg.endless, L = 22 + SAFE;
-  text(endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, L, 30, 18, C.text, { align: 'left' });
+  if (!G.run) text(endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, L, 30, 18, C.text, { align: 'left' }); // 달리기 화면은 시안처럼 바다 이름 대신 기운 막대가 맨 위
   if (save.diff !== 1 && !G.run) text(DIFFS[save.diff].name, L, 54, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
   let sx = L + 12;
   if (G.run) sx += 270 + G.shield * 28;
@@ -1618,6 +1618,14 @@ function drawHUD() {
   const eh = eggHud();
   if (G.run) { // 인기 게임처럼 오른쪽 위: 이번 판 점수(굴러 올라감) + 이번 판 진주
     G.scoreShow += (G.score - G.scoreShow) * Math.min(1, 1 / 60 * 10); if (G.score - G.scoreShow < 1) G.scoreShow = G.score;
+    const cp = IMG.spr_ui_cur_pill, PR = W - SAFE - 78; // 시안: 크림색 점수 칸 + 그 아래 진주 칸, 오른쪽 끝에 멈춤 단추
+    if (cp && ready(cp)) {
+      slice3(cp, PR - 200, 8, 200, 44); drawStar(PR - 178, 30, 13, true);
+      text(Math.round(G.scoreShow).toLocaleString(), PR - 16, 31, 22, '#2f3550', { align: 'right', stroke: false });
+      slice3(cp, PR - 132, 56, 132, 36); drawPearl(PR - 112, 74, 20 * (1 + hudPulse * 1.6));
+      text(String(G.eggs), PR - 14, 75, 17, '#2f3550', { align: 'right', stroke: false });
+      const mlt = scoreMult(); if (mlt > 1) { ctx.fillStyle = '#ff7a00'; rr(PR - 260, 17, 50, 26, 10); ctx.fill(); text(`×${mlt}`, PR - 235, 30, 15, '#ffffff', { stroke: false }); }
+    } else {
     text(Math.round(G.scoreShow).toLocaleString(), W - SAFE - 20, 28, 28, '#ffffff', { align: 'right', lw: 5 });
     const mlt = scoreMult(); if (mlt > 1) { // 점수 배수 상자(인기 게임)
       ctx.font = `800 ${fs(28)}px ${FONT}`; const sw2 = ctx.measureText(Math.round(G.scoreShow).toLocaleString()).width;
@@ -1625,11 +1633,12 @@ function drawHUD() {
     }
     ctx.font = `800 ${fs(18)}px ${FONT}`; const ew = ctx.measureText(String(G.eggs)).width;
     drawPearl(W - SAFE - 92 - ew - 14, 64, 18 * (1 + hudPulse * 1.6)); text(String(G.eggs), W - SAFE - 92, 64, 18, C.yellow, { align: 'right' });
+    }
   } else eggBadge(eh.x, eh.y, save.eggs + G.eggs, 28 * (1 + hudPulse * 1.6));
-  if (isTouch) button(W - SAFE - 60, 52, 46, 40, 'II', () => { if (!G.p.dead) state = 'pause'; }, { size: 17, color: '#cfd8ff' });
+  if (isTouch || G.run) { const pz = IMG.spr_ui_pause; if (G.run && pz && ready(pz)) { drawImg(pz, W - SAFE - 40, 30, 52); ctx.save(); ctx.globalAlpha = 0; button(W - SAFE - 68, 4, 56, 56, 'II', () => { if (!G.p.dead) state = 'pause'; }, {}); ctx.restore(); } else if (isTouch) button(W - SAFE - 60, 52, 46, 40, 'II', () => { if (!G.p.dead) state = 'pause'; }, { size: 17, color: '#cfd8ff' }); }
   // 질주 게이지 (폰은 왼쪽 아래가 조이스틱 자리라 위로)
   const top = isTouch || G.run; // 점프 달리기는 바닥이 길이라 게이지를 위로
-  const gx = L, gy = top ? (G.run ? 112 : 104) : H - 46, gw = top ? 190 : 270, gh = top ? 14 : 20, full = G.boost >= 100;
+  const gx = L, gy = top ? (G.run ? 74 : 104) : H - 46, gw = top ? 190 : 270, gh = top ? 14 : 20, full = G.boost >= 100;
   icon('e_rocket', gx + 10, gy - 16, 24);
   text('질주', gx + 28, gy - 16, 16, C.text, { align: 'left', body: true });
   ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(gx, gy, gw, gh, 10); ctx.fill();
@@ -1675,10 +1684,16 @@ function drawHUD() {
   const ib = isTouch ? ITEM_BTN() : G.run ? { x: gx + gw + 120, y: gy + 6, r: 26 } : { x: gx + gw + 150, y: H - 44, r: 30 };
   ctx.save();
   const pulse = G.itemPop > 0 ? 1 + G.itemPop * 0.5 : 1;
+  const slot = IMG.spr_ui_slot;
+  if (slot && ready(slot)) { // 시안: 유리 아이템 칸(코덱스) — 아이템이 있으면 금빛이 돎
+    if (G.item) { ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(ib.x, ib.y, 4, ib.x, ib.y, ib.r * 1.6); g.addColorStop(0, `rgba(255,213,74,${0.45 + 0.15 * Math.sin(T * 6)})`); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ib.x, ib.y, ib.r * 1.6, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    drawImg(slot, ib.x, ib.y, ib.r * 2.3 * pulse, 0, G.item ? 1 : 0.7); ctx.restore();
+  } else {
   ctx.fillStyle = G.item ? 'rgba(46,107,255,.9)' : G.run ? 'rgba(27,28,31,.32)' : 'rgba(27,28,31,.75)';
   if (G.item) { ctx.shadowColor = C.blueD; ctx.shadowBlur = 16; }
   ctx.beginPath(); ctx.arc(ib.x, ib.y, ib.r * pulse, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ib.x, ib.y, ib.r * pulse, 0, Math.PI * 2); ctx.stroke();
+  }
   if (G.item) { drawItemIcon(G.item, ib.x, ib.y - 2, ib.r * 1.15); if (!isTouch) text('E', ib.x + ib.r - 2, ib.y + ib.r - 6, 13, C.yellow); }
   else text('?', ib.x, ib.y + 1, ib.r * 0.8, 'rgba(255,255,255,.35)', { stroke: false });
   if (isTouch) buttons.push({ x: ib.x - ib.r, y: ib.y - ib.r, w: ib.r * 2, h: ib.r * 2, on: useItem });

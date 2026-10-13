@@ -385,12 +385,7 @@ function drawMap() {
   const L = SAFE + 14, R = W - SAFE - 14;
   const NEWUI = ['spr_ui_cur_pill', 'spr_ui_ic_set', 'spr_ui_bottom_bar', 'spr_ui_play_btn'].every((k) => ready(IMG[k])); // 코덱스 지도 시안대로(그림이 다 오면)
   if (NEWUI) {
-    const pill = (x, w, iconFn, val, plusFn, onTap) => { // 크림색 재화 칸 + 초록 「+」
-      slice3(IMG.spr_ui_cur_pill, x, 12, w, 42); iconFn(x + 22, 33);
-      text(val, x + 44, 34, 17, '#2f3550', { align: 'left', stroke: false });
-      if (plusFn) { drawImg(IMG.spr_ui_plus, x + w - 20, 33, 32); ctx.save(); ctx.globalAlpha = 0; button(x + w - 40, 12, 40, 42, '+', plusFn, {}); ctx.restore(); }
-      if (onTap) { ctx.save(); ctx.globalAlpha = 0; button(x, 12, w - (plusFn ? 40 : 0), 42, '', onTap, {}); ctx.restore(); }
-    };
+    const pill = (x, w, iconFn, val, plusFn, onTap) => curPill(x, 12, w, iconFn, val, plusFn, onTap);
     pill(L, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; });
     pill(L + 160, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; });
     const cr = chestReady();
@@ -893,11 +888,15 @@ function drawTurnPreview(x, y, size) {
 }
 function drawShop() {
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
-  text(shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : '진주 상점', 480, 34, 32, C.text, { stroke: false });
-  eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
-  gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26);
+  // 시안: 왼쪽 위 제목 리본, 오른쪽 위 크림색 재화 칸(지도와 같은 부품)
+  const stitle = shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : '진주 상점', sL = -OX() + SAFE + 14, sR = 960 + OX() - SAFE - 14;
+  if (!ribbon(sL + 120, 30, 240, stitle, 22)) text(stitle, 480, 34, 32, C.text, { stroke: false });
+  if (ready(IMG.spr_ui_cur_pill)) {
+    curPill(sR - 150, 8, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), null);
+    curPill(sR - 292, 8, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), shop.tab === 'gem' ? null : () => { shop.tab = 'gem'; sfx.click(); });
+  } else { eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6)); gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26); }
   [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['tr', '보물'], ['fx', '꼬리 효과'], ['gem', '보석']].forEach(([k, label], i) => {
-    button(52 + i * 144, 62, 136, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 15, kind: shop.tab === k ? (k === 'gem' ? 'yellow' : 'primary') : 'soft' });
+    button(52 + i * 144, 62, 136, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 15, kind: shop.tab === k ? 'yellow' : 'primary' });
   });
   if (shop.tab === 'up') {
     const icons = { slow: 'e_snow', boost: 'e_rocket', shield: 'e_shield', magnet: 'e_gem', fire: 'e_sparkles', power: 'e_fire' };
@@ -1049,10 +1048,12 @@ function drawShop() {
       }
     }));
   }
-  if (shop.msgT > 0) text(shop.msg, 480, 474, 18, '#ffffff', { stroke: false });
-  else if (shop.tab !== 'skin') text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 474, 13, C.sub, { body: true, stroke: false });
-  button(480 - 230, H - 50, 220, 44, `${nameOf(shop.next)} 출발!`, () => startLevel(shop.next), { size: 17 });
-  button(480 + 10, H - 50, 220, 44, '지도로', () => enterMap(), { size: 17, kind: 'soft' });
+  if (shop.msgT > 0) text(shop.msg, sL + 6, H - 35, 16, '#ffffff', { align: 'left', stroke: false });
+  else if (shop.tab !== 'skin') text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', sL + 6, H - 35, 13, C.sub, { align: 'left', body: true, stroke: false }); // 왼쪽 아래(오른쪽은 단추 자리)
+  // 시안: 오른쪽 아래 — 동그란 뒤로 ↩ + 큰 노란 ▶ 출발
+  const sr = 960 + OX() - SAFE - 16;
+  button(sr - 250, H - 60, 250, 50, `▶ ${nameOf(shop.next)} 출발`, () => startLevel(shop.next), { size: 18, kind: 'yellow' });
+  roundBtn('back', sr - 290, H - 35, 27, () => enterMap(), '지도로');
   if (shop.hatch) drawHatch();
 }
 function drawHatch() {
@@ -1132,7 +1133,8 @@ function sayBubble(x, y, w, line, color = '#ffffff') { // 왼쪽 캐릭터 아�
   lines.forEach((l, i) => text(l, x, y + 18 + i * fs(14) * 1.35, 14, color, { body: true, stroke: false }));
 }
 function bottomButtons(primaryLabel, primaryFn, secondary) {
-  button(RL, RC.y + RC.h - 118, RR - RL, 54, primaryLabel, primaryFn, { size: 20 });
+  roundBtn('home', RL + 28, RC.y + RC.h - 90, 28, () => enterMap(), '지도'); // 시안: 왼쪽 동그란 집 + 큰 노란 단추
+  button(RL + 66, RC.y + RC.h - 118, RR - RL - 66, 56, primaryLabel, primaryFn, { size: 21, kind: 'yellow' });
   const n = secondary.length, gap = 10, bw = (RR - RL - gap * (n - 1)) / n;
   secondary.forEach(([label, fn], i) => button(RL + i * (bw + gap), RC.y + RC.h - 54, bw, 40, label, fn, { size: 14, kind: 'soft' }));
 }
@@ -1145,7 +1147,7 @@ function drawDead() {
   drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 260);
   sayBubble(190, 380, 300, '느려도 괜찮아요, 포기만 하지 마세요');
   resultCard();
-  text('쿵! 부딪혔어요', RM, RC.y + 42, 30, '#ff9aa8', { lw: 6 });
+  if (!ribbon(RM, RC.y + 12, 380, '쿵! 부딪혔어요', 24, true)) text('쿵! 부딪혔어요', RM, RC.y + 42, 30, '#ff9aa8', { lw: 6 });
   text(endless ? `${G.prog}미터` : `${G.prog}%`, RM, RC.y + 92, 44, '#ffffff');
   if (!endless) {
     const by = RC.y + 124;
@@ -1164,7 +1166,7 @@ function drawDead() {
   ctx.fillStyle = G.helpNext ? 'rgba(255,111,168,.16)' : 'rgba(255,213,74,.1)'; rr(RL, RC.y + 304, RR - RL, 34, 10); ctx.fill();
   text(G.helpNext ? tip : `💡 ${tip}`, RL + 14, RC.y + 322, 13, G.helpNext ? '#ffc4dc' : C.yellow, { align: 'left', body: true, stroke: false });
   ctx.restore();
-  bottomButtons('다시 하기 ▶', () => startLevel(G.n), [['상점', () => openShop(G.n)], ['지도로', () => enterMap()], ['오늘은 여기까지', restToday]]);
+  bottomButtons('다시 하기 ▶', () => startLevel(G.n), [['상점', () => openShop(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
 const CLEAR_LINES = ['공주님 왕관 조각을 찾았어요!', '상어왕의 발자국이 이어져요...', '바다 친구들이 응원해요!', '조금씩, 그래도 앞으로!', '공주님 목소리가 들려요!', '거의 다 왔어요!', '상어왕의 성이 보여요!'];
@@ -1216,7 +1218,7 @@ function drawClear() {
   if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 320 + Math.abs(Math.sin(T * 4 + 1)) * -10, 62);
   sayBubble(190, 370, 300, BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], '#ffd1ef');
   resultCard();
-  text(`${G.n}번 바다 성공!`, RM, RC.y + 36, 24, C.yellow, { lw: 5 });
+  if (!ribbon(RM, RC.y + 10, 400, `${G.n}번 바다 성공!`, 24)) text(`${G.n}번 바다 성공!`, RM, RC.y + 36, 24, C.yellow, { lw: 5 });
   if (save.diff === 2) icon('e_crown', RM + 120, RC.y + 34, 26, Math.sin(T * 4) * 0.1);
   drawScoreBlock(RC.y + 96);
   const labels = ['도착', '진주 70%', '안 맞기'];
@@ -1277,8 +1279,9 @@ function drawEnding() {
 }
 function drawPause() {
   ctx.fillStyle = 'rgba(16,16,18,.66)'; ctx.fillRect(-OX(), 0, W, H);
-  text('잠깐 쉬어요', 480, 140, 44, '#fff', { stroke: false });
-  button(330, 200, 300, 56, '계속하기', () => { state = 'play'; }, { size: 21 });
+  panel(300, 110, 360, 350, { fill: '#0c285c' }); // 시안: 유리판 + 파란 리본 제목 + 큰 노란 단추
+  if (!ribbon(480, 116, 320, '잠깐 쉬어요', 24)) text('잠깐 쉬어요', 480, 140, 44, '#fff', { stroke: false });
+  button(330, 196, 300, 58, '계속하기 ▶', () => { state = 'play'; }, { size: 22, kind: 'yellow' });
   button(330, 268, 300, 48, save.musicOff ? '음악 켜기' : '음악 끄기', () => { save.musicOff = !save.musicOff; persist(); initAudio(); }, { size: 16, kind: 'soft' });
   button(330, 326, 300, 48, save.haptics ? '진동 끄기' : '진동 켜기', () => { save.haptics = !save.haptics; persist(); haptic(30); }, { size: 16, kind: 'soft' });
   button(330, 384, 300, 48, '지도로 (알은 저장돼요)', () => { bank(false); enterMap(); }, { size: 16, kind: 'soft' });

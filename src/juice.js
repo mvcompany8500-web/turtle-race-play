@@ -492,7 +492,7 @@ function drawReady() {
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
   withRise(0, () => {
     panel(200, 40, 560, 456, { fill: C.gray });
-    text(endless ? '끝없는 바다' : `${n}번 바다`, 480, 82, 30, C.yellow, { stroke: false });
+    if (!ribbon(480, 50, 380, endless ? '끝없는 바다' : `${n}번 바다`, 26, true)) text(endless ? '끝없는 바다' : `${n}번 바다`, 480, 82, 30, C.yellow, { stroke: false }); // 시안: 빨간 리본
     text(st.name, 480, 116, 18, C.text, { stroke: false, body: true });
   });
   withRise(1, () => {
@@ -524,8 +524,8 @@ function drawReady() {
   });
   withRise(4, () => {
     drawBoosterRow(228, 388);
-    button(260, 430, 300, 58, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); applyBoosters(); }, { size: 24 });
-    button(576, 430, 152, 58, '지도로', () => { ready_ = null; boostPick = {}; enterMap(); }, { size: 17, kind: 'soft' });
+    button(300, 428, 360, 60, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); applyBoosters(); }, { size: 26, kind: 'yellow' }); // 시안: 큰 노란 출발 + 오른쪽 동그란 ✕
+    roundBtn('close', 708, 458, 30, () => { ready_ = null; boostPick = {}; enterMap(); }, '지도로');
   });
 }
 

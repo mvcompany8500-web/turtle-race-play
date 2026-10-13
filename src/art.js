@@ -536,6 +536,14 @@ function button(x, y, w, h, label, on, o = {}) {
   ctx.restore();
   buttons.push({ x: hx, y: hy, w: hw, h: hh, on, key });
 }
+// 동그란 유리 아이콘 단추(시안: 닫기 ✕·뒤로 ↩·집) — 그림이 없으면 작은 보통 단추로
+function roundBtn(name, cx, cy, r, on, alt = '') {
+  const im = IMG['spr_ui_ic_' + name];
+  if (!im || !ready(im)) { button(cx - r * 1.6, cy - r * 0.8, r * 3.2, r * 1.6, alt, on, { size: 15, kind: 'soft' }); return; }
+  const mt = ctx.getTransform(), key = `${cx | 0},${cy | 0}r`, sc = press.key === key ? press.sp.v : 1;
+  drawImg(im, cx, cy, r * 2.4 * sc); // 그림 둘레 투명 여백만큼 크게
+  buttons.push({ x: (mt.a * (cx - r) + mt.e) / K, y: (mt.d * (cy - r) + mt.f) / K, w: r * 2 * mt.a / K, h: r * 2 * mt.d / K, on, key });
+}
 // 코덱스 그림 늘려 쓰기: slice3 = 양 끝 고정·가운데 늘림(단추), slice9 = 네 귀퉁이 고정(판)
 function slice3(im, x, y, w, h) {
   const b = obox(im), k = h / b.h; let cs = Math.min(b.h * 0.6, b.w / 2), cd = cs * k;
@@ -550,11 +558,18 @@ function slice9(im, x, y, w, h, cdst = 30) {
   const dx = [x, x + cd, x + w - cd], dw = [cd, w - cd * 2, cd], dy = [y, y + cd, y + h - cd], dh = [cd, h - cd * 2, cd];
   for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) ctx.drawImage(im, sx[i], sy[j], sw[i], sh[j], dx[i], dy[j], dw[i], dh[j]);
 }
+// 제목 리본(시안): 리본 그림 위에 글자
+function ribbon(cx, cy, w, label, size = 24, red = false) {
+  const im = IMG[red ? 'spr_ui_ribbon_red' : 'spr_ui_ribbon_blue'];
+  if (im && ready(im) && typeof obox === 'function') { const b = obox(im), h = w * b.h / b.w; ctx.drawImage(im, b.x, b.y, b.w, b.h, cx - w / 2, cy - h / 2, w, h); text(label, cx, cy - h * 0.06, size, '#ffffff', { stroke: red ? 'rgba(120,20,30,.8)' : 'rgba(10,40,100,.8)', lw: 6 }); return true; }
+  return false;
+}
 function panel(x, y, w, h, o = {}) {
   ctx.save();
-  const art = IMG.spr_ui_panel;
-  if (art && ready(art) && typeof obox === 'function' && !o.flat) { // 코덱스가 그린 바다 카드 판
+  const gl = IMG.spr_ui_glass_card, art = gl && ready(gl) ? gl : IMG.spr_ui_panel;
+  if (art && ready(art) && typeof obox === 'function' && !o.flat) { // 코덱스 유리 카드(시안) — 속은 옅은 남색으로 받쳐 흰 글자가 읽히게
     slice9(art, x, y, w, h, Math.min(34, (o.r || 20) * 1.5));
+    if (art === gl) { ctx.fillStyle = 'rgba(12,40,92,.58)'; rr(x + 8, y + 8, w - 16, h - 16, Math.max(6, (o.r || 20) - 6)); ctx.fill(); } // 유리 테는 살리고 속만 남색(흰 글자 읽히게)
     if (o.fill && o.fill !== 'rgba(27,28,31,.94)') { ctx.globalAlpha = 0.45; ctx.fillStyle = o.fill; rr(x + 3, y + 3, w - 6, h - 6, Math.max(4, (o.r || 20) - 3)); ctx.fill(); ctx.globalAlpha = 1; } // 고른 칸·특별 칸 색은 얇게 덧칠
     if (o.sel) { ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 3; rr(x + 1, y + 1, w - 2, h - 2, o.r || 20); ctx.stroke(); }
   } else {
@@ -564,6 +579,13 @@ function panel(x, y, w, h, o = {}) {
   if (o.sel) { ctx.strokeStyle = C.blueD; ctx.lineWidth = 2.5; ctx.stroke(); }
   }
   ctx.restore();
+}
+// 크림색 재화 칸 + 초록 「+」(코덱스 지도 시안) — 지도·상점 같이 씀
+function curPill(x, y, w, iconFn, val, plusFn, onTap) {
+  slice3(IMG.spr_ui_cur_pill, x, y, w, 42); iconFn(x + 22, y + 21);
+  text(val, x + 44, y + 22, 17, '#2f3550', { align: 'left', stroke: false });
+  if (plusFn) { drawImg(IMG.spr_ui_plus, x + w - 20, y + 21, 32); ctx.save(); ctx.globalAlpha = 0; button(x + w - 40, y, 40, 42, '+', plusFn, {}); ctx.restore(); }
+  if (onTap) { ctx.save(); ctx.globalAlpha = 0; button(x, y, w - (plusFn ? 40 : 0), 42, '', onTap, {}); ctx.restore(); }
 }
 function eggBadge(x, y, n, size = 26) {
   const label = String(n);
@@ -716,6 +738,8 @@ function drawFish(x, y, s, flip = false) {
   ctx.restore();
 }
 function drawStar(x, y, r, filled, color = C.yellow) {
+  const sa = IMG[filled ? 'spr_ui_star_big' : 'spr_ui_star_empty'];
+  if (sa && ready(sa) && color === C.yellow) { drawImg(sa, x, y, r * 2.3); return; } // 시안의 금별·빈 별 자리(코덱스)
   ctx.save(); ctx.translate(x, y);
   ctx.beginPath();
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.45 : r; ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad); }
