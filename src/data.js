@@ -21,14 +21,14 @@ const STAGES = [null,
   { name: '상어 대장의 바위성', tip: '큰 상어는 질주로 들이받아야 아파해요!', boss: 'shark' },
   { name: '무지개 산호밭', tip: '스치듯 피하면 완벽 회피! 질주가 확 차요' },
   { name: '먹물 골목', tip: '문어가 먹물로 앞을 가려요. 등불을 켜면 걷혀요', fresh: 'octopus' },
-  { name: '빛 없는 바다', tip: '깜깜해요! 반짝이는 황금알이 다 진짜는 아니에요...', fresh: 'angler', dark: true },
-  { name: '심해 갈림길', tip: '알을 끊기지 않게 먹으면 알 소나기가 내려요', dark: true },
+  { name: '빛 없는 바다', tip: '깜깜해요! 반짝이는 황금 진주이 다 진짜는 아니에요...', fresh: 'angler', dark: true },
+  { name: '심해 갈림길', tip: '진주를 끊기지 않게 먹으면 바다 축제가 열려요', dark: true },
   { name: '대왕 문어의 동굴', tip: '대왕 문어는 먹물과 다리로 공격해요. 등불이 있으면 편해요', boss: 'octopus' },
   // 2. 깊은 바다
   { name: '푸른 낭떠러지', tip: '여기부턴 깊은 바다! 적이 섞여서 나와요' },
   { name: '소용돌이 해협', tip: '소용돌이는 거북이를 빨아들여요. 회오리로 날려 버려요!', fresh: 'whirlpool' },
   { name: '해파리 은하수', tip: '해파리가 잔뜩! 거품 방패를 아껴 두세요' },
-  { name: '아귀 마을', tip: '가짜 황금알을 조심! 등불을 켜면 정체가 보여요', dark: true },
+  { name: '아귀 마을', tip: '가짜 황금 진주을 조심! 등불을 켜면 정체가 보여요', dark: true },
   { name: '아귀 대왕의 등불탑', tip: '아귀 대왕은 어둠 속에서 덥석 물어요', boss: 'angler', dark: true },
   { name: '가오리 하늘', tip: '가오리는 크게 물결치며 빨라요. 얼리면 느려져요', fresh: 'ray' },
   { name: '침몰선 무덤', tip: '산호 쉼터에서 고른 카드가 판을 바꿔요' },
@@ -50,13 +50,13 @@ const STAGES = [null,
   { name: '노을 산호 해변', tip: '상어왕이 공주님을 데리고 노을 바다로 도망쳤어요!' },
   { name: '청새치 항로', tip: '청새치는 긴 부리로 일직선 돌진! 거품 방패로 튕겨 내요', fresh: 'swordfish' },
   { name: '해적선 무덤', tip: '보물 상자처럼 생긴 ? 상자가 더 자주 나와요' },
-  { name: '황금 동굴', tip: '황금알이 반짝반짝! 욕심내다 부딪히지 않게', dark: true },
+  { name: '황금 동굴', tip: '황금 진주이 반짝반짝! 욕심내다 부딪히지 않게', dark: true },
   { name: '해적 문어 선장', tip: '보물을 지키는 문어 선장! 다리가 세 줄로 와요', boss: 'octopus3' },
   { name: '폭풍 보물섬', tip: '기뢰와 청새치가 같이 와요' },
   { name: '노을 소용돌이', tip: '회오리를 아껴 두세요' },
   { name: '산호 미로', tip: '좁은 길, 침착하게' },
   { name: '보물섬 동굴', tip: '깜깜한 동굴 속 아귀를 조심!', dark: true },
-  { name: '아귀 여왕의 보물고', tip: '아귀 여왕이 가짜 황금알을 잔뜩 뿌려요', boss: 'angler2', dark: true },
+  { name: '아귀 여왕의 보물고', tip: '아귀 여왕이 가짜 황금 진주을 잔뜩 뿌려요', boss: 'angler2', dark: true },
   // 5. 심연의 왕궁
   { name: '심연의 입구', tip: '마지막 세계! 공주님이 이 깊은 곳에 있어요' },
   { name: '유령 해파리 정원', tip: '유령 해파리는 사라졌다 나타나요. 등불이면 다 보여요', fresh: 'phantom' },
@@ -79,7 +79,7 @@ const ENEMIES = {
   puffer: { name: '복어', hp: 2, intro: 3, trait: '가까이 가면 부풀어요', weak: 'bolt', color: '#ffd34d' },
   eel: { name: '곰치', hp: 2, intro: 4, trait: '빨간 줄을 따라 쏜살같이', weak: 'freeze', color: '#7fe36b' },
   octopus: { name: '문어', hp: 4, intro: 7, trait: '먹물로 앞을 가려요', weak: 'lamp', color: '#e0679a' },
-  angler: { name: '아귀', hp: 4, intro: 8, trait: '가짜 황금알로 꾀어요', weak: 'lamp', color: '#ffb84d', darkOnly: true },
+  angler: { name: '아귀', hp: 4, intro: 8, trait: '가짜 황금 진주로 꾀어요', weak: 'lamp', color: '#ffb84d', darkOnly: true },
   whirlpool: { name: '소용돌이', hp: 999, intro: 12, trait: '거북이를 빨아들여요', weak: 'whirl', color: '#7cf0ff' },
   ray: { name: '가오리', hp: 3, intro: 16, trait: '크게 물결치며 빨라요', weak: 'freeze', color: '#6f8fd8' },
   crab: { name: '게', hp: 6, intro: 21, trait: '뛰어올라요, 번개가 안 들어요', weak: 'giant', color: '#ff6a4d', armored: true },
@@ -91,9 +91,9 @@ const ENEMY_KEYS = Object.keys(ENEMIES);
 
 // ───────── 아이템 8종 (? 상자) ─────────
 const ITEMS = {
-  magnet: { name: '자석 조개', desc: '8초 동안 알을 끌어와요', icon: 'magnet', from: 1, dur: 8 },
+  magnet: { name: '자석 조개', desc: '8초 동안 진주를 끌어와요', icon: 'magnet', from: 1, dur: 8 },
   bubble: { name: '거품 방패', desc: '한 번 막고, 해파리는 안 아파요', icon: 'e_shield', from: 1 },
-  double: { name: '반짝 별', desc: '10초 동안 알 두 배', icon: 'e_sparkles', from: 2, dur: 10 },
+  double: { name: '반짝 별', desc: '10초 동안 진주 두 배', icon: 'e_sparkles', from: 2, dur: 10 },
   freeze: { name: '꽁꽁 눈꽃', desc: '5초 동안 적이 얼어요', icon: 'e_snow', from: 3, dur: 5 },
   giant: { name: '커지는 물약', desc: '5초 동안 커져서 다 밟아요', icon: 'e_potion', from: 5, dur: 5 },
   lamp: { name: '등불', desc: '10초 동안 환해져요, 먹물·아귀 약점', icon: 'e_bulb', from: 7, dur: 10 },
@@ -106,12 +106,12 @@ const ITEM_KEYS = Object.keys(ITEMS);
 const BLESSINGS = [
   { k: 'boost', name: '질주 가득', desc: '질주 게이지를 꽉 채워요', icon: 'e_rocket' },
   { k: 'shield', name: '방패 하나 더', desc: '한 번 더 막아 줘요', icon: 'e_shield' },
-  { k: 'magnet', name: '자석 20초', desc: '알이 알아서 와요', icon: 'magnet' },
+  { k: 'magnet', name: '자석 20초', desc: '진주가 알아서 와요', icon: 'magnet' },
   { k: 'item', name: '아이템 받기', desc: '빈 칸에 아이템을 넣어 줘요', icon: 'e_gift' },
   { k: 'slow', name: '물살 느리게', desc: '이번 판 물살 10% 느리게', icon: 'e_snow' },
-  { k: 'eggs', name: '알 25개', desc: '바로 받아요', icon: 'egg' },
+  { k: 'eggs', name: '진주 25개', desc: '바로 받아요', icon: 'egg' },
   { k: 'revive', name: '공짜 이어하기', desc: '한 번은 알 없이 일어나요', icon: 'e_sparkles' },
-  { k: 'double', name: '알 두 배 15초', desc: '반짝반짝 두 배', icon: 'e_gem' },
+  { k: 'double', name: '진주 두 배 15초', desc: '반짝반짝 두 배', icon: 'e_gem' },
 ];
 
 // ───────── 난이도 ─────────
@@ -133,14 +133,14 @@ const SKINS = [
   { k: 'crown7', name: '황금 왕관', cost: 1300 },
 ];
 const PETS = [
-  { k: 'chick', name: '삐약이', perk: (lv) => `알을 ${40 + lv * 20} 거리에서 끌어와요` },
+  { k: 'chick', name: '삐약이', perk: (lv) => `진주를 ${40 + lv * 20} 거리에서 끌어와요` },
   { k: 'cat', name: '냥이', perk: (lv) => `질주가 ${lv * 5}% 빨리 차요` },
   { k: 'snail', name: '달팽이', perk: (lv) => `물살이 ${lv * 2}% 느려져요` },
-  { k: 'sprout', name: '새싹이', perk: (lv) => `알 10개마다 +${lv}` },
+  { k: 'sprout', name: '새싹이', perk: (lv) => `진주 10개마다 +${lv}` },
   { k: 'whale', name: '고래', perk: (lv) => `판마다 방패 +${lv >= 4 ? 2 : 1}` },
   { k: 'robot', name: '로봇', perk: (lv) => `${9 - lv}초마다 빛으로 적을 물리쳐요` },
   { k: 'penguin', name: '펭펭이', perk: (lv) => `질주가 ${(lv * 0.3).toFixed(1)}초 더 가요` },
-  { k: 'puppy', name: '멍멍이', perk: (lv) => `황금알·? 상자가 ${lv * 15}% 더 자주` },
+  { k: 'puppy', name: '멍멍이', perk: (lv) => `황금 진주·? 상자가 ${lv * 15}% 더 자주` },
   { k: 'rabbit', name: '토순이', perk: (lv) => `${lv * 5}% 더 빨리 헤엄쳐요` },
 ];
 // 값은 docs/balance.md (실험실에서 잰 판당 수입으로 계산) — 바꾸면 node scripts/balance.mjs 로 다시 확인
@@ -151,7 +151,7 @@ const UPS = [
   { k: 'slow', name: '느긋한 등껍질', desc: '물살이 7% 느려져요', max: 5, cost: [85, 160, 295, 550, 1015] },
   { k: 'boost', name: '질주 엔진', desc: '질주가 30% 빨리 차요', max: 5, cost: [85, 160, 295, 550, 1015] },
   { k: 'shield', name: '거품 방패', desc: '판마다 한 번 막아 줘요', max: 3, cost: [175, 420, 1000] },
-  { k: 'magnet', name: '알 자석', desc: '가까운 알을 끌어와요', max: 3, cost: [100, 225, 495] },
+  { k: 'magnet', name: '진주 자석', desc: '가까운 진주를 끌어와요', max: 3, cost: [100, 225, 495] },
   { k: 'fire', name: '물방울 연사', desc: '큰 적 공격이 빨라져요', max: 5, cost: [70, 140, 245, 455, 850] },
   { k: 'power', name: '물방울 위력', desc: '큰 적 공격이 세져요', max: 5, cost: [100, 190, 350, 645, 1190] },
 ];
@@ -163,19 +163,19 @@ const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
 const LV_PERKS = {
   2: { k: 'heart', name: '하트 +1', desc: '하트가 하나 늘어요', icon: 'heart' },
-  3: { k: 'stompEgg', name: '밟기 보너스', desc: '밟을 때마다 알 +1', icon: 'egg' },
+  3: { k: 'stompEgg', name: '밟기 보너스', desc: '밟을 때마다 진주 +1', icon: 'egg' },
   4: { k: 'boostStart', name: '질주 예열', desc: '질주 게이지 25로 시작', icon: 'e_rocket' },
   5: { k: 'triple', name: '삼단 점프', desc: '공중에서 한 번 더 뛰어요', icon: 'e_sparkles' },
-  6: { k: 'magnet', name: '알 끌어오기', desc: '가까운 알이 붙어 와요', icon: 'magnet' },
+  6: { k: 'magnet', name: '진주 끌어오기', desc: '가까운 진주가 붙어 와요', icon: 'magnet' },
   7: { k: 'heart2', name: '하트 +1', desc: '하트가 또 하나 늘어요', icon: 'heart' },
   8: { k: 'itemTime', name: '아이템 오래', desc: '아이템이 30% 오래가요', icon: 'e_gift' },
   9: { k: 'shockStomp', name: '쿵 충격파', desc: '밟으면 주변 적도 날아가요', icon: 'bolt' },
   10: { k: 'shieldStart', name: '거품 출발', desc: '판마다 방패 하나 들고 시작', icon: 'e_shield' },
   12: { k: 'heart3', name: '하트 +1', desc: '하트가 또또 하나!', icon: 'heart' },
-  14: { k: 'letterLuck', name: '글자 자석', desc: '알·소·나·기 글자가 끌려와요', icon: 'magnet' },
-  16: { k: 'feverLong', name: '긴 알 소나기', desc: '알 소나기 3초 더', icon: 'e_fire' },
+  14: { k: 'letterLuck', name: '글자 자석', desc: '바·다·축·제 글자가 끌려와요', icon: 'magnet' },
+  16: { k: 'feverLong', name: '긴 바다 축제', desc: '바다 축제 3초 더', icon: 'e_fire' },
   18: { k: 'reviveCheap', name: '씩씩한 마음', desc: '이어하기 알 반값', icon: 'e_sparkles' },
-  20: { k: 'legend', name: '전설의 거북', desc: '모든 알 +20%', icon: 'e_crown' },
+  20: { k: 'legend', name: '전설의 거북', desc: '모든 진주 +20%', icon: 'e_crown' },
 };
 
 // ───────── 공주님 편지 (큰 적을 이길 때마다 한 통) ─────────
@@ -184,7 +184,7 @@ const PRINCESS_LETTERS = {
   10: '깊은 바다는 춥고 깜깜해. 그런데 이상하지? 네가 오고 있다고 생각하면 마음이 따뜻해져.',
   15: '아귀 대왕까지 이겼다고? 다들 느림보라고 놀리던 그 터틀이 맞니? 정말 멋있어.',
   20: '상어 대장이 투덜대더라. 「저 거북이는 넘어져도 또 일어나」래. 응, 그게 내가 아는 터틀이야.',
-  25: '오늘 창밖으로 알 소나기가 반짝이는 걸 봤어. 혹시 너였니? 혼자 웃었어.',
+  25: '오늘 창밖으로 바다 축제가 반짝이는 걸 봤어. 혹시 너였니? 혼자 웃었어.',
   30: '미안해, 상어왕이 나를 또 데려가. 그래도 이번엔 안 울 거야. 네가 꼭 올 거니까.',
   35: '노을 바다 정말 예쁘다. 나중에 같이 보자. 꼭, 같이.',
   40: '이제 조금만 더. 빨리 오지 않아도 돼. 멈추지만 마. 나 여기서 기다릴게.',

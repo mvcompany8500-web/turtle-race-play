@@ -4,12 +4,12 @@
 
 // ───────── 오늘의 도전 ─────────
 const MISSION_TYPES = [
-  { type: 'eggsRun', goals: [25, 40, 60], text: (n) => `한 판에 알 ${n}개 모으기` },
+  { type: 'eggsRun', goals: [25, 40, 60], text: (n) => `한 판에 진주 ${n}개 모으기` },
   { type: 'near', goals: [5, 10, 20], text: (n) => `아슬아슬 회피 ${n}번` },
   { type: 'boostKill', goals: [5, 10, 20], text: (n) => `질주로 ${n}마리 물리치기` },
   { type: 'clear', goals: [1, 2, 3], text: (n) => `바다 ${n}곳 성공하기` },
-  { type: 'fever', goals: [1, 2, 3], text: (n) => `알 소나기 ${n}번 부르기` },
-  { type: 'gold', goals: [3, 6, 10], text: (n) => `황금알 ${n}개 먹기` },
+  { type: 'fever', goals: [1, 2, 3], text: (n) => `바다 축제 ${n}번 부르기` },
+  { type: 'gold', goals: [3, 6, 10], text: (n) => `황금 진주 ${n}개 먹기` },
   { type: 'runs', goals: [3, 5, 8], text: (n) => `${n}판 도전하기` },
   { type: 'boost', goals: [3, 6, 10], text: (n) => `질주 ${n}번 쓰기` },
   { type: 'stomp', goals: [5, 10, 20], text: (n) => `몬스터 ${n}마리 밟기` },
@@ -35,7 +35,7 @@ function claimMission(i) {
   save.eggs += m.reward;
   save.missions.splice(i, 1); ensureMissions(); persist();
   fountain(W / 2, 200 + i * 86, m.reward); sfx.gift(); haptic([20, 30, 40]);
-  toast(`알 +${m.reward}`, C.yellow);
+  toast(`진주 +${m.reward}`, C.yellow);
 }
 function closestMission() {
   const open = save.missions.filter((m) => !m.done);
@@ -50,7 +50,7 @@ function openGift() {
   const n = Math.round(rand(20, 60));
   save.eggs += n; save.giftAt = Date.now() + 3 * 3600e3; persist();
   fountain(W / 2, 40, n); confetti(40); sfx.gift(); haptic([20, 30, 40]);
-  toast(`선물 상자! 알 +${n}`, C.yellow);
+  toast(`선물 상자! 진주 +${n}`, C.yellow);
 }
 function checkStreak() {
   const t = today();
@@ -60,7 +60,7 @@ function checkStreak() {
   const r = Math.min(70, save.streak.day * 10);
   save.eggs += r; persist();
   fountain(W / 2, H / 2, r);
-  toast(`출석 ${save.streak.day}일째! 알 +${r}`, C.yellow);
+  toast(`출석 ${save.streak.day}일째! 진주 +${r}`, C.yellow);
 }
 const chestGoal = () => (save.chests + 1) * 10;
 const chestReady = () => totalStars() >= chestGoal();
@@ -68,7 +68,7 @@ function openChest() {
   if (!chestReady()) { sfx.no(); toast(`별 ${chestGoal()}개를 모으면 열려요 (지금 ${totalStars()}개)`); return; }
   save.chests++; save.eggs += 80; persist();
   fountain(W / 2, 40, 80); confetti(60); sfx.crack(); haptic([30, 30, 80]);
-  toast('별 상자! 알 +80', C.yellow);
+  toast('별 상자! 진주 +80', C.yellow);
 }
 
 // ───────── 월드맵: 세계 5곳 × 바다 10칸 = 50판, 손가락으로 쭉 미는 긴 바다 지도 ─────────
@@ -101,7 +101,7 @@ function updateMap(dt) {
     if (before < 0.7 && u.t >= 0.7) { sfx.warn(); haptic(15); }
     if (before < 1.5 && u.t >= 1.5) {
       const n = nodePos(u.s);
-      sfx.crack(); boom(0.9); haptic([40, 30, 90]); shake = 14; flash = 0.35; flashColor = '#ffffff';
+      sfx.crack(); haptic([40, 30, 90]); shake = 14; flash = 0.35; flashColor = '#ffffff';
       burstRays(n.x - map.cam, n.y, C.yellow, 1.3, 24); fireworks(2, n.x - map.cam - 200, n.x - map.cam + 200, 90);
       for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, sp = rand(120, 520); fx.push({ k: 'spark', x: n.x - map.cam, y: n.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.8, max: 0.8, size: rand(3, 7), color: pick(['#ffd54a', '#ffffff', '#4c82ff']) }); }
       toast(`${u.s}번 바다가 열렸어요!`, C.yellow);
@@ -114,7 +114,7 @@ function updateMap(dt) {
     const n = nodePos(map.path[0]);
     const dx = n.x - map.x, dy = n.y - map.y, d = Math.hypot(dx, dy), stepLen = 380 * dt;
     if (Math.abs(dx) > 2) map.face = dx > 0 ? 1 : -1;
-    if (d <= stepLen) { map.x = n.x; map.y = n.y; map.cur = map.path.shift(); tone(700, 900, 0.05, 'square', 0.05); }
+    if (d <= stepLen) { map.x = n.x; map.y = n.y; map.cur = map.path.shift(); snd('tap', 0.5, 1.1); }
     else { map.x += dx / d * stepLen; map.y += dy / d * stepLen; }
     map.cam = lerp(map.cam, camFor(map.x), Math.min(1, dt * 5));
   } else if (!map.drag) {
@@ -413,7 +413,7 @@ function drawMissions() {
     ctx.fillStyle = m.done ? C.ok : C.blueD; rr(248, y + 46, Math.max(12, 250 * m.prog / m.goal), 12, 6); ctx.fill();
     text(`${m.prog}/${m.goal}`, 508, y + 52, 13, C.sub, { align: 'left', body: true, stroke: false });
     if (m.done) button(598, y + 16, 120, 44, `받기 +${m.reward}`, () => claimMission(i), { size: 16, kind: 'ok' });
-    else { drawImg(IMG.egg, 636, y + 38, 24); text(`+${m.reward}`, 652, y + 39, 18, C.yellow, { align: 'left', stroke: false }); }
+    else { drawPearl(636, y + 38, 24); text(`+${m.reward}`, 652, y + 39, 18, C.yellow, { align: 'left', stroke: false }); }
   }));
   text('도전을 이루면 바로 새 도전이 와요', 480, 402, 14, C.sub, { body: true, stroke: false });
   button(400, 420, 160, 40, '닫기', () => { map.overlay = null; sfx.click(); }, { size: 16, kind: 'soft' });
@@ -484,7 +484,7 @@ function drawSettings() {
   text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', 480, 340, 14, C.sub, { body: true, stroke: false });
   button(312, 366, 338, 44, '꽉 찬 화면으로 보기', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
   button(312, 418, 338, 44, '첫 이야기 다시 보기', startIntro, { size: 15, kind: 'soft' });
-  text('거북알은 현금이 아니에요 · 게임 안에서만 써요', 480, 486, 13, C.sub, { body: true, stroke: false });
+  text('진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 486, 13, C.sub, { body: true, stroke: false });
 }
 
 // ───────── 첫 이야기: 공주 납치 ─────────
@@ -503,7 +503,7 @@ function startIntro() { state = 'intro'; cut.i = 0; cut.t = 0; cut.shown = 0; se
 function introStep(s) {
   if (s.ev === 'sharkIn') { shake = 24; flash = 0.6; flashColor = '#ff3355'; sfx.roar(); haptic([60, 40, 120]); setMusic('boss'); }
   if (s.ev === 'grab') { sfx.bubble(); shake = 8; }
-  if (s.ev === 'leave') { whoosh(2000, 200, 0.8, 0.3); }
+  if (s.ev === 'leave') { snd('swoosh', 1, 0.7); }
   if (s.ev === 'resolve') { setMusic('w1'); sfx.boost(); flash = 0.3; flashColor = '#b48bff'; }
   if (s.ev === 'title') { sfx.clear(); confetti(40); }
 }
@@ -644,7 +644,7 @@ function buyUp(i) {
   const u = UPS[i]; if (!u) return;
   const c = upCost(u);
   if (c == null) { sfx.no(); shopSay('이미 최고 단계예요'); return; }
-  if (save.eggs < c) { sfx.no(); shopSay(`거북알이 ${c - save.eggs}개 부족해요`); return; }
+  if (save.eggs < c) { sfx.no(); shopSay(`진주가 ${c - save.eggs}개 부족해요`); return; }
   save.eggs -= c; save.up[u.k]++; persist(); sfx.levelup(); haptic(25);
   shopSay(`${u.name} ${save.up[u.k]}단계!`);
 }
@@ -652,18 +652,18 @@ function wearSkin(k) {
   if (save.skin === k) return;
   if (!REDUCE) shop.turn = { t: 0, from: save.skin, to: k }; // 앱의 휘리릭 턴: 앞 → 옆 → 뒤 → 옆 → 앞(새 옷)
   save.skin = k; persist(); haptic(30);
-  whoosh(600, 4000, 0.6, 0.25);
+  snd('swoosh', 0.8, 1.2);
 }
 function buySkin(s) {
   if (save.skins.includes(s.k)) { wearSkin(s.k); shopSay(`${s.name} 입었어요`); return; }
-  if (save.eggs < s.cost) { sfx.no(); shopSay(`거북알이 ${s.cost - save.eggs}개 부족해요`); return; }
+  if (save.eggs < s.cost) { sfx.no(); shopSay(`진주가 ${s.cost - save.eggs}개 부족해요`); return; }
   save.eggs -= s.cost; save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`);
 }
 function hatchPet() {
   const left = PETS.filter((p) => !save.pets.includes(p.k));
   if (!left.length) { shopSay('펫을 다 모았어요!'); return; }
   const cost = hatchCost();
-  if (save.eggs < cost) { sfx.no(); shopSay(`거북알이 ${cost - save.eggs}개 부족해요`); return; }
+  if (save.eggs < cost) { sfx.no(); shopSay(`진주가 ${cost - save.eggs}개 부족해요`); return; }
   const p = pick(left);
   save.eggs -= cost; save.pets.push(p.k); save.pet = p.k; save.petLv[p.k] = 1; persist();
   shop.hatch = { t: 0, pet: p, cracked: false };
@@ -673,7 +673,7 @@ function levelPet(k) {
   const lv = petLv(k);
   if (lv >= 5) { shopSay('최고 단계예요'); return; }
   const c = PET_LV_COST[lv - 1];
-  if (save.eggs < c) { sfx.no(); shopSay(`거북알이 ${c - save.eggs}개 부족해요`); return; }
+  if (save.eggs < c) { sfx.no(); shopSay(`진주가 ${c - save.eggs}개 부족해요`); return; }
   save.eggs -= c; save.petLv[k] = lv + 1; persist(); sfx.levelup(); haptic(25);
   shopSay(`${PETS.find((p) => p.k === k).name} ${lv + 1}단계!`);
 }
@@ -682,7 +682,7 @@ function updateShop(dt) {
   if (shop.turn) { shop.turn.t += dt / 0.92; if (shop.turn.t >= 1) { shop.turn = null; sfx.buy(); haptic([15, 30, 15]); } }
   if (shop.hatch) {
     const h = shop.hatch; h.t += dt;
-    if (h.t < 1.3 && Math.random() < dt * 8) { tone(300 + h.t * 300, 200, 0.05, 'square', 0.05); haptic(8); }
+    if (h.t < 1.3 && Math.random() < dt * 8) { snd('tick', 0.5, 0.9 + h.t * 0.3, 0.1); haptic(8); }
     if (!h.cracked && h.t >= 1.3) { h.cracked = true; sfx.crack(); confetti(60); flash = 0.5; flashColor = '#ffffff'; haptic([40, 30, 80]); }
   }
 }
@@ -709,7 +709,7 @@ function drawTurnPreview(x, y, size) {
 }
 function drawShop() {
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
-  text('거북알 상점', 480, 34, 32, C.text, { stroke: false });
+  text('진주 상점', 480, 34, 32, C.text, { stroke: false });
   eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
   [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫']].forEach(([k, label], i) => {
     button(480 - 300 + i * 204, 62, 192, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 16, kind: shop.tab === k ? 'primary' : 'soft' });
@@ -724,7 +724,7 @@ function drawShop() {
       text(u.desc, x + 100, y + 62, 14, C.sub, { align: 'left', body: true, stroke: false });
       for (let k = 0; k < u.max; k++) { ctx.fillStyle = k < lv ? C.blueD : C.line; rr(x + 100 + k * 26, y + 84, 20, 10, 5); ctx.fill(); }
       if (c == null) text('최고 단계', x + w / 2, y + 134, 17, C.ok, { stroke: false });
-      else button(x + 20, y + 110, w - 40, 44, `알 ${c}개`, () => buyUp(i), { size: 17, disabled: save.eggs < c });
+      else button(x + 20, y + 110, w - 40, 44, `진주 ${c}`, () => buyUp(i), { size: 17, disabled: save.eggs < c });
     }));
   } else if (shop.tab === 'skin') {
     panel(40, 118, 250, 350);
@@ -736,7 +736,7 @@ function drawShop() {
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined });
       drawImg(playerImg(s.k), x + w / 2, y + 60, 92, 0, own ? 1 : 0.45);
       text(s.name, x + w / 2, y + 114, 14, C.text, { body: true, stroke: false });
-      button(x + 12, y + 128, w - 24, 32, on ? '입는 중' : own ? '입기' : `알 ${s.cost}`, () => buySkin(s), { size: 13, kind: on ? 'soft' : own ? 'soft' : 'primary', disabled: !own && save.eggs < s.cost });
+      button(x + 12, y + 128, w - 24, 32, on ? '입는 중' : own ? '입기' : `진주 ${s.cost}`, () => buySkin(s), { size: 13, kind: on ? 'soft' : own ? 'soft' : 'primary', disabled: !own && save.eggs < s.cost });
     }));
   } else {
     panel(40, 118, 270, 350);
@@ -744,7 +744,7 @@ function drawShop() {
     text('알 부화', 175, 336, 22, C.text, { stroke: false });
     text('어떤 펫이 나올까요?', 175, 364, 14, C.sub, { body: true, stroke: false });
     const all = save.pets.length >= PETS.length;
-    button(64, 396, 222, 52, all ? '다 모았어요!' : `알 ${hatchCost()}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < hatchCost() });
+    button(64, 396, 222, 52, all ? '다 모았어요!' : `진주 ${hatchCost()}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < hatchCost() });
     PETS.forEach((p, i) => withRise(i, () => {
       const x = 326 + (i % 3) * 206, y = 118 + Math.floor(i / 3) * 118, w = 198, h = 110, own = save.pets.includes(p.k), on = save.pet === p.k, lv = petLv(p.k);
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined, r: 16 });
@@ -759,7 +759,7 @@ function drawShop() {
     }));
   }
   if (shop.msgT > 0) text(shop.msg, 480, 482, 18, '#ffffff', { stroke: false });
-  else text('거북알은 현금이 아니에요 · 게임 안에서만 써요', 480, 482, 13, C.sub, { body: true, stroke: false });
+  else text('진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 482, 13, C.sub, { body: true, stroke: false });
   button(480 - 230, H - 50, 220, 44, `${nameOf(shop.next)} 출발!`, () => startLevel(shop.next), { size: 17 });
   button(480 + 10, H - 50, 220, 44, '지도로', () => enterMap(), { size: 17, kind: 'soft' });
   if (shop.hatch) drawHatch();
@@ -825,7 +825,7 @@ function drawRevive() {
   if (!G.cfg.endless) text(`지금 ${Math.floor(progress() * 100)}% — 여기서 끝내기 아까워요!`, 620, 310, 18, C.yellow, { body: true });
   else text(`지금 ${meters()}미터 — 조금만 더!`, 620, 310, 18, C.yellow, { body: true });
   const cost = reviveCost(), ok = canRevive();
-  button(460, 340, 320, 56, G.freeRevive ? '공짜로 일어나기!' : ok ? `이어하기 · 알 ${cost}개` : `알 ${cost}개가 필요해요`, doRevive, { size: 19, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
+  button(460, 340, 320, 56, G.freeRevive ? '공짜로 일어나기!' : ok ? `이어하기 · 진주 ${cost}` : `진주 ${cost}개가 필요해요`, doRevive, { size: 19, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
   button(520, 410, 200, 44, '괜찮아요', giveUp, { size: 16, kind: 'soft' });
 }
 function drawDead() {
@@ -844,12 +844,13 @@ function drawDead() {
   if (G.newBest) { icon('e_trophy', 470, by + 110, 34, Math.sin(T * 6) * 0.15); text('최고 기록 갱신!', 600, by + 110, 24, C.yellow); }
   else if (!endless && G.prevBest >= 100) text(`이미 깬 바다예요. 별 ${(save.stars[G.n] || 0) < 3 ? `${save.stars[G.n] || 0}개 → 3개 도전!` : '3개 다 모았어요!'}`, 600, by + 110, 18, C.yellow, { body: true });
   else text(`최고 기록까지 ${G.prevBest - G.prog}${endless ? '미터' : '%'} 남았어요. 조금만 더!`, 600, by + 110, 18, C.yellow, { body: true });
-  eggBadge(540, by + 150, `+${G.eggs}  (모은 알 ${save.eggs})`, 26);
+  eggBadge(540, by + 150, `+${G.eggs}  (가진 진주 ${save.eggs})`, 26);
   const need = cheapestNext(), m = closestMission();
   const hint = need === Infinity ? '상점을 다 채웠어요!' : save.eggs >= need ? '상점에서 키울 수 있어요!' : `다음 키우기까지 알 ${need - save.eggs}개`;
-  drawXpRow(430, by + 186, 340);
-  if (m) text(`도전 「${missionText(m)}」 ${m.prog}/${m.goal}`, 600, by + 210, 15, C.blueD, { body: true, stroke: false });
-  text('느려도 괜찮아요, 포기만 하지 마세요', 600, by + 244, 20, '#ffffff', { body: true });
+  drawXpRow(430, by + 180, 340);
+  if (G.appEgg) drawAppEgg(600, by + 216);
+  if (m && !G.appEgg) text(`도전 「${missionText(m)}」 ${m.prog}/${m.goal}`, 600, by + 210, 15, C.blueD, { body: true, stroke: false });
+  text('느려도 괜찮아요, 포기만 하지 마세요', 600, by + 252, 20, '#ffffff', { body: true });
   ctx.restore();
   button(420, 392, 360, 56, '다시 하기', () => startLevel(G.n), { size: 21 });
   button(420, 460, 174, 44, '상점', () => openShop(G.n), { size: 16, kind: 'soft' });
@@ -872,7 +873,7 @@ const STAR_AT = [0.5, 0.95, 1.4];
 function updateClear() {
   if (endT < 4 && Math.random() < 0.035) fireworks(1, 520 + OX(), W - 40 - SAFE, 40);
   const shown = Math.floor(G.eggs * clamp((endT - 1.7) / 1.1, 0, 1));
-  if (shown > (G.eggShown || 0) && Math.floor(endT * 30) % 2 === 0) tone(1200 + shown % 7 * 60, 1500, 0.03, 'square', 0.03);
+  if (shown > (G.eggShown || 0)) snd('count', 0.35, 1 + (shown % 7) * 0.03, 0.06);
   G.eggShown = shown;
   while (G.starShown < 3 && endT >= STAR_AT[G.starShown]) {
     const i = G.starShown++, got = G.starGot[i];
@@ -887,7 +888,7 @@ function drawClear() {
   if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 400 + Math.abs(Math.sin(T * 4 + 1)) * -12, 70);
   text(`${G.n}번 바다 성공!`, 610, 46, 40, C.yellow, { lw: 8 });
   if (save.diff === 2) icon('e_crown', 790, 44, 34, Math.sin(T * 4) * 0.1);
-  const labels = ['도착', '알 70%', '안 맞기'], details = ['', `${G.eggsGot}/${G.eggsSpawned}`, G.hits ? `${G.hits}번 맞음` : ''];
+  const labels = ['도착', '진주 70%', '안 맞기'], details = ['', `${G.eggsGot}/${G.eggsSpawned}`, G.hits ? `${G.hits}번 맞음` : ''];
   for (let i = 0; i < 3; i++) {
     const x = 470 + i * 140, y = 120, shown = i < G.starShown, got = G.starGot[i];
     const age = endT - STAR_AT[i], s = shown ? (got ? 1 + Math.max(0, 0.6 - age * 3) : 1) : 0;
@@ -898,13 +899,14 @@ function drawClear() {
   }
   const cur = levelCfg(G.n), nxt = levelCfg(Math.min(LAST, G.n + 1));
   drawXpRow(440, 212, 340);
+  if (G.appEgg) drawAppEgg(610, 400);
   systemWindow(400, 232, 420, [
     '다음 바다는 물살이 더 느려요.',
     `· 물살 ${Math.round(cur.speed)} → ${Math.round(nxt.speed)} · 질주 차는 속도 ${cur.boostRate.toFixed(1)} → ${nxt.boostRate.toFixed(1)}`,
   ]);
-  drawFish(430, 384, 0.7, true);
-  text(BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], 460, 384, 15, '#ffd1ef', { align: 'left', body: true });
-  if (fs(14) < 18) text(`알 +${G.eggShown || 0}${G.stomps ? ` · 밟기 ${G.stomps}` : ''}${G.diffBonus ? ` (난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus})` : ''} · 물리친 적 ${G.kills} · 최고 연속 ${G.chainBest} · 딱 맞은 아이템 ${G.weak}`, 610, 404, 14, C.sub, { body: true, stroke: false });
+  drawFish(430, 366, 0.7, true);
+  text(BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], 460, 366, 15, '#ffd1ef', { align: 'left', body: true });
+  if (fs(14) < 18 && !G.appEgg) text(`진주 +${G.eggShown || 0}${G.stomps ? ` · 밟기 ${G.stomps}` : ''}${G.diffBonus ? ` (난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus})` : ''} · 물리친 적 ${G.kills} · 최고 연속 ${G.chainBest} · 딱 맞은 아이템 ${G.weak}`, 610, 404, 14, C.sub, { body: true, stroke: false });
   button(430, 426, 360, 56, '다음 바다로', () => enterMap(G.n), { size: 21 });
   button(430, 490, 174, 40, '상점', () => openShop(G.n + 1), { size: 15, kind: 'soft' });
   button(616, 490, 174, 40, '다시 하기', () => startLevel(G.n), { size: 15, kind: 'soft' });
@@ -972,7 +974,7 @@ function drawEggFly() {
     const cx = (f.sx + eh.x) / 2 + 40, cy = Math.min(f.sy, eh.y) - 120;
     const x = (1 - e) * (1 - e) * f.sx + 2 * (1 - e) * e * cx + e * e * eh.x;
     const y = (1 - e) * (1 - e) * f.sy + 2 * (1 - e) * e * cy + e * e * eh.y;
-    drawImg(f.gold ? silhouette('egg', '#ffc93a') : IMG.egg, x, y, 26 - k * 8, k * 6);
+    drawPearl(x, y, 24 - k * 8, k * 6, !!f.gold);
   }
 }
 function drawToasts() {

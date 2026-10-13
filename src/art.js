@@ -540,7 +540,7 @@ function eggBadge(x, y, n, size = 26) {
   ctx.font = `800 ${Math.max(13, size * 0.7)}px ${FONT}`;
   const w = ctx.measureText(label).width + size * 1.6;
   ctx.fillStyle = 'rgba(16,16,18,.55)'; rr(x - size * 0.75, y - size * 0.62, w, size * 1.24, size * 0.62); ctx.fill();
-  drawImg(IMG.egg, x, y, size * 0.95);
+  drawPearl(x, y, size * 0.95);
   text(label, x + size * 0.62, y + 1, size * 0.7, C.text, { align: 'left', stroke: false });
 }
 function systemWindow(x, y, w, lines, title = '바다 소식') {
@@ -737,13 +737,13 @@ function drawAngler(x, y, s, t, open, crown, hurt = false) {
   }
   ctx.restore();
 }
-// 아귀 미끼: 어둠 위에 그려서 진짜 황금알처럼 보인다
+// 아귀 미끼: 어둠 위에 그려서 진짜 황금 진주처럼 보인다
 function drawLure(x, y, s, t) {
   const lx = x - 40 * s, ly = y + (-34 + Math.sin(t * 3) * 3) * s;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(lx, ly, 2, lx, ly, 30 * s); g.addColorStop(0, 'rgba(255,220,90,.75)'); g.addColorStop(1, 'rgba(255,220,90,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(lx, ly, 30 * s, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  drawImg(silhouette('egg', '#ffc93a'), lx, ly, 30 * Math.min(1.4, s), Math.sin(t * 3) * 0.15);
+  drawPearl(lx, ly, 30 * Math.min(1.4, s), Math.sin(t * 3) * 0.15, true);
 }
 function drawInk(k) {
   ctx.save(); ctx.globalAlpha = k.a;
@@ -752,11 +752,18 @@ function drawInk(k) {
 }
 // ───────── 아이템 상자·아이콘 ─────────
 const ITEM_ART = { magnet: 'x_it_magnet', bubble: 'x_it_bubble', double: 'x_it_star', freeze: 'x_it_ice', giant: 'x_it_up', bolt: 'x_it_bolt', whirl: 'x_it_swirl' };
+// 게임 안 돈 = 진주 (앱의 진짜 거북알과 헷갈리지 않게 — 알 합치기와 같은 규칙). 황금 진주는 금빛을 덧입힘
+function drawPearl(x, y, size, rot = 0, gold = false, alpha = 1) {
+  if (!ready(IMG.x_cur_pearl)) return drawImg(gold ? silhouette('egg', '#ffc93a') : IMG.egg, x, y, size, rot, alpha);
+  drawImg(IMG.x_cur_pearl, x, y, size * 1.25, rot, alpha);
+  if (gold) { const s = silhouette('x_cur_pearl', '#ffc93a'); if (s) drawImg(s, x, y, size * 1.25, rot, 0.62 * alpha); }
+  return true;
+}
 function drawItemIcon(key, x, y, size) {
   if (ITEM_ART[key] && ready(IMG[ITEM_ART[key]])) return drawImg(IMG[ITEM_ART[key]], x, y, size * 1.15);
   if (typeof key === 'string' && key.startsWith('x_')) return drawImg(IMG[key], x, y, size * 1.15);
   const it = ITEMS[key] ? ITEMS[key].icon : key;
-  if (it === 'egg') return drawImg(IMG.egg, x, y, size);
+  if (it === 'egg') return drawPearl(x, y, size);
   if (it.startsWith('e_')) return icon(it, x, y, size);
   ctx.save(); ctx.translate(x, y); const s = size / 40; ctx.scale(s, s);
   if (it === 'heart') {

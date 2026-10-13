@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 소리: 파일 없이 합성. 세계별·보스·알 소나기 음악 + 마법 같은 효과음
+// 터틀 레이스 — 소리: 파일 없이 합성. 세계별·보스·바다 축제 음악 + 마법 같은 효과음
 // 잔향(물속 울림)과 압축기로 폰 스피커에서도 꽉 차게 들리도록
 
 let ac = null, master = null, musicBus = null, sfxBus = null, verb = null, noiseBuf = null;
@@ -189,7 +189,7 @@ function playStep(s, t, st) {
   if (curTrack.lead && i % 2 === 0) { const tok = curTrack.lead[(bar * 8 + i / 2) % curTrack.lead.length]; if (tok && tok !== '-') leadNote(t, m(tok) + (musicFever ? 12 : 0), st * 3, curTrack.leadType || 'square'); }
 }
 setInterval(() => {
-  if (!ac || !curTrack || save.muted || save.musicOff || SAMPLES['bgm_' + trackName]) { mNext = 0; return; }
+  if (!ac || !curTrack || save.muted || save.musicOff || SAMPLES['bgm_' + trackName] || SAMPLE_LIST.includes('bgm_' + trackName) || !samplesLoading) { mNext = 0; return; } // 합성 음악(옛날 느낌)은 파일이 없을 때만
   if (['pause', 'revive', 'dead', 'bless'].includes(state)) { mNext = 0; return; }
   if (mNext < ac.currentTime) { mNext = ac.currentTime + 0.06; synthT0 = mNext - mStep * (60 / (curTrack.bpm * (musicFever ? 1.1 : 1)) / 4); }
   const st = 60 / (curTrack.bpm * (musicFever ? 1.1 : 1)) / 4;
@@ -207,11 +207,21 @@ async function loadSamples() {
   // 파일을 분석해 둔 값: 효과음 크기 맞춤(gain), 음악 반복 구간(조용한 앞·페이드아웃 끝 빼고)
   try { const r = await fetch('assets/audio/meta.json', { cache: 'no-cache' }); if (r.ok) AUDIO_META = await r.json(); } catch (e) { /* 없으면 기본값 */ }
   try { const r = await fetch('assets/audio/list.json', { cache: 'no-cache' }); if (r.ok) list = await r.json(); } catch (e) { /* 파일 없음 = 합성음만 */ }
+  SAMPLE_LIST = list;
   // 효과음 먼저(작음), 음악은 나중에
   list.sort((a, b) => (a.startsWith('bgm_') ? 1 : 0) - (b.startsWith('bgm_') ? 1 : 0));
   for (const n of list) {
     try { const r = await fetch(`assets/audio/${n}.mp3`); if (!r.ok) continue; SAMPLES[n] = await ac.decodeAudioData(await r.arrayBuffer()); } catch (e) { /* 하나 깨져도 나머지는 */ }
   }
+}
+let SAMPLE_LIST = [];
+const sndLast = {};
+// 녹음 소리만(합성음 대신 안 함). cool: 같은 소리 최소 간격(초) — 촘촘히 겹쳐 지지직거리지 않게
+function snd(name, vol = 1, rate = 1, cool = 0) {
+  if (!ac) return false;
+  if (cool && ac.currentTime - (sndLast[name] || -9) < cool) return false;
+  sndLast[name] = ac.currentTime;
+  return playSample('sfx_' + name, vol, rate);
 }
 function playSample(name, vol = 1, rate = 1) {
   const buf = SAMPLES[name]; if (!buf || !ac) return false;
@@ -227,6 +237,7 @@ for (const k of Object.keys(sfx)) {
     if (k === 'egg') { if (playSample('sfx_egg', 0.7, 1 + Math.min(a[0] || 0, 14) * 0.045)) return; }
     else if (k === 'star') { if (a[1] ? playSample('sfx_star', 1, 1 + a[0] * 0.12) : false) return; }
     else if (playSample('sfx_' + k)) return;
+    if (!SAMPLE_LIST.length || SAMPLE_LIST.includes('sfx_' + k)) return; // 녹음 파일이 있는 소리는 받는 중이어도 옛날 합성음을 내지 않음
     synth(...a);
   };
 }

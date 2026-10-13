@@ -9,7 +9,7 @@
 // ⑦ 판 전 목표 카드
 
 ['fx_ha', 'taunt_bubble', 'ui_ult', 'lvup_burst', 'm10', 'm06', 'it_bolt', 'it_bubble', 'it_ice', 'it_magnet', 'it_swirl', 'it_star', 'it_up', 'it_gold',
-  'sk_combo', 'sk_crit', 'sk_magnet', 'sk_gold', 'sk_ult', 'sk_moves', 'sk_chain', 'sk_bomb', 'sk_pet', 'chest_gold_closed', 'chest_gold_open']
+  'sk_combo', 'sk_crit', 'sk_magnet', 'sk_gold', 'sk_ult', 'sk_moves', 'sk_chain', 'sk_bomb', 'sk_pet', 'chest_gold_closed', 'chest_gold_open', 'cur_pearl', 'cur_pearls']
   .forEach((n) => load('x_' + n, `assets/fx/${n}.webp`));
 
 // 판이 바뀌면 예전 예약은 실행 안 되게(연출이 새 판을 건드리는 버그 막기)
@@ -121,7 +121,7 @@ function bossTaunt(force = false) {
   lastTauntAt = T;
   const lines = TAUNTS[b.def.king ? 'king' : b.kind] || TAUNTS.shark;
   taunt = { t: 0, dur: 1.25, line: pick(lines), key: 'spr_' + BOSS_SPR[G.cfg.boss], king: !!b.def.king };
-  if (!playSample('sfx_laugh_' + (b.def.king ? 'king' : b.kind), 0.9)) { if (ac) { for (let i = 0; i < 4; i++) voice({ type: 'square', f: 300 - i * 20, f2: 200, t: now(i * 0.12), d: 0.09, vol: 0.06 }); } }
+  snd('laugh_' + (b.def.king ? 'king' : b.kind), 0.9);
   duckMusic(1.2);
   haptic([12, 70, 12]);
 }
@@ -215,7 +215,7 @@ function bossLand(b) {
   ring(b.x, GROUND, '#ffffff', 340, 0.5, 12); ring(b.x, GROUND, '#ff9ac0', 260, 0.45, 8);
   for (let i = 0; i < 40; i++) fx.push({ k: 'spark', x: b.x + rand(-120, 120), y: GROUND - rand(0, 10), vx: rand(-420, 420), vy: rand(-380, -60), life: rand(0.4, 0.8), max: 0.8, size: rand(3, 6), color: '#e9d9a8' });
   b.sq = 0.4;
-  sfx.roar(); playSample('sfx_thud', 1); boom(1); haptic([30, 40, 30, 40, 60]);
+  sfx.roar(); snd('thud', 1); haptic([30, 40, 30, 40, 60]);
   edgeFlash('#ff3355', 0.5);
   later(450, () => bossTaunt(true));
 }
@@ -244,17 +244,16 @@ function beatJudge() {
     pop(p.x, p.y - 92, c >= 2 ? `박자 딱! ×${c}` : '박자 딱!', '#ffe36b', 22);
     ring(p.x, p.y, '#ffe36b', 70, 0.3, 5);
     const rate = comboRate(c);
-    if (!playSample('sfx_beat', 0.7, rate) && ac) bell(1046 * rate, now(), 0.06, 0.18, 0.2);
+    snd('beat', 0.7, rate);
     G.boost = Math.min(BMAX(), G.boost + 4 * (1 + abStar('ult') * 0.25));
     if (G.feverT <= 0) G.fever = Math.min(100, G.fever + 3);
     runXp(2);
-    if (c % 5 === 0) { earn('beat', 1 + abStar('beat')); pop(p.x, p.y - 120, `박자 ${c}연속! 알 +${1 + abStar('beat')}`, C.yellow, 24, true); }
+    if (c % 5 === 0) { earn('beat', 1 + abStar('beat')); pop(p.x, p.y - 120, `박자 ${c}연속! 진주 +${1 + abStar('beat')}`, C.yellow, 24, true); }
     const R = { 4: 0, 8: 1, 12: 2, 20: 3, 30: 4 };
     if (R[c] != null) reaction(R[c], `박자 ${c}연속 ${REACT_WORDS[R[c]][0]}`);
     return 'perfect';
   }
   if (err <= BEAT_GOOD) { G.beatCombo = G.beatCombo || 0; G.boost = Math.min(BMAX(), G.boost + 1.5); return 'good'; } // 좋아: 연속은 유지
-  if (G.beatCombo >= 3) pop(p.x, p.y - 92, '박자 놓침', '#9fb3d9', 16);
   G.beatCombo = 0;
   return 'miss';
 }
@@ -318,7 +317,7 @@ function ultCine(lvl) {
   later(1700, () => { playSample('sfx_ult_slash', 1); later(320, () => playSample('sfx_ult_slash', 0.9, 1.15)); });
   targets.forEach((tg, i) => later(1700 + i * 65, () => {
     const o = tg.o, rate = comboRate(i + 1) * (i >= 10 ? 2 : 1);
-    if (ac) bell(880 * rate, now(), 0.05, 0.22, 0.2);
+    snd('chain', 0.8, rate);
     burst(tg.x, tg.y, '#c9a2ff', 18, 420); burst(tg.x, tg.y, '#ffffff', 8, 300); ring(tg.x, tg.y, '#b48bff', 90, 0.35, 6);
     shake = Math.max(shake, 3 + Math.min(8, i * 0.5));
     if (tg.kind === 'e' && !o.dead) { if (ENEMIES[o.type] && ENEMIES[o.type].hp >= 999) o.dead = true; else killEnemy(o, 'ult'); }
@@ -326,8 +325,8 @@ function ultCine(lvl) {
     else if (tg.kind === 'b' && !o.dead) smashBreak(o, true);
   }));
   later(1700 + n * 65 + 260, () => {
-    playSample('sfx_ult_impact', 1); boom(1);
-    flash = 0.95; flashColor = '#ffffff'; zoomTo(1.11); shake = 26;
+    snd('ult_impact', 1);
+    flash = 0.45; flashColor = '#ffffff'; zoomTo(1.11); shake = 26; // 눈부시지 않게(0.95→0.45)
     fireworks(lvl >= 3 ? 8 : 4); confetti(lvl >= 3 ? 120 : 60);
     reaction(4, n ? `${n}마리 한 번에!!` : '바다가 조용해졌다!');
     const b = G.boss;
@@ -383,11 +382,11 @@ function drawUltCine() {
 // ───────── ⑥ 판 안 레벨업 ─────────
 const ABIL = [
   { k: 'jump', name: '높이 뛰기', desc: '점프가 6% 높아져요', icon: 'x_it_up', max: 3 },
-  { k: 'stomp', name: '밟기 장인', desc: '밟으면 알 +1, ★2부터 충격파', icon: 'x_sk_bomb', max: 3 },
-  { k: 'magnet', name: '구슬 자석', desc: '구슬·알을 더 멀리서 끌어와요', icon: 'x_sk_magnet', max: 3 },
+  { k: 'stomp', name: '밟기 장인', desc: '밟으면 진주 +1, ★2부터 충격파', icon: 'x_sk_bomb', max: 3 },
+  { k: 'magnet', name: '구슬 자석', desc: '구슬·진주를 더 멀리서 끌어와요', icon: 'x_sk_magnet', max: 3 },
   { k: 'ult', name: '필살 충전', desc: '필살 게이지가 25% 빨리 + 바로 30', icon: 'x_sk_ult', max: 3 },
-  { k: 'beat', name: '박자 장인', desc: '박자 판정 +25ms, 박자 보상 알 +1', icon: 'x_sk_combo', max: 3 },
-  { k: 'gold', name: '황금 손', desc: '알이 15% 더', icon: 'x_sk_gold', max: 3 },
+  { k: 'beat', name: '박자 장인', desc: '박자 판정 +25ms, 박자 보상 진주 +1', icon: 'x_sk_combo', max: 3 },
+  { k: 'gold', name: '황금 손', desc: '진주가 15% 더', icon: 'x_sk_gold', max: 3 },
   { k: 'slow', name: '느긋한 물살', desc: '이번 판 물살 4% 느리게', icon: 'e_snow', max: 3 },
   { k: 'triple', name: '공중 한 번 더', desc: '공중에서 한 번 더 뛰어요', icon: 'x_sk_chain', max: 1 },
   { k: 'heart', name: '하트 회복', desc: '하트 +1 (가득이면 최대 +1)', icon: 'heart', max: 9 },
@@ -454,7 +453,7 @@ function drawReady() {
     }
   });
   withRise(2, () => {
-    const lab = ['도착', '알 70%', '안 맞기'], got = save.stars[n] || 0;
+    const lab = ['도착', '진주 70%', '안 맞기'], got = save.stars[n] || 0;
     for (let i = 0; i < 3; i++) { const x = 330 + i * 150; drawStar(x, 284, 20, i < got); text(lab[i], x, 314, 14, i < got ? C.yellow : C.sub, { body: true, stroke: false }); }
   });
   withRise(3, () => {
@@ -466,4 +465,47 @@ function drawReady() {
     button(260, 400, 300, 64, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); }, { size: 26 });
     button(576, 400, 152, 64, '지도로', () => { ready_ = null; enterMap(); }, { size: 17, kind: 'soft' });
   });
+}
+
+// ───────── ⑧ 앱 거북알: 「알 합치기」와 같은 규칙 (turtle-app/api/src/games.ts) ─────────
+// 하루(한국 날짜) 3판까지만 · 한 판 5~15개 = 5 + 점수/400 · 8초 넘은 판만 · 경품·환전 없음(꾸미기에만)
+// 앱 주소(…turtle-buff.com)에서 로그인한 채 열리면 서버(/api/games/race/run)가 정함 — 서버에 race 등록은 맥미니 몫
+const APP_EGG = { runs: 3, minMs: 8000, maxScore: 60000 };
+const eggsFor = (score) => Math.max(5, Math.min(15, 5 + Math.floor(score / 400)));
+const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+// 판 점수: 모은 진주·구슬·처치·밟기·박자·진행 + 성공·별·보스 (보통 실력 성공 ≈ 4000점 → 15개)
+function runScore(cleared) {
+  const stars = cleared && G.starGot ? G.starGot.filter(Boolean).length : 0;
+  return Math.min(APP_EGG.maxScore, Math.round(G.eggsGot * 20 + (G.pearls || 0) * 2 + G.kills * 40 + (G.stomps || 0) * 30 + (G.beats || 0) * 15
+    + Math.floor(progress() * 100) * 12 + (cleared ? 600 + stars * 300 + (G.cfg.boss ? 500 : 0) : 0)));
+}
+function appEggs(cleared) {
+  const ms = Math.round(G.t * 1000), day = kstDay();
+  G.score = runScore(cleared);
+  if (!save.appEgg || save.appEgg.day !== day) save.appEgg = { day, runs: 0, total: (save.appEgg && save.appEgg.total) || 0 };
+  const a = save.appEgg;
+  G.appEgg = { eggs: 0, runs: a.runs, max: APP_EGG.runs, short: ms < APP_EGG.minMs, server: false };
+  if (ms < APP_EGG.minMs || a.runs >= APP_EGG.runs) return;
+  const n = eggsFor(G.score);
+  a.runs++; a.total += n; G.appEgg.eggs = n; G.appEgg.runs = a.runs;
+  let tok = null; try { tok = localStorage.getItem('turtle.session'); } catch (e) { /* 개인 창 */ }
+  if (tok && /(^|\.)turtle-buff\.com$/.test(location.hostname)) {
+    G.appEgg.server = true; G.appEgg.pending = true;
+    const ap = G.appEgg;
+    fetch('/api/games/race/run', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ score: G.score, ms: Math.min(ms, 400000), maxStage: G.n === ENDLESS ? 0 : G.n }) })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { ap.pending = false; if (j) { ap.eggs = j.eggs; ap.runs = j.rewardedToday; ap.balance = j.balance; } else ap.failed = true; })
+      .catch(() => { ap.pending = false; ap.failed = true; });
+  }
+}
+function drawAppEgg(x, y) {
+  const a = G.appEgg; if (!a) return;
+  ctx.fillStyle = 'rgba(16,16,18,.7)'; rr(x - 170, y - 18, 340, 36, 18); ctx.fill();
+  drawImg(IMG.egg, x - 148, y, 26);
+  let t;
+  if (a.short) t = '너무 짧은 판은 거북알이 없어요';
+  else if (!a.eggs) t = `오늘 거북알 ${a.max}판 다 받았어요 · 내일 또!`;
+  else if (a.pending) t = `거북알 +${a.eggs} 받는 중…`;
+  else t = a.server ? `거북알 +${a.eggs} · 오늘 ${a.runs}/${a.max}판` : `앱에서 하면 거북알 +${a.eggs} · 오늘 ${a.runs}/${a.max}`;
+  text(t, x - 128, y + 1, 15, a.eggs ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
 }
