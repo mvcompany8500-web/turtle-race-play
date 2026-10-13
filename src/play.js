@@ -550,7 +550,7 @@ function collectEgg(e) {
     G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
     if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
-    snd('egg', 0.45, comboRate(Math.min(G.combo, 10)), 0.04); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
+    snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     burst(e.x, e.y, '#dff6ff', 3, 120);
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
     if (CM[G.combo] != null) reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`);
@@ -873,7 +873,7 @@ function updatePlay(dt) {
   } else if (!p.dead) {
     const before = G.boost;
     G.boost = Math.min(BMAX(), G.boost + (cfg.boostRate + (bossFight ? 12 : 0)) * dt * (1 + abStar('ult') * 0.25));
-    if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); sfx.ready(); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '질주 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); if (lv >= 2) snd('double', 0.8); } // 게이지 단계: 짧은 칼림바(예전 「츄아아압」 상승음은 거슬려서 뺌)
+    if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '질주 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); } // 게이지가 찰 때는 소리 없음(대표: 거슬림) — 글자·진동·단추 빛만
   }
   if (G.comboT > 0) G.comboT -= dt;
   if (G.chainT > 0) {
@@ -1902,7 +1902,7 @@ function fireBullets(dt) {
   const spread = G.feverT > 0 ? [-0.16, 0, 0.16] : [0];
   for (const a of spread) G.bullets.push({ x: mx, y: my, vx: Math.cos(a) * 920, vy: Math.sin(a) * 920, r: big ? 14 : 8, dmg: shotDmg() * (big ? 2 : 1), t: 0 });
   fx.push({ k: 'ring', x: mx, y: my, r: 4, maxR: 18, life: 0.15, max: 0.15, color: '#bff3ff', lw: 3 });
-  snd('shoot', 0.35, rand(0.95, 1.15), 0.07);
+  snd('shoot', 0.12, rand(0.95, 1.15), 0.3); // 보스전 내내 나는 소리라 아주 작게·드물게
 }
 function damageEnemy(e, dmg, bx, by) {
   if (e.dead) return;

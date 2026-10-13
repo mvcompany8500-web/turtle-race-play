@@ -125,7 +125,7 @@ cvs.addEventListener('pointerdown', (e) => {
   const b = hitButton(pt);
   if (b) { if (b.key) { press.key = b.key; press.down = true; haptic(8); } b.on(); return; }
   const lx = pt.x - OX(); // 메뉴 화면 좌표(가운데 960)
-  if (state === 'title') { if (lx > 100 && lx < 400 && pt.y > 130 && pt.y < 450) buddyAct(); else startGame(); }
+  if (state === 'title') startGame(); // 첫 화면은 어디를 눌러도 시작
   else if (state === 'intro') introAdvance();
   else if (state === 'ending') endingTap();
   else if (state === 'clear' && endT < 3.2) endT = 3.2; // 누르면 굴러 오르던 숫자가 바로 끝까지(인기 게임처럼 빨리 넘기기)

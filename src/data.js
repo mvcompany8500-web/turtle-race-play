@@ -181,7 +181,7 @@ const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler
   'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock', 'goal_gate',
   'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip', 'fx_lightning', 'potion_s', 'potion_b',
   'tr_compass', 'tr_wallet', 'tr_charm', 'tr_bottle', 'tr_hook', 'tr_clock', 'tr_flute', 'tr_scale', 'it_rain', 'it_rocket', 'it_transform', 'hand_point',
-  'ui_btn_blue', 'ui_btn_yellow', 'ui_btn_soft', 'ui_btn_red', 'ui_btn_green', 'ui_panel', 'ui_round', 'palace', 'bubble_cage'];
+  'ui_btn_blue', 'ui_btn_yellow', 'ui_btn_soft', 'ui_btn_red', 'ui_btn_green', 'ui_panel', 'ui_round', 'palace', 'bubble_cage', 'endless_portal', 'title_bg', 'title_logo'];
 
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
 const LV_PERKS = {

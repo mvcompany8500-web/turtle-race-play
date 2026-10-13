@@ -235,6 +235,16 @@ function drawNode(s, x, y, scale = 1) {
   if (save.crown[s]) icon('e_crown', x + r * 0.9, y - r * 0.9, 22);
   if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 8, w2, fs(13) + 8, (fs(13) + 8) / 2); ctx.fill(); text(nm, x, y + r + 12 + fs(13) / 2, 13, '#fff', { stroke: false, weight: 700 }); }
 }
+// 지도 그림 왼쪽 끝 14%를 투명하게 풀어 둔 판(뒤집은 것도 따로) — 이음새 없애기
+const featherCache = new Map();
+function featherL(im, flip) {
+  const key = im.src + (flip ? '|f' : ''); let c = featherCache.get(key); if (c) return c;
+  c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext('2d');
+  if (flip) { g.translate(c.width, 0); g.scale(-1, 1); } g.drawImage(im, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
+  const fw = c.width * 0.14, gr = g.createLinearGradient(0, 0, fw, 0); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = gr; g.fillRect(0, 0, fw, c.height);
+  featherCache.set(key, c); return c;
+}
 function drawMap() {
   ctx.save(); ctx.translate(-OX(), 0); // 지도는 화면 전체 폭
   const cam = map.cam;
@@ -255,16 +265,11 @@ function drawMap() {
       if (!ready(A)) continue;
       const ph = H, pw = ph * A.naturalWidth / A.naturalHeight;
       ctx.save(); ctx.beginPath(); ctx.rect(zs - cam, 0, ze - zs, H); ctx.clip();
-      for (let i = 0, x = zs; x < ze; x += pw, i++) {
+      const ov = pw * 0.14; // 이음새: 다음 그림의 왼쪽 끝을 투명하게 풀어 앞 그림 위에 겹침(띠 없이 자연스럽게)
+      for (let i = 0, x = zs; x < ze; x += pw - ov, i++) {
         if (x + pw - cam < 0 || x - cam > W) continue;
-        const im = i % 2 && ready(B) ? B : A;
-        ctx.save(); ctx.translate(x - cam + pw / 2, H / 2); if (Math.floor(i / 2) % 2) ctx.scale(-1, 1); ctx.drawImage(im, -pw / 2, -ph / 2, pw + 1, ph); ctx.restore();
-        if (i > 0) { // 그림 이음새: 물빛 띠로 부드럽게
-          const sx = x - cam, sg = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0), wc = ZONE_BG[w - 1][0];
-          const [r2, g2, b2] = rgb(wc);
-          sg.addColorStop(0, `rgba(${r2},${g2},${b2},0)`); sg.addColorStop(0.5, `rgba(${r2},${g2},${b2},.55)`); sg.addColorStop(1, `rgba(${r2},${g2},${b2},0)`);
-          ctx.fillStyle = sg; ctx.fillRect(sx - 90, 0, 180, H);
-        }
+        const im0 = i % 2 && ready(B) ? B : A, flip = Math.floor(i / 2) % 2, im = i > 0 ? featherL(im0, flip) : im0;
+        ctx.save(); ctx.translate(x - cam + pw / 2, H / 2); if (flip && i === 0) ctx.scale(-1, 1); ctx.drawImage(im, -pw / 2, -ph / 2, pw + 1, ph); ctx.restore();
       }
       ctx.restore();
     }
@@ -299,26 +304,26 @@ function drawMap() {
   for (let i = i0; i <= i1; i++) { const wx = i * 120 + hash(i) * 60; drawMapDecor(clamp(Math.floor((wx - MAP_X0 + MAP_STEP / 2) / (MAP_STEP * 10)) + 1, 1, 5), wx - cam, i, 470 - vnoise(wx / 90) * 26 + 6); }
   }
   for (const b of bubbles) { ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.stroke(); }
-  // 길: 모래 길 + 열린 곳은 금빛
+  // 길: 진주 목걸이처럼(열린 길은 반짝이는 진주, 잠긴 길은 희미한 작은 거품) — 코드로 그린 띠 대신 그림
   const pts = []; for (let s = 1; s <= LAST; s++) pts.push(nodePos(s));
-  const trace = (from, to) => { ctx.beginPath(); ctx.moveTo(pts[from].x - cam, pts[from].y); for (let i = from + 1; i <= to; i++) { const a = pts[i - 1], b = pts[i]; ctx.quadraticCurveTo(a.x - cam + (b.x - a.x) * 0.5, (a.y + b.y) / 2 - 30, b.x - cam, b.y); } };
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  trace(0, LAST - 1); ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 30; ctx.stroke();
-  ctx.strokeStyle = '#f2dfae'; ctx.lineWidth = 22; ctx.stroke();
   const openTo = Math.max(0, Math.min(LAST, save.unlocked - (map.unlock ? 1 : 0)) - 1);
-  if (openTo > 0) { trace(0, openTo); ctx.strokeStyle = C.yellow; ctx.lineWidth = 9; ctx.setLineDash([2, 16]); ctx.lineWidth = 10; ctx.stroke(); ctx.setLineDash([]); }
-  if (map.unlock && map.unlock.t > 1.5) { // 열리는 길이 금빛으로 이어짐
-    const k = Math.min(1, (map.unlock.t - 1.5) / 0.7), a = pts[map.unlock.s - 2], b = pts[map.unlock.s - 1];
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = C.yellow; ctx.lineWidth = 12; ctx.shadowColor = C.yellow; ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.moveTo(a.x - cam, a.y); ctx.lineTo(lerp(a.x, b.x, k) - cam, lerp(a.y, b.y, k)); ctx.stroke(); ctx.restore();
+  const unlockK = map.unlock && map.unlock.t > 1.5 ? Math.min(1, (map.unlock.t - 1.5) / 0.7) : -1;
+  for (let i = 1; i < LAST; i++) {
+    const a = pts[i - 1], b = pts[i]; if (Math.max(a.x, b.x) - cam < -40 || Math.min(a.x, b.x) - cam > W + 40) continue;
+    const cx = a.x + (b.x - a.x) * 0.5, cy = (a.y + b.y) / 2 - 30, len = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(3, Math.round(len / 24));
+    const open = i <= openTo || (map.unlock && i === map.unlock.s - 1 && unlockK >= 0);
+    for (let k = 1; k < n; k++) {
+      const t = k / n; if (map.unlock && i === map.unlock.s - 1 && unlockK >= 0 && t > unlockK) continue;
+      const x = (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * cx + t * t * b.x - cam, y = (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * cy + t * t * b.y;
+      if (open) { const tw = 0.88 + 0.12 * Math.sin(T * 4 + i + k); drawPearl(x, y, 20 * tw); }
+      else { ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); }
+    }
   }
   // 끝없는 바다
   if (endlessOpen() && cam < 400) {
     const e = nodePos(0), ex = e.x - cam;
-    ctx.setLineDash([10, 9]); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(ex, e.y); ctx.lineTo(pts[0].x - cam, pts[0].y); ctx.stroke(); ctx.setLineDash([]);
-    ctx.save(); ctx.translate(ex, e.y); ctx.rotate(T * 2);
-    for (let i = 0; i < 3; i++) { ctx.strokeStyle = ['#7cf0ff', '#b48bff', '#ffffff'][i]; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 16 + i * 9, i, i + 4.2); ctx.stroke(); }
-    ctx.restore();
+    for (let k = 1; k < 6; k++) { const t = k / 6; drawPearl(lerp(ex, pts[0].x - cam, t), lerp(e.y, pts[0].y, t), 11); } // 진주 길로 1번 바다와 이음
+    if (!drawImg(IMG.spr_endless_portal, ex, e.y, 96, Math.sin(T * 1.5) * 0.05)) { ctx.save(); ctx.translate(ex, e.y); ctx.rotate(T * 2); for (let i = 0; i < 3; i++) { ctx.strokeStyle = ['#7cf0ff', '#b48bff', '#ffffff'][i]; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 16 + i * 9, i, i + 4.2); ctx.stroke(); } ctx.restore(); }
     text('끝없는 바다', ex, e.y + 52, 15, '#fff', { body: true });
     if (save.endlessBest) text(`${save.endlessBest}미터`, ex, e.y + 74, 13, C.yellow, { body: true });
   }
@@ -341,9 +346,7 @@ function drawMap() {
   }
   for (const f of fx) if (f.k === 'spark') { const a = Math.max(0, f.life / f.max); ctx.globalAlpha = a; ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x, f.y, f.size * (0.4 + a * 0.6), 0, Math.PI * 2); ctx.fill(); }
   ctx.globalAlpha = 1;
-  // 잠긴 바다 안개
-  const fogX = (save.unlocked < LAST ? nodePos(save.unlocked + 1).x - 70 : MAP_LEN + 200) - cam;
-  if (fogX < W) { const fg = ctx.createLinearGradient(fogX, 0, fogX + 260, 0); fg.addColorStop(0, 'rgba(10,12,24,0)'); fg.addColorStop(1, 'rgba(10,12,24,.66)'); ctx.fillStyle = fg; ctx.fillRect(fogX, 60, 260, H); ctx.fillStyle = 'rgba(10,12,24,.66)'; ctx.fillRect(fogX + 260, 60, W + 400, H); }
+  // 잠긴 바다: 어두운 안개 대신 칸 자체만 잠긴 모습(지도는 밝게 — 1998년 느낌 없앰)
   // 공주 (마지막 칸 옆)
   const last = nodePos(LAST), lx = last.x - cam;
   if (lx < W + 200) {
@@ -706,29 +709,39 @@ function drawLoadBar() {
 }
 function drawTitle() {
   drawLoadBar();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createRadialGradient(250, 290, 20, 250, 290, 220);
-  g.addColorStop(0, 'rgba(120,230,255,.35)'); g.addColorStop(1, 'rgba(120,230,255,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(250, 290, 220, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  drawBuddy(250, 290, 300);
-  drawImg(IMG.princess, 860, 130 + Math.sin(T * 1.7) * 6, 110, 0, 0.9, true);
-  ctx.strokeStyle = 'rgba(200,240,255,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(860, 130 + Math.sin(T * 1.7) * 6, 62, 0, Math.PI * 2); ctx.stroke();
-  text('살려줘요!', 860, 52, 17, '#ffd1ef', { body: true });
-  const s = 1 + Math.sin(T * 3) * 0.02;
-  ctx.save(); ctx.translate(610, 130); ctx.scale(s, s); text('터틀 레이스', 0, 0, 80, C.yellow, { lw: 12 }); ctx.restore();
-  text('공주 거북 구출 대작전', 610, 196, 26, '#ffffff');
-  text('느려도 괜찮아요, 포기만 하지 마세요', 610, 236, 19, C.text, { body: true });
-  button(500, 286, 220, 64, '시작하기', startGame, { size: 26 });
-  if (save.introSeen) button(510, 362, 200, 44, '첫 이야기 다시 보기', startIntro, { size: 14, kind: 'soft' });
-  if (isTouch && !STANDALONE) button(510, 414, 200, 44, '꽉 찬 화면으로', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }, { size: 14, kind: 'soft' });
+  // 인기 게임식 첫 화면: 화면 가득 키 아트(코덱스) + 로고 그림 + 크게 빛나는 시작 단추
+  const bg = IMG.spr_title_bg;
+  if (bg && ready(bg)) { // 화면을 덮게(cover) + 아주 천천히 다가오는 느낌
+    const z = 1.04 + Math.sin(T * 0.25) * 0.02, sc = Math.max(W / bg.naturalWidth, H / bg.naturalHeight) * z;
+    const dw = bg.naturalWidth * sc, dh = bg.naturalHeight * sc;
+    ctx.drawImage(bg, -OX() + (W - dw) / 2, (H - dh) / 2, dw, dh);
+  }
+  const lg = IMG.spr_title_logo, ly = 96 + Math.sin(T * 2) * 4;
+  if (lg && ready(lg) && typeof obox === 'function') {
+    const b = obox(lg), lw = 470, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
+    ctx.save(); ctx.translate(650, ly); ctx.scale(ls, ls); ctx.drawImage(lg, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
+  } else text('터틀 레이스', 650, ly, 76, C.yellow, { lw: 12 });
+  ctx.font = `800 ${fs(20)}px ${FONT}`; const sw = ctx.measureText('공주 거북 구출 대작전').width + 36;
+  ctx.fillStyle = 'rgba(8,30,70,.55)'; rr(650 - sw / 2, 168, sw, 36, 18); ctx.fill();
+  text('공주 거북 구출 대작전', 650, 186, 20, '#ffffff', { stroke: false });
+  // 시작 단추: 노랑→주황, 아래 그림자, 맥박, 빛줄
+  const bx0 = 530, by0 = 372, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
+  ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(pulse, pulse); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
+  ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 7, bw0, bh0, 24); ctx.fill();
+  const gg = ctx.createLinearGradient(0, by0, 0, by0 + bh0); gg.addColorStop(0, '#ffd84a'); gg.addColorStop(1, '#ff8a00');
+  ctx.fillStyle = gg; rr(bx0, by0 + (pressed ? 5 : 0), bw0, bh0, 24); ctx.fill();
+  ctx.save(); rr(bx0, by0, bw0, bh0, 24); ctx.clip();
+  if (T % 3 < 0.7) { const sx = ((T % 3) / 0.7) * (bw0 + 120) - 60; ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.moveTo(bx0 + sx, by0); ctx.lineTo(bx0 + sx + 30, by0); ctx.lineTo(bx0 + sx - 10, by0 + bh0); ctx.lineTo(bx0 + sx - 40, by0 + bh0); ctx.fill(); }
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; rr(bx0 + 12, by0 + 7, bw0 - 24, 15, 7); ctx.fill(); ctx.restore();
+  text('시작하기', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 7 : 2), 32, '#ffffff', { stroke: '#b4560a', lw: 6 });
+  ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 7, '시작하기', startGame, { size: 26 }); ctx.restore();
+  ctx.restore();
+  let yb = 458;
+  if (save.introSeen) { button(530, yb, 116, 40, '첫 이야기', startIntro, { size: 14, kind: 'soft' }); }
+  if (isTouch && !STANDALONE) button(save.introSeen ? 654 : 590, yb, 116, 40, '꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }, { size: 14, kind: 'soft' });
   if (iosGuide) drawIosGuide();
   eggBadge(36 - OX() + SAFE, 32, save.eggs, 30);
-  const cx = ((T * 170) % (960 + 520)) - 120;
-  drawHero(cx, 488 + Math.sin(T * 4) * 4, 52, Math.sin(T * 4) * 0.06, { ph: T * 16, face: 'scared' });
-  ctx.save(); ctx.translate(cx - 200 + Math.sin(T * 2) * 20, 494); ctx.scale(-1, 1);
-  drawShark(0, 0, 0.75, '#8fb2d0', '#4d6b88', true, false, false, Math.sin(T * 13) * 0.3, 0.6 + 0.4 * Math.sin(T * 5));
-  ctx.restore();
-  text(isTouch ? '눌러서 시작 · 폰은 가로로' : '스페이스로 시작 · 방향키로 이동 · 스페이스로 질주 · E 아이템', 480, H - 12, 14, 'rgba(242,243,245,.8)', { body: true, stroke: false });
+  text(isTouch ? '눌러서 시작 · 폰은 가로로' : '스페이스로 시작', 480, H - 12, 14, 'rgba(255,255,255,.85)', { body: true });
 }
 
 // ───────── 상점 (실력 키우기 · 옷장 · 펫) ─────────

@@ -67,7 +67,7 @@ function slideDown() {
   if (!canAct()) return;
   const p = G.p;
   p.slideHold = true;
-  if (!p.onG && p.vy < 700) { p.vy = 760; p.dive = 0.3; if (ac) sfx.swoosh(); }
+  if (!p.onG && p.vy < 700) { p.vy = 760; p.dive = 0.3; } // 공중에서 숙이기(빨리 내려오기): 소리 없음
   else if (p.onG && !p.slide) beatJudge(); // 숙이기도 박자 판정
   if (G.tut) G.tut.did = 'slide';
 }
@@ -82,7 +82,7 @@ function doJump(first) {
   p.jumps = first ? 1 : Math.max(2, p.jumps + 1); // 발판에서 떨어진 뒤 공중 점프는 두 번째로 셈
   p.onG = false; p.coyote = 0; p.buf = 0; p.slide = false; p.bounced = false;
   if (first) {
-    if (!snd('jump', 0.9, rand(0.97, 1.07))) sfx.jump(); haptic(8); // 같은 소리 반복이 기계 같지 않게 높낮이 살짝씩
+    snd('jump', 0.5, rand(0.97, 1.07)); haptic(8); // 같은 소리 반복이 기계 같지 않게 높낮이 살짝씩
     for (let i = 0; i < 6; i++) fx.push({ k: 'bub', x: p.x + rand(-20, 20), y: GROUND - 4, vx: rand(-120, 40), vy: rand(-80, -20), life: 0.5, max: 0.5, size: rand(2, 5) });
     for (let i = 0; i < 9; i++) fx.push({ k: 'spark', x: p.x + rand(-14, 18), y: GROUND - 2, vx: rand(-260, -40), vy: rand(-150, -30), life: 0.32, max: 0.32, size: rand(2.5, 4.5), color: '#e9d9a8' }); // 발밑 모래가 뒤로 튐
   } else {
@@ -97,7 +97,7 @@ function land(vy) {
   if (G.stompChain >= 3) snd('mission', 0.7); // 연속 밟기 끝: 짧은 칭찬음(진주는 밟을 때마다 이미 줌)
   G.stompChain = 0;
   if (vy > 500) {
-    shake = Math.max(shake, p.dive > 0 ? 8 : 3); sfx.land();
+    shake = Math.max(shake, p.dive > 0 ? 8 : 3); // 착지 소리 없음(인기 게임처럼 — 잦은 소리 줄임)
     for (let i = 0; i < 8; i++) fx.push({ k: 'spark', x: p.x + rand(-26, 26), y: p.fy - 2, vx: rand(-200, 200), vy: rand(-140, -30), life: 0.35, max: 0.35, size: rand(2, 4), color: '#e9d9a8' });
   }
 }
@@ -152,7 +152,7 @@ function runMove(dt) {
   // 숙이기
   const wasSlide = p.slide;
   p.slide = p.slideHold && p.onG;
-  if (p.slide && !wasSlide) { sfx.slide(); for (let i = 0; i < 6; i++) fx.push({ k: 'spark', x: p.x + rand(-10, 30), y: p.fy - 3, vx: rand(-260, -80), vy: rand(-80, -10), life: 0.3, max: 0.3, size: rand(2, 4), color: '#e9d9a8' }); }
+  if (p.slide && !wasSlide) { for (let i = 0; i < 6; i++) fx.push({ k: 'spark', x: p.x + rand(-10, 30), y: p.fy - 3, vx: rand(-260, -80), vy: rand(-80, -10), life: 0.3, max: 0.3, size: rand(2, 4), color: '#e9d9a8' }); }
   if (p.slide && Math.random() < dt * 30) fx.push({ k: 'spark', x: p.x - 20, y: p.fy - 2, vx: rand(-260, -120), vy: rand(-60, -10), life: 0.25, max: 0.25, size: rand(1.5, 3), color: '#e9d9a8' });
   p.r = p.slide ? SLIDE_R : STAND_R;
   p.y = p.fy - p.r * sc;

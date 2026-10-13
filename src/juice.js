@@ -267,7 +267,7 @@ function beatJudge() {
     pop(p.x, p.y - 92, c >= 2 ? `박자 딱! ×${c}` : '박자 딱!', '#ffe36b', 22);
     ring(p.x, p.y, '#ffe36b', 70, 0.3, 5);
     const rate = comboRate(c);
-    snd('beat', 0.7, rate);
+    snd('beat', 0.25, rate, 0.2); // 박자 딱: 아주 작게(잦은 소리)
     G.boost = Math.min(BMAX(), G.boost + 4 * (1 + abStar('ult') * 0.25));
     if (G.feverT <= 0) G.fever = Math.min(100, G.fever + 3);
     runXp(2);
@@ -333,12 +333,12 @@ function ultCine(lvl) {
   cine = { lvl, t0: performance.now(), targets, n };
   freeze = Math.max(freeze, total); // 세계는 멈추고 연출만
   duckMusic(total + 0.4);
-  if (!playSample('sfx_ult_charge', 1)) sfx.fever();
+  snd('react', 0.8); // 필살 시작: 짧은 「쾅」 하나(모으는 소리·상승음은 뺌)
   haptic([20, 40, 20, 40, 60]);
   const px = G.p.x, py = G.p.y, gold = lvl >= 3;
   fxSpr('fx_shock', px, py, 180, { life: 0.5, from: 0.2, to: 1.6, vr: 1.5 }); // 모으는 소용돌이
   later(500, () => {
-    reaction(3, gold ? '그림자 거북 군단!!' : '그림자 거북 군단!'); playSample('sfx_ult_rise', 1); burstRays(G.p.x, G.p.y, '#8b5cff', 1.2, 22);
+    reaction(3, gold ? '그림자 거북 군단!!' : '그림자 거북 군단!'); burstRays(G.p.x, G.p.y, '#8b5cff', 1.2, 22);
     fxSpr('fx_shock', px, py, 200, { life: 0.55, from: 0.3, to: 1.6, vr: -1 });
     fxSpr('fx_burst', px, py, 160, { life: 0.45, from: 0.3, to: 1.4 });
   });
