@@ -450,15 +450,15 @@ function drawMap() {
     if (i === 3 && missionsReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(missionsReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
   });
   // 아래: 바다 정보 · 난이도 · 출발
-  if (NEWUI) slice3(IMG.spr_ui_bottom_bar, L, 448, R - L, 88); else panel(L, 452, R - L, 80); // 시안: 유리 판
+  if (NEWUI) { ctx.fillStyle = 'rgba(8,40,80,.28)'; rr(L + 10, 456, R - L - 20, 72, 36); ctx.fill(); slice3(ready(IMG.spr_ui_glass_b) ? IMG.spr_ui_glass_b : IMG.spr_ui_bottom_bar, L, 444, R - L, 96); } else panel(L, 452, R - L, 80); // 시안: 코덱스 유리 판(속이 비치게) — 아래에 아주 옅은 남색을 깔아 흰 글자가 읽히게
   const s = map.cur;
   if (s === 0) {
-    text('끝없는 바다', L + 24, 480, 22, C.text, { align: 'left' });
-    text(`최고 ${save.endlessBest}미터 · 갈수록 붐벼요`, L + 24, 510, 14, C.sub, { align: 'left', body: true, stroke: false });
+    text('끝없는 바다', L + 24, 480, 22, '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 });
+    text(`최고 ${save.endlessBest}미터 · 갈수록 붐벼요`, L + 24, 510, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
   } else {
-    text(`${s}번 바다 · ${STAGES[s].name}`, L + 24, 478, 20, C.text, { align: 'left' });
+    text(`${s}번 바다 · ${STAGES[s].name}`, L + 24, 478, 20, '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 }); // 유리 판 위에서도 또렷하게
     for (let k = 0; k < 3; k++) drawStar(L + 34 + k * 24, 510, 9, k < (save.stars[s] || 0));
-    text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', L + 114, 510, 14, C.sub, { align: 'left', body: true, stroke: false });
+    text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', L + 114, 510, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
   }
   DIFFS.forEach((d, i) => button(R - 486 + i * 84, 470, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
   // 인기 게임 「플레이」 단추처럼: 노랑→주황, 두꺼운 아래 그림자, 1.2초 맥박, 3초마다 빛줄이 지나감
