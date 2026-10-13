@@ -1420,7 +1420,7 @@ function drawWorld() {
   }
   // 문어 다리
   for (const s of G.sweeps) {
-    if (!s.on) { ctx.fillStyle = `rgba(255,60,90,${0.18 + 0.15 * Math.sin(T * 30)})`; ctx.fillRect(0, s.y0, W, s.y1 - s.y0); if (s.lane) text(s.lane === 'low' ? '↑ 점프!' : '뛰지 마요!', W / 2, (s.y0 + s.y1) / 2, 34, '#ffffff', { stroke: 'rgba(200,20,50,.9)', lw: 7 }); continue; }
+    if (!s.on) { ctx.fillStyle = `rgba(255,60,90,${0.18 + 0.15 * Math.sin(T * 30)})`; ctx.fillRect(0, s.y0, W, s.y1 - s.y0); continue; } // 글자는 drawSweepLabels 에서 숫자들 위에
     if (s.zap && IMG.spr_fx_lightning && ready(IMG.spr_fx_lightning)) { // 번개 줄: 코덱스 번개 그림을 줄 따라 이어 붙이고 깜빡임
       const im = IMG.spr_fx_lightning, b = obox(im), lh = (s.y1 - s.y0) * 1.5, lw = (lh * b.w) / b.h, my = (s.y0 + s.y1) / 2;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1557,6 +1557,11 @@ function drawWorld() {
     if (face && ready(face)) { ctx.save(); ctx.beginPath(); ctx.rect(W - SAFE - 90, w.y - 60, 90 + SAFE, 120); ctx.clip(); drawImg(face, fx0 + 20, w.y, 56 + k * 10, 0, 0.9); ctx.restore(); }
     if (blinkOn || w.t > w.max * 0.5) text('!', W - SAFE - 92, w.y - 26, 34, gold ? '#ffc846' : '#ff3355', { stroke: '#fff', lw: 5 });
   }
+}
+// 공격 예고 글자(↑ 점프! / 뛰지 마요!)는 피해 숫자·떠오르는 글자보다 위에 — 꼭 읽어야 하는 말이라
+function drawSweepLabels() {
+  if (!G || !G.sweeps) return;
+  for (const s of G.sweeps) if (!s.on && s.lane) text(s.lane === 'low' ? '↑ 점프!' : '뛰지 마요!', W / 2, (s.y0 + s.y1) / 2, 34, '#ffffff', { stroke: 'rgba(200,20,50,.9)', lw: 7 });
 }
 function drawPops() {
   for (const p of pops) {

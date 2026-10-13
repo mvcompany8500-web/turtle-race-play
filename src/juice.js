@@ -48,7 +48,8 @@ function hitStop(kind) {
 function hitStar(x, y, crit, big) { hitStars.push({ x, y, t: 0, crit, big, rot: rand(0, 6) }); if (hitStars.length > 10) hitStars.shift(); }
 function hitNum(x, y, val, crit = false) {
   const last = hitNums[hitNums.length - 1];
-  if (last && !crit && !last.crit && T - last.t0 < 0.3 && Math.abs(last.x - x) < 140) { last.val += val; last.t0 = T; last.vy = -180; last.popT = T; return; }
+  if (last && !crit && !last.crit && T - last.t0 < 0.6 && Math.abs(last.x - x) < 220) { last.val += val; last.t0 = T; last.vy = -180; last.popT = T; return; } // 작은 물방울 피해는 0.6초 안이면 하나로 합침(숫자가 쏟아지지 않게)
+  for (let k = 0; k < 3; k++) { const hit = pops.find((q) => q.life > 0.2 && Math.abs(q.x - x) < 110 && Math.abs(q.y - y) < 46); if (!hit) break; y = hit.y - 54; } // 떠 있는 글자 위는 피해서
   hitNums.push({ x, y, vx: -(50 + rand(0, 90)), vy: -(216 + rand(0, 72)), t0: T, popT: T, val, crit, life: crit ? 1.15 : 0.85 });
   if (hitNums.length > 8) hitNums.shift();
 }
