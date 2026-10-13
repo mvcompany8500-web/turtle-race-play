@@ -521,6 +521,7 @@ function startFever() {
 }
 
 // ───────── 보스 6종 ─────────
+const BOSS_HOME = () => (G && G.run ? W - 260 - SAFE : W - 170); // 점프 달리기: 오른쪽 엄지 단추(필살·아이템)에 안 가리게 안쪽
 const BOSS_DEF = {
   shark: { name: '상어 대장', hp: 4, kind: 'shark', c1: '#7f9fbf', c2: '#3e5a76', s: 2.5, spd: 1 },
   shark2: { name: '상어 대장', hp: 6, kind: 'shark', c1: '#a6b8d8', c2: '#2a4566', s: 2.6, spd: 1.3 },
@@ -537,7 +538,7 @@ function spawnBoss() {
   const d = BOSS_DEF[G.cfg.boss];
   // 그림자 → 떨어짐(0.23초) → 쿵 (경고 2.4초 동안 그림자가 커지고 땅이 울렸음)
   const land = G.run ? Math.min(SEABED - 60, GROUND - 58 * (d.s / 2.5) + 4) : H / 2;
-  G.boss = { def: d, kind: d.kind, x: W - 170, y: -300, landY: land, hp: d.hp * 10, maxHp: d.hp * 10, hpShow: d.hp * 10, st: 'fall', t: 0, cd: 2.4, shoot: 1.4, hurt: 0, ihit: 0, stun: 0, dead: false, deadT: 0, cycle: 0, s: d.s };
+  G.boss = { def: d, kind: d.kind, x: BOSS_HOME(), y: -300, landY: land, hp: d.hp * 10, maxHp: d.hp * 10, hpShow: d.hp * 10, st: 'fall', t: 0, cd: 2.4, shoot: 1.4, hurt: 0, ihit: 0, stun: 0, dead: false, deadT: 0, cycle: 0, s: d.s };
   setMusic('boss');
   snd('swoosh', 1, 0.7);
 }
@@ -556,11 +557,11 @@ function updateBoss(dt) {
     return;
   }
   if (b.st === 'fall') { // 하늘에서 떨어짐
-    b.t += dt; const k = Math.min(1, b.t / 0.23); b.y = lerp(-300, b.landY, k * k); b.x = W - 170;
+    b.t += dt; const k = Math.min(1, b.t / 0.23); b.y = lerp(-300, b.landY, k * k); b.x = BOSS_HOME();
     if (k >= 1) { b.y = b.landY; bossLand(b); b.st = b.kind === 'angler' ? 'retreat' : 'idle'; b.t = 0; b.cd = 2.6; }
     return;
   }
-  if (b.stun > 0) { b.stun -= dt; b.x = lerp(b.x, W - 170, dt * 2); return; }
+  if (b.stun > 0) { b.stun -= dt; b.x = lerp(b.x, BOSS_HOME(), dt * 2); return; }
   if (!b.rage && b.hp <= b.maxHp / 2) {
     b.rage = true;
     startCutin('boss', '분노!!', `${d.name}이(가) 필살기를 꺼냈어요!`, 1.0);
@@ -569,7 +570,7 @@ function updateBoss(dt) {
   const sdt = dt * (G.eff.freeze > 0 ? 0.4 : 1) * d.spd * (b.rage ? 1.25 : 1);
   if (b.rage && Math.random() < dt * 25) fx.push({ k: 'flame', x: b.x + rand(-60, 60), y: b.y + rand(-40, 40), vx: rand(-40, 40), vy: rand(-140, -60), life: 0.5, max: 0.5, size: rand(6, 14), color: pick(['#ff4d6a', '#ff8a3c', '#ffd54a']) });
   b.t += sdt;
-  const homeX = W - 170, minY = CEIL + 70, maxY = SEABED - 60;
+  const homeX = BOSS_HOME(), minY = CEIL + 70, maxY = SEABED - 60;
   // 점프 달리기: 큰 적은 「땅 줄」(점프로 넘기) 아니면 「머리 줄」(숙여서 피하기)로만 돌진
   const kS = b.s / 2.5, lowY = Math.min(maxY, GROUND - 58 * kS + 4), highY = GROUND - 46 - 58 * kS;
   const aimY = () => (G.run ? (b.laneY != null ? b.laneY : lowY) : p.y);
@@ -1256,6 +1257,16 @@ function drawWorld() {
   // 문어 다리
   for (const s of G.sweeps) {
     if (!s.on) { ctx.fillStyle = `rgba(255,60,90,${0.18 + 0.15 * Math.sin(T * 30)})`; ctx.fillRect(0, s.y0, W, s.y1 - s.y0); if (s.lane) text(s.lane === 'low' ? '↑ 점프!' : '뛰지 마요!', W / 2, (s.y0 + s.y1) / 2, 34, '#ffffff', { stroke: 'rgba(200,20,50,.9)', lw: 7 }); continue; }
+    if (ready(IMG.x_fx_tentacle)) { // 그림 문어 다리를 줄 따라 이어 붙임(대왕 문어 색으로 물들임)
+      const th = s.y1 - s.y0, sz = Math.min(th * 1.15, 220), red = silhouette('x_fx_tentacle', '#e8455e');
+      for (let x = s.x, i = 0; x < W + sz; x += sz * 0.62, i++) {
+        const y = s.lane === 'high' ? s.y1 - sz * 0.45 : (s.y0 + s.y1) / 2, wob = Math.sin(T * 9 + i) * 0.12;
+        ctx.save(); ctx.translate(x, y + Math.sin(T * 10 + i) * 4); ctx.rotate(-Math.PI / 2 + wob); if (i % 2) ctx.scale(-1, 1);
+        drawImg(IMG.x_fx_tentacle, 0, 0, sz); if (red) drawImg(red, 0, 0, sz, 0, 0.5);
+        ctx.restore();
+      }
+      continue;
+    }
     ctx.save(); ctx.fillStyle = '#d0457f'; ctx.strokeStyle = '#ffb3d1'; ctx.lineWidth = 3;
     const mid = (s.y0 + s.y1) / 2, th = (s.y1 - s.y0) * 0.35;
     ctx.beginPath(); ctx.moveTo(s.x - 40, mid);

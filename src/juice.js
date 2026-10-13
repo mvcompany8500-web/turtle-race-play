@@ -9,7 +9,7 @@
 // ⑦ 판 전 목표 카드
 
 ['fx_ha', 'taunt_bubble', 'ui_ult', 'lvup_burst', 'm10', 'm06', 'it_bolt', 'it_bubble', 'it_ice', 'it_magnet', 'it_swirl', 'it_star', 'it_up', 'it_gold',
-  'sk_combo', 'sk_crit', 'sk_magnet', 'sk_gold', 'sk_ult', 'sk_moves', 'sk_chain', 'sk_bomb', 'sk_pet', 'chest_gold_closed', 'chest_gold_open', 'cur_pearl', 'cur_pearls']
+  'sk_combo', 'sk_crit', 'sk_magnet', 'sk_gold', 'sk_ult', 'sk_moves', 'sk_chain', 'sk_bomb', 'sk_pet', 'chest_gold_closed', 'chest_gold_open', 'cur_pearl', 'cur_pearls', 'fx_ink', 'fx_tentacle']
   .forEach((n) => load('x_' + n, `assets/fx/${n}.webp`));
 
 // 판이 바뀌면 예전 예약은 실행 안 되게(연출이 새 판을 건드리는 버그 막기)
@@ -191,7 +191,7 @@ const speed = (x, y) => burstRays(x, y, '#ffffff', 0.5, 10);
 // 큰 적 등장: 경고 동안 그림자가 커지고 땅이 울림 → 떨어짐 → 쿵
 function drawBossShadowWarn() {
   if (!(G.bossWarnT > 0) || G.boss) return;
-  const k = 1 - G.bossWarnT / 2.4, x = W - 170;
+  const k = 1 - G.bossWarnT / 2.4, x = BOSS_HOME();
   ctx.fillStyle = `rgba(0,5,20,${0.15 + 0.3 * k})`;
   ctx.beginPath(); ctx.ellipse(x, GROUND + 4, 40 + 110 * k, 10 + 14 * k, 0, 0, Math.PI * 2); ctx.fill();
   shake = Math.max(shake, 1.5 + 6 * k);

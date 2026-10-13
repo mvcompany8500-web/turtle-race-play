@@ -746,6 +746,7 @@ function drawLure(x, y, s, t) {
   drawPearl(lx, ly, 30 * Math.min(1.4, s), Math.sin(t * 3) * 0.15, true);
 }
 function drawInk(k) {
+  if (ready(IMG.x_fx_ink)) { drawImg(IMG.x_fx_ink, k.x, k.y, k.r * 2.3, k.t * 0.6 + k.x * 0.01, Math.min(1, k.a)); return; } // 먹물 튐 그림
   ctx.save(); ctx.globalAlpha = k.a;
   for (let i = 0; i < 5; i++) { ctx.fillStyle = i % 2 ? '#14081c' : '#1f0f2a'; ctx.beginPath(); ctx.arc(k.x + Math.cos(i * 1.3 + k.t) * k.r * 0.4, k.y + Math.sin(i * 1.7 + k.t) * k.r * 0.35, k.r * (0.6 + (i % 3) * 0.15), 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
