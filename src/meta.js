@@ -385,9 +385,9 @@ function drawMap() {
   const L = SAFE + 14, R = W - SAFE - 14;
   const NEWUI = ['spr_ui_cur_pill', 'spr_ui_ic_set', 'spr_ui_bottom_bar', 'spr_ui_play_btn'].every((k) => ready(IMG[k])); // 코덱스 지도 시안대로(그림이 다 오면)
   if (NEWUI) {
-    const pill = (x, w, iconFn, val, plusFn, onTap) => curPill(x, 12, w, iconFn, val, plusFn, onTap);
-    pill(L, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; });
-    pill(L + 160, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; });
+    const pill = (x, w, iconFn, val, plusFn, onTap, key) => curPill(x, 12, w, iconFn, val, plusFn, onTap, key);
+    pill(L, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; }, null, 'pearl');
+    pill(L + 160, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; }, null, 'gem');
     const cr = chestReady();
     pill(L + 302, 120, (x, y) => drawStar(x, y, 13, true), `${totalStars()}`, null, openChest);
     if (cr) { const bx = L + 402, by = 14; ctx.fillStyle = C.danger; rr(bx - 26, by - 4, 52, 22, 11); ctx.fill(); text('상자!', bx, by + 7, 13, '#fff', { stroke: false }); }
@@ -789,7 +789,7 @@ function drawTitle() {
 
 // ───────── 상점 (실력 키우기 · 옷장 · 펫) ─────────
 const shop = { tab: 'up', next: 1, msg: '', msgT: 0, hatch: null, turn: null };
-function openShop(next) { shop.next = next; shop.msg = ''; shop.hatch = null; state = 'shop'; sfx.click(); }
+function openShop(next) { shop.next = next; shop.msg = ''; shop.hatch = null; shop.pillX = null; shop.tabAt = null; state = 'shop'; sfx.click(); }
 function shopSay(m) { shop.msg = m; shop.msgT = 1.6; }
 function buyUp(i) {
   const u = UPS[i]; if (!u) return;
@@ -799,6 +799,7 @@ function buyUp(i) {
   save.eggs -= c; save.up[u.k]++; persist(); haptic(25);
   for (let j = 0; j < 6; j++) snd('count', 0.5, 1 + j * 0.08, 0, j * 0.05); // 진주가 날아가는 소리
   if (!snd('levelup', 0.9, 1, 0, 0.35)) sfx.levelup(); // 빛기둥이 서는 순간
+  { const cx = 40 + (i % 3) * 296 + 142 + OX(), cy = 116 + Math.floor(i / 3) * 176 + 134; popDots(cx, cy, 40); confettiBurst(cx, cy - 20, 30); } // 키운 카드 단추 자리에서 톡 + 색종이
   shopSay(`${u.name} Lv ${save.up[u.k]}! 이제 ${u.eff(save.up[u.k])}`);
 }
 function tapTreasure(t) {
@@ -892,12 +893,24 @@ function drawShop() {
   const stitle = shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : '진주 상점', sL = -OX() + SAFE + 14, sR = 960 + OX() - SAFE - 14;
   if (!ribbon(sL + 120, 30, 240, stitle, 22)) text(stitle, 480, 34, 32, C.text, { stroke: false });
   if (ready(IMG.spr_ui_cur_pill)) {
-    curPill(sR - 150, 8, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), null);
-    curPill(sR - 292, 8, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), shop.tab === 'gem' ? null : () => { shop.tab = 'gem'; sfx.click(); });
+    curPill(sR - 150, 8, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), null, null, 'pearl');
+    curPill(sR - 292, 8, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), shop.tab === 'gem' ? null : () => { shop.tab = 'gem'; sfx.click(); }, null, 'gem');
   } else { eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6)); gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26); }
-  [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['tr', '보물'], ['fx', '꼬리 효과'], ['gem', '보석']].forEach(([k, label], i) => {
-    button(52 + i * 144, 62, 136, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 15, kind: shop.tab === k ? 'yellow' : 'primary' });
-  });
+  // 미끄러지는 알약 탭 (lucian-uxui #039, MIT): 노란 알약이 고른 탭으로 스르륵, 그 아래 글자만 진하게 · 내용은 옮긴 쪽에서 밀려 들어옴
+  const TABS = [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['tr', '보물'], ['fx', '꼬리 효과'], ['gem', '보석']], ti = TABS.findIndex(([k]) => k === shop.tab);
+  if (shop.pillX == null) shop.pillX = ti;
+  const pdt = Math.min(0.1, Math.max(0, T - (shop.pillT || T))); shop.pillT = T;
+  shop.pillX += (ti - shop.pillX) * (1 - Math.exp(-pdt * 16)); if (Math.abs(ti - shop.pillX) < 0.002) shop.pillX = ti;
+  TABS.forEach(([k, label], i) => button(52 + i * 144, 62, 136, 40, label, () => { if (shop.tab !== k) { shop.tabDir = i > ti ? 1 : -1; shop.tabAt = T; } shop.tab = k; sfx.click(); }, { size: 15, kind: 'primary' }));
+  const yb = IMG.spr_ui_btn_yellow, px = 52 + shop.pillX * 144;
+  if (yb && ready(yb)) {
+    slice3(yb, px - 2, 60, 140, 44);
+    ctx.save(); ctx.beginPath(); ctx.rect(px + 4, 60, 128, 44); ctx.clip();
+    TABS.forEach(([, label], i) => text(label, 52 + i * 144 + 68, 82 - 40 * 0.04, 15, '#5a3000', { stroke: false, weight: 800 }));
+    ctx.restore();
+  }
+  const te = shop.tabAt != null ? clamp((T - shop.tabAt) / 0.32, 0, 1) : 1, tk = 1 - Math.pow(1 - te, 3);
+  ctx.save(); if (te < 1) { ctx.translate((shop.tabDir || 1) * 70 * (1 - tk), 0); ctx.globalAlpha *= 0.2 + 0.8 * tk; }
   if (shop.tab === 'up') {
     const icons = { slow: 'e_snow', boost: 'e_rocket', shield: 'e_shield', magnet: 'e_gem', fire: 'e_sparkles', power: 'e_fire' };
     UPS.forEach((u, i) => withRise(i, () => {
@@ -1048,6 +1061,7 @@ function drawShop() {
       }
     }));
   }
+  ctx.restore();
   if (shop.msgT > 0) text(shop.msg, sL + 6, H - 35, 16, '#ffffff', { align: 'left', stroke: false });
   else if (shop.tab !== 'skin') text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', sL + 6, H - 35, 13, C.sub, { align: 'left', body: true, stroke: false }); // 왼쪽 아래(오른쪽은 단추 자리)
   // 시안: 오른쪽 아래 — 동그란 뒤로 ↩ + 큰 노란 ▶ 출발
@@ -1300,7 +1314,13 @@ function drawRotate() {
 const eggHud = () => (['play', 'pause', 'revive', 'bless'].includes(state) ? { x: W - SAFE - 120, y: 30 } : state === 'shop' ? { x: W - SAFE - 120, y: 34 } : { x: SAFE + 40, y: 30 });
 function drawConfetti() {
   for (const f of fx) if (f.k === 'confetti') {
-    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.fillStyle = f.color; ctx.fillRect(-f.size / 2, -f.size / 4, f.size, f.size / 2); ctx.restore();
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.globalAlpha = Math.min(1, f.life / 0.4);
+    ctx.scale(1, Math.cos((f.max - f.life) * 9 + (f.ph || f.size))); // 종이가 빙글 뒤집히듯(얇아졌다 넓어졌다)
+    ctx.fillStyle = f.color; ctx.fillRect(-f.size / 2, -f.size / 4, f.size, f.size / 2); ctx.restore();
+  }
+  for (const f of fx) if (f.k === 'dot') { // popDots: 바깥으로 퍼지며 작아짐
+    const k = 1 - f.life / f.max, e = 1 - Math.pow(1 - k, 3);
+    ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x + f.tx * e, f.y + f.ty * e, 4 * (1 - k), 0, Math.PI * 2); ctx.fill();
   }
 }
 function drawEggFly() {

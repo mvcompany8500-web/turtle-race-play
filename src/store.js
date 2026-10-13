@@ -90,7 +90,7 @@ async function confirmBuy() {
   if (!r || !r.ok) { toast('결제가 취소됐어요', C.danger); sfx.no(); return; }
   save.buys.push({ id: b.prod.id, t: Date.now(), test: !!r.test, receipt: r.receipt || null });
   b.onDone(); persist();
-  sfx.buy(); confetti(60); haptic([20, 30, 60]);
+  sfx.buy(); haptic([20, 30, 60]);
 }
 function grantGems(n, why) { save.gems += n; persist(); toast(`보석 +${n}${why ? ` · ${why}` : ''}`, '#7cd8ff'); }
 function buyGemPack(p) { askBuy(p, () => grantGems(p.gems + p.bonus, p.name)); }

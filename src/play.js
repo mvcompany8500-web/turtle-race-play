@@ -138,6 +138,15 @@ function pop(x, y, s, color = '#fff', size = 24, big = false) {
 function confetti(n = 70) {
   for (let i = 0; i < n; i++) fx.push({ k: 'confetti', x: rand(0, W), y: rand(-220, -10), vx: rand(-40, 40), vy: rand(120, 260), life: 3.2, max: 3.2, size: rand(4, 9), color: pick(['#ffd34d', '#ff6fa8', '#7cf0ff', '#8dff7a', '#b48bff']), rot: rand(0, 6) });
 }
+// 한 점에서 위로 부채꼴로 터진 뒤 중력으로 떨어지는 색종이 (lucian-uxui #093, MIT) — 사기·성공 등 「바로 그 자리」 축하
+function confettiBurst(x, y, n = 50) {
+  for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.9, v = rand(380, 800); fx.push({ k: 'confetti', burst: true, x: x + rand(-20, 20), y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(1.6, 2.5), max: 2.5, size: rand(6, 11), color: pick(['#ffd34d', '#ff6fa8', '#7cf0ff', '#8dff7a', '#b48bff', '#3d8bff']), rot: rand(0, 6), vr: rand(-7, 7), ph: rand(0, 6) }); }
+}
+// 체크·구매 순간 둘레로 작은 점 8개가 톡 (lucian-uxui #093 pop, MIT)
+function popDots(x, y, d = 30) {
+  const cols = ['#22C3A6', '#ffd34d', '#ff6fa8', '#7b61ff', '#3d8bff', '#8dff7a'];
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + 0.3, dd = d + Math.random() * 8; fx.push({ k: 'dot', x, y, tx: Math.cos(a) * dd, ty: Math.sin(a) * dd, life: 0.52, max: 0.52, color: cols[i % cols.length] }); }
+}
 function fountain(x, y, n) { for (let i = 0; i < Math.min(n, 16); i++) fx.push({ k: 'eggfly', sx: x + rand(-30, 30), sy: y + rand(-20, 20), life: 0.6 + i * 0.05, max: 0.6 }); }
 const zoomTo = (v) => { zoom = Math.max(zoom, v); };
 function updateFx(dt) {
@@ -145,10 +154,11 @@ function updateFx(dt) {
     f.life -= dt;
     if (f.k === 'ring') f.r = lerp(f.r, f.maxR, dt * 9);
     else if (f.k === 'eggfly') { if (f.life <= 0) { hudPulse = 0.18; snd('count', 0.35, rand(0.95, 1.15), 0.06); } }
-    else if (f.k === 'laser') { /* 그대로 */ }
+    else if (f.k === 'laser' || f.k === 'dot') { /* 그대로 */ }
     else {
       f.x += f.vx * dt; f.y += f.vy * dt;
-      if (f.k === 'confetti') { f.rot += dt * 6; f.vx += Math.sin(T * 3 + f.y * 0.02) * 30 * dt; }
+      if (f.k === 'confetti' && f.burst) { f.vy += 900 * dt; f.vx *= Math.pow(0.985, dt * 60); f.vy *= Math.pow(0.985, dt * 60); f.rot += f.vr * dt; }
+      else if (f.k === 'confetti') { f.rot += dt * 6; f.vx += Math.sin(T * 3 + f.y * 0.02) * 30 * dt; }
       else { f.vx *= 1 - dt * 3; f.vy *= 1 - dt * 3; }
       if (f.k === 'flame') f.vy -= 60 * dt;
       if (f.k === 'chunk') { f.vy += 900 * dt; f.rot += f.vr * dt; f.vx *= 1 + dt * 2.2; f.vy *= 1 + dt * 2.2; }

@@ -103,7 +103,7 @@ const sfx = {
   roar: () => { nz({ d: 1.2, vol: 0.45, f: 900, f2: 100 }); voice({ type: 'sawtooth', f: 70, f2: 40, d: 1.2, vol: 0.22, filter: { f: 500 } }); boom(0.8); },
   bossHit: () => { nz({ d: 0.7, vol: 0.6, f: 5000 }); voice({ type: 'square', f: 110, f2: 30, d: 0.7, vol: 0.26 }); boom(0.9); chime(['C6', 'G6'], 0.05, 0.08, 0.05); },
   shoot: () => voice({ type: 'triangle', f: 300, f2: 120, d: 0.15, vol: 0.08 }),
-  buy: () => { chime(['C5', 'E5', 'G5', 'C6'], 0.06, 0.1); sparkle(4, 0.2); },
+  buy: () => { chime(['C5', 'E5', 'G5', 'C6'], 0.06, 0.1); sparkle(4, 0.2); if (typeof popDots === 'function' && mouse.x > 0) { popDots(mouse.x, mouse.y); confettiBurst(mouse.x, mouse.y - 10, 36); } }, // 산 자리에서 톡 + 색종이
   no: () => voice({ type: 'square', f: 200, f2: 140, d: 0.15, vol: 0.07 }),
   clear: () => { chime(['C5', 'E5', 'G5', 'C6', 'E6'], 0.11, 0.12, 0, 0.6); chime(['C5', 'E5', 'G5', 'C6'], 0, 0.06, 0.62, 1.4); sparkle(10, 0.6); },
   mission: () => { chime(['G5', 'B5', 'D6', 'G6'], 0.07, 0.1); boom(0.2, 0.25); },

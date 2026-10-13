@@ -580,10 +580,32 @@ function panel(x, y, w, h, o = {}) {
   }
   ctx.restore();
 }
+// 자리마다 굴러가는 숫자 (lucian-uxui #098, MIT): 바뀐 자리만 0~9 기둥이 위아래로 굴러감 — 진주·보석이 늘거나 줄 때
+const ROLL = {};
+function rollNum(key, str, x, y, size, color) {
+  const r = ROLL[key] || (ROLL[key] = { d: null, t: T }), ch = String(str).split(''), n = ch.length;
+  const tgt = ch.map((c) => (/\d/.test(c) ? +c : -1));
+  if (!r.d) r.d = tgt.slice();
+  else if (r.d.length !== n) { const o = r.d; r.d = tgt.map((v, i) => { const p = o[o.length - (n - i)]; return v < 0 ? -1 : p >= 0 ? p : 0; }); }
+  const k = 1 - Math.exp(-Math.max(0, T - r.t) * 12); r.t = T;
+  ctx.save(); ctx.font = `800 ${fs(size)}px ${FONT}`; ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  const dw = ctx.measureText('0').width, h = fs(size) * 1.2;
+  ctx.beginPath(); ctx.rect(x - 2, y - h / 2, dw * n + 40, h); ctx.clip();
+  let cx = x;
+  ch.forEach((c, i) => {
+    if (tgt[i] < 0) { const cw = ctx.measureText(c).width; ctx.fillText(c, cx + cw / 2, y); cx += cw; r.d[i] = -1; return; }
+    let v = r.d[i] < 0 ? tgt[i] : r.d[i]; v += (tgt[i] - v) * k; if (Math.abs(tgt[i] - v) < 0.01) v = tgt[i]; r.d[i] = v;
+    const b = Math.floor(v), f = v - b;
+    ctx.fillText(String(b % 10), cx + dw / 2, y - f * h);
+    if (f > 0.001) ctx.fillText(String((b + 1) % 10), cx + dw / 2, y + (1 - f) * h);
+    cx += dw;
+  });
+  ctx.restore();
+}
 // 크림색 재화 칸 + 초록 「+」(코덱스 지도 시안) — 지도·상점 같이 씀
-function curPill(x, y, w, iconFn, val, plusFn, onTap) {
+function curPill(x, y, w, iconFn, val, plusFn, onTap, key) {
   slice3(IMG.spr_ui_cur_pill, x, y, w, 42); iconFn(x + 22, y + 21);
-  text(val, x + 44, y + 22, 17, '#2f3550', { align: 'left', stroke: false });
+  if (key) rollNum(key, val, x + 44, y + 22, 17, '#2f3550'); else text(val, x + 44, y + 22, 17, '#2f3550', { align: 'left', stroke: false });
   if (plusFn) { drawImg(IMG.spr_ui_plus, x + w - 20, y + 21, 32); ctx.save(); ctx.globalAlpha = 0; button(x + w - 40, y, 40, 42, '+', plusFn, {}); ctx.restore(); }
   if (onTap) { ctx.save(); ctx.globalAlpha = 0; button(x, y, w - (plusFn ? 40 : 0), 42, '', onTap, {}); ctx.restore(); }
 }
