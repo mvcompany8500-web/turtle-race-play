@@ -23,7 +23,9 @@ const xpNeed = (lv) => Math.round(60 + 55 * Math.pow(lv, 1.45)); // docs/balance
 function runInit() {
   const p = G.p;
   G.run = true;
-  G.en = G.maxEn = G.enShow = maxEnergy(); G.enHealT = 0; G.potionT = 9;
+  G.en = G.maxEn = G.enShow = maxEnergy();
+  if (hasTr('compass')) G.boost = Math.max(G.boost, 30);
+  if (hasTr('charm')) G.shield++; G.enHealT = 0; G.potionT = 9;
   // 한 판을 끝까지 달리면 기운 30%가 줄어드는 빠르기(물약을 안 먹어도 시간만으로는 안 쓰러짐 — 조사: 시간 압박 금지)
   G.drain = G.cfg.endless ? 0.9 : (maxEnergy() * 0.3) / Math.max(25, G.cfg.length / G.cfg.speed);
   G.obs = []; G.letters = [0, 0, 0, 0]; G.stomps = 0; G.stompChain = 0; G.bumps = 0;
@@ -45,6 +47,7 @@ function runInit() {
 // ───────── 입력 ─────────
 const canAct = () => G && G.run && state === 'play' && !G.p.dead && !G.won && G.enterT <= 0;
 function jumpDown() {
+  if (G && G.bonus) { bonusMoveLane(1); return; }
   if (!canAct()) return;
   const p = G.p;
   p.holdJ = true; p.buf = 0.13;
@@ -57,6 +60,7 @@ function jumpUp() {
   if (p.vy < -330 && !p.bounced) p.vy *= 0.55; // 짧게 톡 = 낮게
 }
 function slideDown() {
+  if (G && G.bonus) { bonusMoveLane(-1); return; }
   if (!canAct()) return;
   const p = G.p;
   p.slideHold = true;
@@ -87,7 +91,7 @@ function doJump(first) {
 function land(vy) {
   const p = G.p;
   p.land = 0.14; p.jumps = 0; p.bounced = false;
-  if (G.stompChain >= 2) { const b = G.stompChain * 2; earn('stompChain', b); pop(p.x, p.y - 70, `밟기 ${G.stompChain}연속! 진주 +${b}`, C.yellow, 26, true); sfx.mission(); }
+  if (G.stompChain >= 3) snd('mission', 0.7); // 연속 밟기 끝: 짧은 칭찬음(진주는 밟을 때마다 이미 줌)
   G.stompChain = 0;
   if (vy > 500) {
     shake = Math.max(shake, p.dive > 0 ? 8 : 3); sfx.land();
@@ -97,6 +101,14 @@ function land(vy) {
 
 // ───────── 움직임 ─────────
 function runMove(dt) {
+  if (G.bonus) { bonusUpdate(dt); return; }
+  if (G.eff.rocket > 0) { // 로켓: 높이 날며 무적, 위 줄 진주를 먹음 — 끝나면 그대로 떨어져 착지
+    const p = G.p; p.fy = lerp(p.fy, GROUND - 235 + Math.sin(T * 6) * 6, Math.min(1, dt * 6)); p.y = p.fy - STAND_R; p.vy = 0; p.onG = false; p.jumps = 1;
+    p.x = lerp(p.x, PX() + 30, Math.min(1, dt * 4));
+    G.rocketT = (G.rocketT || 0) - dt; if (G.rocketT <= 0) { G.rocketT = 0.09; G.eggsArr.push({ x: W + 40, y: GROUND - 260 + Math.sin(T * 3) * 30, pearl: true, t: 0 }); }
+    fx.push({ k: 'spark', x: p.x - 18, y: p.fy + 4, vx: rand(-260, -120), vy: rand(60, 160), life: 0.3, max: 0.3, size: rand(3, 6), color: pick(['#ff9a1f', '#ffe14a', '#ff5470']) });
+    return;
+  }
   const p = G.p, E = G.eff;
   const bossOn = G.boss && !G.boss.dead && G.boss.x < W + 40;
   // 질주: 큰 적이 있으면 그쪽으로 돌진해서 들이받음(점프 달리기는 앞뒤로 못 가니까)
@@ -161,7 +173,8 @@ function stomp(e) {
   ring(e.x, e.y - 10, '#ffffff', 90, 0.3, 8);
   if (!snd('stomp', 1, comboRate(Math.min(G.stompChain, 5)))) sfx.stomp(); haptic([15, 10, 30]); // 연속 밟기마다 한 음씩 위로
   const c = G.stompChain;
-  pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속!` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
+  const cv = c >= 2 ? Math.min(8, 2 ** (c - 1)) : 0; if (cv) earn('stompChain', cv); // 마리오처럼 연속 밟기 진주 1→2→4→8
+  pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속! 진주 +${cv}` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
   say(['one', 'two', 'three', 'wow'][Math.min(c, 4) - 1], true); // 하나! 둘! 셋! 대박!
   if (c === 3) reaction(1, '3단 밟기!');
   if (c === 5) reaction(3, '밟기 장인!!');
@@ -286,7 +299,7 @@ function runCourse() {
   const cfg = G.cfg;
   const finishing = !cfg.endless && G.dist >= cfg.length;
   const bossFight = G.boss && !G.boss.dead;
-  if (finishing || bossFight || G.bossWarnT != null) return;
+  if (finishing || bossFight || G.bossWarnT != null || G.bonus) return;
   while (G.courseAt - G.dist < W + 160) {
     const x = G.courseAt - G.dist;
     let pat;
@@ -331,23 +344,59 @@ function bumpBlock(o) {
   }
   runXp(5);
 }
+// ───────── 보너스 바다(쿠키런 보너스 타임 방식) ─────────
+// 장애물 없음 · 기운 안 줄어듦 · 위/가운데/아래 3줄 진주 길(점프 = 한 줄 위, 숙이기 = 한 줄 아래) · 시계 진주 +2초 · 끝나면 내려와 1초 무적
+const BONUS_LANES = () => [GROUND - 40, GROUND - 165, GROUND - 290];
+function startBonus() {
+  const p = G.p;
+  G.bonus = { t: 15 + (hasPerk('feverLong') ? 3 : 0) + (hasTr('clock') ? 3 : 0), max: 15, lane: 0, spawnT: 0.4, path: 1, pathT: 0, enter: 0 };
+  for (const e of G.enemies) if (!e.dead) { e.dead = true; G.eggsArr.push({ x: e.x, y: e.y, pearl: true, t: 0 }); burst(e.x, e.y, '#ffe36b', 10); }
+  G.obs = G.obs.filter((o) => o.x < p.x - 80); G.breaks = []; G.warns = []; G.sweeps = []; G.shots = [];
+  p.slide = false; p.slideHold = false; p.onG = false; p.vy = 0; p.inv = Math.max(p.inv, 0.5);
+  reaction(4, '보너스 바다!!'); fireworks(4); pop(W / 2, H / 2 + 40, '점프 = 위 줄 · 숙이기 = 아래 줄', '#ffffff', 22, true); flash = 0.35; flashColor = '#bff8ff';
+  if (!playSample('sfx_fever', 1)) sfx.fever(); say('wow', true); haptic([20, 30, 20, 30, 60]);
+  musicFever = true;
+}
+function endBonus() {
+  const p = G.p; G.bonus = null;
+  p.inv = Math.max(p.inv, 1); p.vy = 120; p.onG = false;
+  G.courseAt = G.dist + W * 0.9; // 장애물은 화면 끝에서 다시
+  musicFever = false; pop(W / 2, H / 2 - 80, '보너스 끝!', '#ffffff', 34, true);
+}
+function bonusUpdate(dt) {
+  const b = G.bonus, p = G.p, L = BONUS_LANES();
+  b.t -= dt; b.enter += dt;
+  if (b.t <= 0) { endBonus(); return; }
+  // 거북: 고른 줄로 부드럽게(거품을 타고 둥실)
+  const ty = L[b.lane];
+  p.fy = lerp(p.fy, ty, Math.min(1, dt * 10)); p.y = p.fy - STAND_R; p.vy = 0; p.onG = false; p.jumps = 0;
+  p.x = lerp(p.x, PX() + 40, Math.min(1, dt * 4));
+  // 진주 길: 1.3초마다 길이 다른 줄로 옮겨 가며(전부는 못 먹음), 가끔 다른 줄에도 짧은 줄
+  b.pathT -= dt; if (b.pathT <= 0) { b.pathT = rand(1.1, 1.5); b.path = clamp(b.path + pick([-1, 1, 1, -1, 2, -2]), 0, 2); }
+  b.spawnT -= dt;
+  if (b.spawnT <= 0) {
+    b.spawnT = 0.11;
+    G.eggsArr.push({ x: W + 40, y: L[b.path] - 24, pearl: true, t: 0 });
+    if (Math.random() < 0.05) G.eggsArr.push({ x: W + 40, y: L[(b.path + 1 + (Math.random() < 0.5 ? 1 : 0)) % 3] - 24, gold: true, t: 0 }); // 다른 줄 황금 진주(옮길까 말까)
+    if (Math.random() < 0.012) G.eggsArr.push({ x: W + 40, y: L[(b.path + 2) % 3] - 24, clock: true, t: 0 }); // 시계 진주 +2초
+  }
+}
+function bonusMoveLane(d) { const b = G.bonus; if (!b) return false; const n = clamp(b.lane + d, 0, 2); if (n !== b.lane) { b.lane = n; snd('swoosh', 0.5, d > 0 ? 1.3 : 1); } return true; }
 function getLetter(o) {
   o.dead = true; G.letters[o.i] = 1; addScore(3000);
   sfx.letter(); haptic([10, 20, 30]);
   burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
   pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
-  if (G.letters.every(Boolean)) {
+  if (G.letters.every(Boolean)) { // 쿠키런 보너스 타임처럼: 글자를 다 모으면 보너스 바다 15초
     G.letters = [0, 0, 0, 0];
-    G.fever = 100; startFever(); G.feverT = 8 + (hasPerk('feverLong') ? 3 : 0);
-    reaction(4, '바다 축제 완성!!');
-    fireworks(4);
+    startBonus();
   }
 }
 // 기운(쿠키런 방식): 시간이 지나며 조금씩 줄고, 0이 되면 다음에 땅에 닿을 때 쓰러짐 · 물약으로 채움
 function updateEnergy(dt) {
   const p = G.p;
   const running = !p.dead && !G.won && G.enterT <= 0 && !cine && !G.tut && state === 'play';
-  if (running && G.boosting <= 0) G.en = Math.max(0, G.en - G.drain * dt);
+  if (running && G.boosting <= 0 && !G.bonus) G.en = Math.max(0, G.en - G.drain * dt);
   if (running) addScore(runSpd() * dt * 0.4); // 거리 점수 // 질주 중엔 안 줄어듦(쿠키런 보너스 타임처럼)
   if (G.enShow > G.en) { G.enLagT = (G.enLagT || 0) - dt; if (G.enLagT <= 0) G.enShow = Math.max(G.en, G.enShow - G.maxEn * 0.9 * dt); } else G.enShow = G.en;
   if (G.enHealT > 0) G.enHealT -= dt;
@@ -355,7 +404,8 @@ function updateEnergy(dt) {
   if (running && low) { G.beatT = (G.beatT || 0) - dt; if (G.beatT <= 0) { G.beatT = 0.85; snd('heartbeat', 0.8); edgeFlash('#ff3355', 0.5); } }
   if (running && G.en <= 0 && p.onG) { G.lastHit = 'tired'; pop(p.x, p.y - 70, '기운이 다 떨어졌어요…', '#ff9aa8', 26, true); killPlayer(); return; }
   // 물약 놓기: 보통 14초마다 작은 물약(땅 근처), 가끔 큰 물약(높은 곳 — 이단 점프로)
-  if (running && !(G.boss && !G.boss.dead)) {
+  if (G.eff.rain > 0) { G.rainT = (G.rainT || 0) - dt; if (G.rainT <= 0) { G.rainT = 0.06; G.eggsArr.push({ x: rand(G.p.x + 60, W + 30), y: CEIL + 20, vx: rand(-60, 0), vy: rand(220, 330), loose: true, pearl: true, t: 0 }); } } // 진주 비
+  if (running && !G.bonus && !(G.boss && !G.boss.dead)) {
     G.potionT -= dt;
     if (G.potionT <= 0) {
       G.potionT = rand(12, 16);
@@ -533,7 +583,18 @@ const POSE_KEYS = ['hero_run1', 'hero_run2', 'hero_jump', 'hero_fall', 'hero_she
 POSE_KEYS.forEach((k) => load('pose_' + k, `assets/sprites/${k}.webp`));
 const poseCache = {};
 // 투명 여백을 잘라 둔 그림(발끝 = 그림 아래 끝) + 옷의 모자 색
+// 옷마다 그린 달리기 동작(o_<옷>_<동작>.webp) — 있으면 그걸, 없으면 기본 그림 + 모자 색
+const OUTFIT_POSES = ['raincoat', 'chef', 'barista', 'delivery', 'cape14', 'suit', 'crown7', 'pirate', 'wizard', 'hanbok', 'astronaut', 'firefighter', 'diver'];
+let outfitList = null;
+fetch('assets/sprites/list.json').then((r) => r.json()).then((l) => { outfitList = new Set(l); }).catch(() => { outfitList = new Set(); });
+function outfitPose(key) {
+  const sk = save.skin; if (!sk || sk === 'basic' || !OUTFIT_POSES.includes(sk) || !outfitList) return null;
+  const n = `o_${sk}_${key}`; if (!outfitList.has(n)) return null;
+  if (!IMG['pose_' + n]) load('pose_' + n, `assets/sprites/${n}.webp`);
+  return ready(IMG['pose_' + n]) ? n : null;
+}
 function pose(key, cap) {
+  const ok = outfitPose(key); if (ok) { key = ok; cap = null; } // 옷 그림이 있으면 모자 색 바꾸기는 안 함
   const id = key + (cap || '');
   if (poseCache[id] !== undefined) return poseCache[id];
   const im = IMG['pose_' + key]; if (!ready(im)) return null;
@@ -558,6 +619,7 @@ function heroPose() {
   const p = G.p;
   if (p.dead || T - (G.hurtAt || -9) < 0.45) return 'hero_hurt';
   if (p.slide) return 'hero_shell';
+  if (G.bonus || G.eff.rocket > 0) return 'hero_jump';
   if (!p.onG) { if (p.spin > 0) return 'hero_ball'; return p.vy > 160 ? 'hero_fall' : 'hero_jump'; }
   return Math.floor(G.dist / (G.boosting > 0 ? 70 : 52)) % 2 ? 'hero_run2' : 'hero_run1';
 }
@@ -575,6 +637,15 @@ function tinted(c, color) {
   let m = tintCache.get(c); if (!m) { m = {}; tintCache.set(c, m); }
   if (!m[color]) { const t = document.createElement('canvas'); t.width = c.width; t.height = c.height; const g = t.getContext('2d'); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, t.width, t.height); m[color] = t; }
   return m[color];
+}
+function drawBonusBubble() { // 보너스 바다: 반짝이는 거품을 타고 둥실(쿠키런에선 펫이 들어 올림)
+  const p = G.p, r = 54 + Math.sin(T * 5) * 3;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(p.x - 14, p.y - 18, 6, p.x, p.y - 6, r); g.addColorStop(0, 'rgba(255,255,255,.25)'); g.addColorStop(0.7, 'rgba(120,230,255,.12)'); g.addColorStop(1, 'rgba(160,240,255,.5)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y - 6, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(220,250,255,.8)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.ellipse(p.x - r * 0.45, p.y - 6 - r * 0.5, 10, 5, -0.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 function drawRunHero(face, blink, alpha) {
   const p = G.p, cap = (SIDE_STYLE[save.skin] || {}).cap; let key = heroPose(), c = pose(key, cap);
@@ -600,12 +671,13 @@ function drawRunHero(face, blink, alpha) {
     if (wv && ready(wv)) { const wh = h * 1.05, ww = (wh * wv.naturalWidth) / wv.naturalHeight; ctx.save(); ctx.globalAlpha = 0.92; ctx.drawImage(wv, x - ww * 0.72, feet - wh * 0.86 + Math.sin(T * 18) * 3, ww, wh); ctx.restore(); }
     for (let i = 1; i <= 3; i++) drawPoseAt(c, x - i * 26, feet, h * sy, rot, 1 - i * 0.25, true);
   }
+  if (G.eff.rocket > 0) drawImg(IMG.spr_it_rocket, x - 4, feet + 6, 64, -Math.PI / 2 + 0.25 + Math.sin(T * 30) * 0.04); // 로켓 타고
   ctx.save(); ctx.translate(x, feet); ctx.scale(sx, 1); ctx.translate(-x, -feet);
   drawPoseAt(c, x, feet, h * sy, rot, alpha);
   const ha = T - (G.hurtAt || -9); // 맞은 뒤: 55ms 하얗게 → 200ms 빨갛게 사라짐(알 합치기 수치)
   if (ha < 0.255 && !p.dead) drawPoseAt(tinted(c, ha < 0.055 ? '#ffffff' : '#ff3355'), x, feet, h * sy, rot, ha < 0.055 ? 0.9 : 0.6 * (1 - (ha - 0.055) / 0.2));
   const st = SIDE_STYLE[save.skin] || {}, hx = HAT_AT[key];
-  if (hx != null && (st.crown || st.chef)) { // 모자 꼭대기(그림 폭의 hx 지점, 맨 위)
+  if (hx != null && (st.crown || st.chef) && !outfitPose(key)) { // 모자 꼭대기(그림 폭의 hx 지점, 맨 위)
     const w = (h * sy * c.width) / c.height, cx = x + (hx - 0.5) * w * Math.cos(rot), cy = feet - h * sy + 4 + (hx - 0.5) * w * Math.sin(rot), u = h * 0.06;
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); if (alpha != null) ctx.globalAlpha *= alpha;
     if (st.crown) { ctx.fillStyle = '#ffcf3a'; ctx.strokeStyle = '#a26a00'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-2.2 * u, 0); ctx.lineTo(-2.2 * u, -2.6 * u); ctx.lineTo(-u, -1.3 * u); ctx.lineTo(0, -3 * u); ctx.lineTo(u, -1.3 * u); ctx.lineTo(2.2 * u, -2.6 * u); ctx.lineTo(2.2 * u, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ff3b6b'; ctx.beginPath(); ctx.arc(0, -1.2 * u, u * 0.4, 0, Math.PI * 2); ctx.fill(); }
@@ -666,6 +738,11 @@ function drawRunHud(L) {
     if (G.enHealT > 0) { const k0 = clamp((G.enHealFrom || 0) / G.maxEn, 0, 1); ctx.fillStyle = `rgba(110,235,255,${Math.min(1, G.enHealT / 0.3)})`; ctx.fillRect(bx + bw * k0, by, bw * (k - k0), bh); } // 채운 만큼 하늘색
     ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(bx, by + 2, bw * k, 4);
     ctx.restore();
+  }
+  if (G.bonus) { // 보너스 바다: 기운 막대 위에 하늘색 남은 시간 막대를 덮음
+    const tk = clamp(G.bonus.t / G.bonus.max, 0, 1);
+    ctx.fillStyle = '#6eebff'; rr(bx, by, Math.max(bh, bw * Math.min(1, tk)), bh, bh / 2); ctx.fill();
+    text(`보너스 ${Math.ceil(G.bonus.t)}초`, bx + bw / 2, by + bh / 2 + 1, 13, '#063040', { stroke: false });
   }
   const hs = 34 * (low ? 1 + Math.abs(Math.sin(T * 4.5)) * 0.18 : G.p.inv > 0 && T - (G.hurtAt || -9) < 0.5 ? 1.15 : 1);
   drawItemIcon('heart', bx - 6, by + bh / 2, hs);

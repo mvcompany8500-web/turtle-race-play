@@ -555,6 +555,7 @@ function systemWindow(x, y, w, lines, title = '바다 소식') {
 const SIDE_STYLE = {
   basic: {}, raincoat: { cap: '#ffcf2e', rain: true }, chef: { chef: true }, barista: { cap: '#2e7d4f' },
   delivery: { cap: '#9a6430', box: true }, cape14: { cape: '#2552d8' }, suit: { cap: '#33363d', tie: '#d8283c' }, crown7: { crown: true },
+  diver: { cap: '#b87333' }, firefighter: { cap: '#d8283c' }, pirate: { cap: '#22252b' }, wizard: { cap: '#2a3a8a' }, hanbok: { cap: '#22252b' }, astronaut: { cap: '#e8eef5' },
 };
 const SWIM_TILT = 0.36; // 서 있는 옆모습을 살짝 앞으로 숙여서 — 얼굴은 앞(오른쪽)을 본다
 function drawHero(x, y, h, rot, o = {}) {
@@ -752,7 +753,7 @@ function drawInk(k) {
   ctx.restore();
 }
 // ───────── 아이템 상자·아이콘 ─────────
-const ITEM_ART = { magnet: 'x_it_magnet', bubble: 'x_it_bubble', double: 'x_it_star', freeze: 'x_it_ice', giant: 'x_it_up', bolt: 'x_it_bolt', whirl: 'x_it_swirl' };
+const ITEM_ART = { magnet: 'x_it_magnet', bubble: 'x_it_bubble', double: 'x_it_star', freeze: 'x_it_ice', giant: 'x_it_up', bolt: 'x_it_bolt', whirl: 'x_it_swirl', rain: 'spr_it_rain', rocket: 'spr_it_rocket', transform: 'spr_it_transform' };
 // 게임 안 돈 = 진주 (앱의 진짜 거북알과 헷갈리지 않게 — 알 합치기와 같은 규칙). 황금 진주는 금빛을 덧입힘
 function drawPearl(x, y, size, rot = 0, gold = false, alpha = 1) {
   if (!ready(IMG.x_cur_pearl)) return drawImg(gold ? silhouette('egg', '#ffc93a') : IMG.egg, x, y, size, rot, alpha);

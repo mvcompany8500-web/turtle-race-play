@@ -32,7 +32,8 @@ const missionsReady = () => save.missions.filter((m) => m.done).length;
 function claimMission(i) {
   const m = save.missions[i];
   if (!m || !m.done) return;
-  save.eggs += m.reward;
+  save.eggs += m.reward; save.missionsDone = (save.missionsDone || 0) + 1; // 점수 배수가 영구히 오름(서브웨이 서퍼 방식)
+  if (save.missionsDone % 2 === 0) toast(`점수 배수 ×${scoreMult()}로 올랐어요!`, '#ff9a3c');
   save.missions.splice(i, 1); ensureMissions(); persist();
   fountain(W / 2, 200 + i * 86, m.reward); sfx.gift(); haptic([20, 30, 40]);
   toast(`진주 +${m.reward}`, C.yellow);
@@ -403,9 +404,19 @@ function drawMap() {
     text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', L + 114, 510, 14, C.sub, { align: 'left', body: true, stroke: false });
   }
   DIFFS.forEach((d, i) => button(R - 486 + i * 84, 470, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
-  const bounce = 1 + Math.sin(T * 5) * 0.035;
-  ctx.save(); ctx.translate(R - 118, 492); ctx.scale(bounce, bounce); ctx.translate(-(R - 118), -492);
-  button(R - 226, 462, 216, 62, '출발!', mapPlay, { size: 26 });
+  // 쿠키런 「플레이」 단추처럼: 노랑→주황, 두꺼운 아래 그림자, 1.2초 맥박, 3초마다 빛줄이 지나감
+  const bounce = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, bx0 = R - 226, by0 = 458, bw0 = 216, bh0 = 64;
+  ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(bounce, bounce); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
+  const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
+  ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 6, bw0, bh0, 20); ctx.fill(); // 아래 그림자
+  const gg = ctx.createLinearGradient(0, by0, 0, by0 + bh0); gg.addColorStop(0, '#ffd84a'); gg.addColorStop(1, '#ff8a00');
+  ctx.fillStyle = gg; rr(bx0, by0 + (pressed ? 4 : 0), bw0, bh0, 20); ctx.fill();
+  ctx.save(); rr(bx0, by0, bw0, bh0, 20); ctx.clip();
+  const sw = ((T % 3) / 0.7) * (bw0 + 120) - 60; if (T % 3 < 0.7) { ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.moveTo(bx0 + sw, by0); ctx.lineTo(bx0 + sw + 30, by0); ctx.lineTo(bx0 + sw - 10, by0 + bh0); ctx.lineTo(bx0 + sw - 40, by0 + bh0); ctx.fill(); }
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; rr(bx0 + 10, by0 + 6, bw0 - 20, 14, 7); ctx.fill();
+  ctx.restore();
+  text('달리기!', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 6 : 2), 30, '#ffffff', { stroke: '#b4560a', lw: 6 });
+  ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 6, '달리기!', mapPlay, { size: 26 }); ctx.restore();
   ctx.restore();
   ctx.restore();
   if (map.overlay === 'missions') drawMissions();
@@ -678,8 +689,21 @@ function buyUp(i) {
   const c = upCost(u);
   if (c == null) { sfx.no(); shopSay('이미 최고 단계예요'); return; }
   if (save.eggs < c) { sfx.no(); shopSay(`진주가 ${c - save.eggs}개 부족해요`); return; }
-  save.eggs -= c; save.up[u.k]++; persist(); sfx.levelup(); haptic(25);
+  save.eggs -= c; save.up[u.k]++; persist(); haptic(25);
+  for (let j = 0; j < 6; j++) snd('count', 0.5, 1 + j * 0.08, 0, j * 0.05); // 진주가 날아가는 소리
+  if (!snd('levelup', 0.9, 1, 0, 0.35)) sfx.levelup(); // 빛기둥이 서는 순간
   shopSay(`${u.name} Lv ${save.up[u.k]}! 이제 ${u.eff(save.up[u.k])}`);
+}
+function tapTreasure(t) {
+  save.trs = save.trs || []; save.trEq = save.trEq || [];
+  if (save.trEq.includes(t.k)) { save.trEq = save.trEq.filter((k) => k !== t.k); persist(); sfx.click(); shopSay(`${t.name} 뺐어요`); return; }
+  if (!save.trs.includes(t.k)) {
+    if (t.gems) { if (!spendGems(t.gems)) return; }
+    else { if (save.eggs < t.cost) { sfx.no(); shopSay(`진주가 ${t.cost - save.eggs}개 부족해요`); return; } save.eggs -= t.cost; }
+    save.trs.push(t.k); sfx.buy(); snd('tada', 0.8, 1, 0, 0.2); shopSay(`${t.name} 얻었어요!`);
+  }
+  if (save.trEq.length >= 2) save.trEq.shift(); // 칸이 차면 먼저 끼운 것을 빼고
+  save.trEq.push(t.k); persist(); haptic(20); shopSay(`${t.name} 끼웠어요 · ${t.desc}`);
 }
 function wearSkin(k) {
   if (save.skin === k) return;
@@ -689,6 +713,10 @@ function wearSkin(k) {
 }
 function buySkin(s) {
   if (save.skins.includes(s.k)) { wearSkin(s.k); shopSay(`${s.name} 입었어요`); return; }
+  if (s.gems) { // 보석 옷: 사기 전에 한 번 묻기(결제 창 규칙)
+    if (!spendGems(s.gems)) return;
+    save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`); persist(); return;
+  }
   if (save.eggs < s.cost) { sfx.no(); shopSay(`진주가 ${s.cost - save.eggs}개 부족해요`); return; }
   save.eggs -= s.cost; save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`);
 }
@@ -712,7 +740,7 @@ function levelPet(k) {
 }
 function updateShop(dt) {
   if (shop.msgT > 0) shop.msgT -= dt;
-  if (shop.upFlash) { shop.upFlash.t += dt; if (shop.upFlash.t > 0.6) shop.upFlash = null; }
+  if (shop.upFlash) { shop.upFlash.t += dt; if (shop.upFlash.t > 1.3) shop.upFlash = null; }
   if (shop.turn) {
     const tr = shop.turn; tr.t += dt / 0.92; tr.n = tr.n || 0;
     // 몸이 옆→뒤→옆으로 바뀌는 순간(easeInOutCubic 이 1/4·2/4·3/4 를 지나는 t)에 휙 소리, 앞으로 돌아오면 짠
@@ -752,16 +780,22 @@ function drawShop() {
   text(shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : '진주 상점', 480, 34, 32, C.text, { stroke: false });
   eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
   gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26);
-  [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['fx', '꼬리 효과'], ['gem', '보석']].forEach(([k, label], i) => {
-    button(55 + i * 172, 62, 164, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 15, kind: shop.tab === k ? (k === 'gem' ? 'yellow' : 'primary') : 'soft' });
+  [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['tr', '보물'], ['fx', '꼬리 효과'], ['gem', '보석']].forEach(([k, label], i) => {
+    button(52 + i * 144, 62, 136, 40, label, () => { shop.tab = k; sfx.click(); }, { size: 15, kind: shop.tab === k ? (k === 'gem' ? 'yellow' : 'primary') : 'soft' });
   });
   if (shop.tab === 'up') {
     const icons = { slow: 'e_snow', boost: 'e_rocket', shield: 'e_shield', magnet: 'e_gem', fire: 'e_sparkles', power: 'e_fire' };
     UPS.forEach((u, i) => withRise(i, () => {
       const x = 40 + (i % 3) * 296, y = 116 + Math.floor(i / 3) * 176, w = 284, h = 166, lv = save.up[u.k], c = upCost(u), maxed = c == null;
-      const fl = shop.upFlash && shop.upFlash.i === i ? Math.max(0, 1 - shop.upFlash.t / 0.6) : 0;
+      const fl = shop.upFlash && shop.upFlash.i === i ? Math.max(0, 1 - Math.max(0, shop.upFlash.t - 0.35) / 0.6) * (shop.upFlash.t > 0.35 ? 1 : 0) : 0;
       panel(x, y, w, h, { sel: maxed, fill: maxed ? 'rgba(60,52,20,.92)' : undefined });
       if (fl > 0) { ctx.save(); ctx.globalAlpha = fl; ctx.strokeStyle = C.yellow; ctx.lineWidth = 3 + fl * 5; rr(x - 2, y - 2, w + 4, h + 4, 22); ctx.stroke(); ctx.restore(); }
+      const ut = shop.upFlash && shop.upFlash.i === i ? shop.upFlash.t : 9;
+      if (ut < 0.3 + 0.4) { // 쿠키런 레벨 업처럼: 진주가 위 진주 칸에서 날아오고(0.4초) → 카드에 빛기둥(0.3초)
+        const eh2 = eggHud(), sx0 = eh2.x - OX(), sy0 = eh2.y;
+        for (let j = 0; j < 6; j++) { const k = clamp((ut - j * 0.03) / 0.35, 0, 1); if (k <= 0 || k >= 1) continue; const e = 1 - Math.pow(1 - k, 2); drawPearl(lerp(sx0, x + 46, e), lerp(sy0, y + 50, e) - Math.sin(k * Math.PI) * 60, 16 * (1 - k * 0.4)); }
+        if (ut > 0.35 && ut < 0.7) { const a = 1 - (ut - 0.35) / 0.35; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a; drawImg(IMG.spr_fx_pillar, x + w / 2, y + h / 2, h * 1.3); ctx.restore(); }
+      }
       // 왼쪽: 아이콘 동그라미
       ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); ctx.arc(x + 46, y + 50, 32, 0, Math.PI * 2); ctx.fill();
       icon(icons[u.k], x + 46, y + 50 - fl * 8, 48 * (1 + fl * 0.25), Math.sin(T * 2 + i) * 0.08);
@@ -771,8 +805,14 @@ function drawShop() {
       text(u.desc, x + 90, y + 54, 13, C.sub, { align: 'left', body: true, stroke: false });
       const badge = maxed ? 'MAX' : `Lv ${lv}/${u.max}`;
       ctx.font = `800 ${fs(13)}px ${FONT}`; const bw = ctx.measureText(badge).width + 16;
-      ctx.fillStyle = maxed ? C.yellow : 'rgba(255,255,255,.12)'; rr(x + w - 14 - bw, y + 14, bw, 26, 13); ctx.fill();
-      text(badge, x + w - 14 - bw / 2, y + 27, 13, maxed ? '#3a2a00' : C.text, { stroke: false });
+      const bp = ut > 0.35 && ut < 0.65 ? 1 + 0.5 * (1 - (ut - 0.35) / 0.3) : 1; // 단계 숫자가 1.5배로 튀어나옴
+      ctx.save(); ctx.translate(x + w - 14 - bw / 2, y + 27); ctx.scale(bp, bp);
+      ctx.fillStyle = maxed ? C.yellow : 'rgba(255,255,255,.12)'; rr(-bw / 2, -13, bw, 26, 13); ctx.fill();
+      text(badge, 0, 0, 13, maxed ? '#3a2a00' : C.text, { stroke: false }); ctx.restore();
+      if (maxed && ut < 1.2) { // MAX 도장이 비스듬히 쾅(크기 2→1)
+        const st = clamp((ut - 0.35) / 0.2, 0, 1), sc = 2 - st;
+        if (ut > 0.35) { ctx.save(); ctx.translate(x + w / 2, y + 84); ctx.rotate(-0.25); ctx.scale(sc, sc); ctx.globalAlpha = Math.min(1, st * 2) * (ut > 0.9 ? 1 - (ut - 0.9) / 0.3 : 1); ctx.strokeStyle = '#ff3b4e'; ctx.lineWidth = 5; rr(-70, -26, 140, 52, 10); ctx.stroke(); text('MAX', 0, 2, 34, '#ff3b4e', { stroke: false }); ctx.restore(); }
+      }
       // 가운데: 지금 → 다음
       if (maxed) text(`${u.eff(lv)} · 최고 단계`, x + 90, y + 80, 15, C.yellow, { align: 'left', body: true, stroke: false });
       else {
@@ -828,18 +868,46 @@ function drawShop() {
       EXCHANGE.forEach((x2, i) => button(70 + i * 250, 352, 230, 52, `보석 ${x2.gems} → 진주 ${x2.pearls.toLocaleString()}`, () => exchange(x2), { size: 14, kind: 'soft', disabled: save.gems < x2.gems }));
       text(`가진 보석 ${save.gems}`, 600, 378, 14, '#9fe3ff', { align: 'left', body: true, stroke: false });
     });
+  } else if (shop.tab === 'tr') { // 보물: 왼쪽 끼운 칸 2개, 오른쪽 보물 8개
+    save.trs = save.trs || []; save.trEq = save.trEq || [];
+    panel(40, 118, 230, 350);
+    text('끼운 보물', 155, 146, 17, C.text, { stroke: false });
+    for (let i = 0; i < 2; i++) {
+      const k = save.trEq[i], t = TREASURES.find((x) => x.k === k), y = 196 + i * 120;
+      ctx.fillStyle = 'rgba(255,255,255,.06)'; rr(62, y - 44, 186, 100, 18); ctx.fill();
+      ctx.strokeStyle = t ? C.yellow : 'rgba(255,255,255,.2)'; ctx.lineWidth = 2; ctx.setLineDash(t ? [] : [6, 6]); rr(62, y - 44, 186, 100, 18); ctx.stroke(); ctx.setLineDash([]);
+      if (t) { drawImg(IMG['spr_tr_' + t.k], 104, y + 4, 62, Math.sin(T * 2 + i) * 0.08); text(t.name, 140, y - 14, 14, C.text, { align: 'left', body: true, stroke: false }); wrapText(t.desc, 100, 12).slice(0, 2).forEach((l, j) => text(l, 140, y + 8 + j * 18, 12, C.yellow, { align: 'left', body: true, stroke: false })); }
+      else text('빈 칸', 155, y + 6, 14, C.mute, { body: true, stroke: false });
+    }
+    text('2개까지 끼울 수 있어요', 155, 446, 12, C.sub, { body: true, stroke: false });
+    TREASURES.forEach((t, i) => withRise(i, () => {
+      const x = 286 + (i % 4) * 160, y = 118 + Math.floor(i / 4) * 176, w = 150, h = 168, own = save.trs.includes(t.k), on = save.trEq.includes(t.k);
+      panel(x, y, w, h, { sel: on, fill: on ? C.sel : t.gems && !own ? 'rgba(60,40,90,.9)' : undefined });
+      drawImg(IMG['spr_tr_' + t.k], x + w / 2, y + 42, 56, Math.sin(T * 2 + i) * 0.06, own ? 1 : 0.55);
+      text(t.name, x + w / 2, y + 84, 14, C.text, { body: true, stroke: false });
+      text(t.desc, x + w / 2, y + 106, 12, C.yellow, { body: true, stroke: false });
+      const price = t.gems ? `보석 ${t.gems}` : `진주 ${t.cost}`, can = t.gems ? save.gems >= t.gems : save.eggs >= t.cost;
+      button(x + 10, y + 132, w - 20, 30, on ? '빼기' : own ? '끼우기' : price, () => tapTreasure(t), { size: 13, kind: on ? 'soft' : own ? 'primary' : t.gems ? 'yellow' : 'primary', disabled: !own && !can });
+    }));
   } else if (shop.tab === 'skin') {
     panel(40, 118, 250, 350);
     drawTurnPreview(165, 266, 220);
     text(SKINS.find((s) => s.k === save.skin).name, 165, 398, 17, C.text, { body: true, stroke: false });
     [['basic', '기본 얼굴'], ['lash', '속눈썹 얼굴']].forEach(([f, label], i) => button(56 + i * 112, 418, 106, 36, label, () => { save.face = f; persist(); sfx.click(); }, { size: 13, kind: save.face === f ? 'primary' : 'soft' }));
-    SKINS.forEach((s, i) => withRise(i, () => {
-      const x = 310 + (i % 4) * 154, y = 118 + Math.floor(i / 4) * 176, w = 144, h = 168, own = save.skins.includes(s.k), on = save.skin === s.k;
-      panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined });
-      drawImg(playerImg(s.k), x + w / 2, y + 60, 92, 0, own ? 1 : 0.45);
-      text(s.name, x + w / 2, y + 114, 14, C.text, { body: true, stroke: false });
-      button(x + 12, y + 128, w - 24, 32, on ? '입는 중' : own ? '입기' : `진주 ${s.cost}`, () => buySkin(s), { size: 13, kind: on ? 'soft' : own ? 'soft' : 'primary', disabled: !own && save.eggs < s.cost });
+    const pages = Math.ceil(SKINS.length / 8), pg = clamp(shop.skinPage || 0, 0, pages - 1);
+    SKINS.slice(pg * 8, pg * 8 + 8).forEach((s, i) => withRise(i, () => {
+      const x = 310 + (i % 4) * 154, y = 118 + Math.floor(i / 4) * 164, w = 144, h = 156, own = save.skins.includes(s.k), on = save.skin === s.k;
+      panel(x, y, w, h, { sel: on, fill: on ? C.sel : s.gems && !own ? 'rgba(60,40,90,.9)' : undefined });
+      drawImg(playerImg(s.k), x + w / 2, y + 56, 86, 0, own ? 1 : 0.45);
+      text(s.name, x + w / 2, y + 106, 14, C.text, { body: true, stroke: false });
+      const price = s.gems ? `보석 ${s.gems}` : `진주 ${s.cost}`, can = s.gems ? save.gems >= s.gems : save.eggs >= s.cost;
+      button(x + 12, y + 118, w - 24, 30, on ? '입는 중' : own ? '입기' : price, () => buySkin(s), { size: 13, kind: on ? 'soft' : own ? 'soft' : s.gems ? 'yellow' : 'primary', disabled: !own && !can });
     }));
+    if (pages > 1) { // 쿠키런 옷장처럼 넘겨 보기
+      button(560, 444, 52, 28, '◀', () => { shop.skinPage = (pg + pages - 1) % pages; sfx.click(); }, { size: 14, kind: 'soft' });
+      text(`${pg + 1} / ${pages}`, 652, 458, 14, C.sub, { body: true, stroke: false });
+      button(692, 444, 52, 28, '▶', () => { shop.skinPage = (pg + 1) % pages; sfx.click(); }, { size: 14, kind: 'soft' });
+    }
   } else {
     panel(40, 118, 270, 350);
     drawImg(IMG.egg, 175, 240, 130, Math.sin(T * 6) * 0.12);
@@ -862,7 +930,7 @@ function drawShop() {
     }));
   }
   if (shop.msgT > 0) text(shop.msg, 480, 474, 18, '#ffffff', { stroke: false });
-  else text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 474, 13, C.sub, { body: true, stroke: false });
+  else if (shop.tab !== 'skin') text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 474, 13, C.sub, { body: true, stroke: false });
   button(480 - 230, H - 50, 220, 44, `${nameOf(shop.next)} 출발!`, () => startLevel(shop.next), { size: 17 });
   button(480 + 10, H - 50, 220, 44, '지도로', () => enterMap(), { size: 17, kind: 'soft' });
   if (shop.hatch) drawHatch();

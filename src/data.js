@@ -99,6 +99,9 @@ const ITEMS = {
   lamp: { name: '등불', desc: '10초 동안 환해져요, 먹물·아귀 약점', icon: 'e_bulb', from: 7, dur: 10 },
   bolt: { name: '번개', desc: '화면 속 적을 한 번에! (게는 빼고)', icon: 'bolt', from: 9 },
   whirl: { name: '회오리', desc: '3초 동안 앞으로 휘몰아쳐요', icon: 'whirl', from: 12, dur: 3 },
+  rain: { name: '진주 비', desc: '6초 동안 진주가 쏟아져요', icon: 'egg', from: 4, dur: 6, run: true },
+  rocket: { name: '로켓', desc: '4초 동안 높이 날아요(무적)', icon: 'e_rocket', from: 6, dur: 4, run: true },
+  transform: { name: '진주 마법', desc: '화면 속 가시·바위·기둥을 진주로', icon: 'e_sparkles', from: 8, run: true },
 };
 const ITEM_KEYS = Object.keys(ITEMS);
 
@@ -131,6 +134,23 @@ const SKINS = [
   { k: 'cape14', name: '히어로 망토', cost: 550 },
   { k: 'suit', name: '사장님 정장', cost: 800 },
   { k: 'crown7', name: '황금 왕관', cost: 1300 },
+  { k: 'diver', name: '잠수부', cost: 650 },
+  { k: 'firefighter', name: '소방관', cost: 750 },
+  { k: 'pirate', name: '해적 선장', cost: 950 },
+  { k: 'wizard', name: '별빛 마법사', cost: 1600 },
+  { k: 'hanbok', name: '설빔 한복', gems: 220 }, // 보석 옷(꾸미기만 — 힘은 같음)
+  { k: 'astronaut', name: '우주 비행사', gems: 300 },
+];
+// 보물(쿠키런 보물 방식): 사서 2개까지 끼우면 판마다 힘이 붙음
+const TREASURES = [
+  { k: 'compass', name: '바다 나침반', desc: '질주 30으로 출발', cost: 900 },
+  { k: 'charm', name: '거품 부적', desc: '판마다 방패 +1', cost: 1400 },
+  { k: 'bottle', name: '물약 유리병', desc: '물약 회복 1.5배', cost: 1100 },
+  { k: 'flute', name: '고래 피리', desc: '부딪힘 기운 -18', cost: 1800 },
+  { k: 'clock', name: '시계 소라', desc: '보너스 바다 +3초', cost: 1200 },
+  { k: 'hook', name: '황금 낚싯바늘', desc: '황금 진주 점수 2배', cost: 1000 },
+  { k: 'wallet', name: '진주 조개 지갑', desc: '진주 +10%', gems: 260 },
+  { k: 'scale', name: '무지개 비늘', desc: '점수 +15%', gems: 200 },
 ];
 const PETS = [
   { k: 'chick', name: '삐약이', perk: (lv) => `진주를 ${40 + lv * 20} 거리에서 끌어와요` },
@@ -159,7 +179,8 @@ const UPS = [
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
   'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'boss_jelly', 'boss_crab', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
   'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock', 'goal_gate',
-  'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip', 'fx_lightning', 'potion_s', 'potion_b'];
+  'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip', 'fx_lightning', 'potion_s', 'potion_b',
+  'tr_compass', 'tr_wallet', 'tr_charm', 'tr_bottle', 'tr_hook', 'tr_clock', 'tr_flute', 'tr_scale', 'it_rain', 'it_rocket', 'it_transform'];
 
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
 const LV_PERKS = {

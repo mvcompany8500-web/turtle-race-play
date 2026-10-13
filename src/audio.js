@@ -272,7 +272,7 @@ function bgmTick() {
     }
   }
   if (bgmSrc) {
-    bgmGain.gain.setTargetAtTime(paused ? 0.0001 : ac.currentTime < duckUntil ? 0.42 : 0.9, ac.currentTime, 0.2); // 빠르기는 안 바꿈(박자 시계가 어긋나지 않게)
+    bgmGain.gain.setTargetAtTime(paused ? 0.0001 : (ac.currentTime < duckUntil ? 0.42 : 0.9) * (G && G.run && state === 'play' && G.en / G.maxEn < 0.2 ? 0.7 : 1), ac.currentTime, 0.2); // 기운이 바닥이면 노래 70%(심장 소리가 들리게) // 빠르기는 안 바꿈(박자 시계가 어긋나지 않게)
   }
 }
 setInterval(bgmTick, 100);

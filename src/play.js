@@ -25,7 +25,7 @@ function levelCfg(n) {
 }
 const stageMusic = (n) => (n === ENDLESS ? 'w3' : worldOf(n).music);
 const boostDur = () => 3.2 + (petIs('penguin') ? petLv() * 0.3 : 0);
-const itemPool = (n) => ITEM_KEYS.filter((k) => n === ENDLESS || ITEMS[k].from <= n);
+const itemPool = (n) => ITEM_KEYS.filter((k) => (n === ENDLESS || ITEMS[k].from <= n) && (!ITEMS[k].run || (G && G.run)));
 const nameOf = (n) => (n === ENDLESS ? '끝없는 바다' : `${n}번 바다`);
 
 function startLevel(n) {
@@ -43,7 +43,7 @@ function startLevel(n) {
     enterT: 0.8, won: false, winT: 0,
     kills: 0, near: 0, perfect: 0, weak: 0, intro: 4.4, banked: false, deathT: 0, deadT: 0,
     score: 0, scoreShow: 0, eggsSpawned: 0, eggsGot: 0, hits: 0, revives: 0, freeRevive: false, fever: 0, feverT: 0, feverEggT: 0, sprout: 0, starShown: 0,
-    item: null, itemPop: 0, eff: { magnet: 0, giant: 0, freeze: 0, lamp: 0, whirl: 0, double: 0 }, jellySafe: 0,
+    item: null, itemPop: 0, eff: { magnet: 0, giant: 0, freeze: 0, lamp: 0, whirl: 0, double: 0, rain: 0, rocket: 0 }, jellySafe: 0,
     slowMul: 1, blessDone: cfg.boss != null, nextBless: 1500, bless: null, chain: 0, chainT: 0, chainBest: 0, feverEggs: 0, zoomAt: null,
   };
   G.run = false;
@@ -66,7 +66,8 @@ function progress() {
 }
 const meters = () => Math.floor(G.dist / 40);
 // 알 장부: 어디서 몇 개 벌었나(실험실·밸런스용)
-function earn(k, v) { if (G.run && ['egg', 'gold', 'drop', 'rain'].includes(k)) v = Math.round(v * (1 + abStar('gold') * 0.15)); G.eggs += v; G.ledger = G.ledger || {}; G.ledger[k] = (G.ledger[k] || 0) + v; }
+const hasTr = (k) => (save.trEq || []).includes(k); // 끼운 보물
+function earn(k, v) { if (G.run && ['egg', 'gold', 'drop', 'rain'].includes(k)) v = Math.round(v * (1 + abStar('gold') * 0.15) * (hasTr('wallet') ? 1.1 : 1)); G.eggs += v; G.ledger = G.ledger || {}; G.ledger[k] = (G.ledger[k] || 0) + v; }
 function bank(cleared) {
   if (G.banked) return;
   G.banked = true;
@@ -298,8 +299,9 @@ function hitPlayer(src) {
     if (src && src.type && ENEMIES[src.type] && src.type !== 'urchin' && src.type !== 'whirlpool') src.dead = true;
     return;
   }
-  if (G.run && G.en - HIT_E > 0.5) { // 점프 달리기는 기운: 부딪히면 25 줄고 깜빡이며 버팀
-    G.en -= HIT_E; G.enLagT = 0.4; G.hurtAt = T; p.inv = 1.6; shake = 16; freeze = 0.08; flash = 0.3; flashColor = '#ff3355'; setFace('ouch', 0.8);
+  const hitE = hasTr('flute') ? 18 : HIT_E;
+  if (G.run && G.en - hitE > 0.5) { // 점프 달리기는 기운: 부딪히면 25 줄고 깜빡이며 버팀
+    G.en -= hitE; G.enLagT = 0.4; G.hurtAt = T; p.inv = 1.6; shake = 16; freeze = 0.08; flash = 0.3; flashColor = '#ff3355'; setFace('ouch', 0.8);
     burst(p.x - 10, p.y, '#ffb3c0', 10, 300); ring(p.x, p.y, '#ff5470', 70, 0.3, 5); hitStar(p.x + 24, p.y - 10, false, false); // 몸을 가리지 않게 작게
     pop(p.x, p.y - 64, G.en <= HIT_E ? '기운이 얼마 안 남았어요!' : '아야!', '#ff9aa8', 26, G.en <= HIT_E);
     // 맞은 몸짓: 뒤로 밀리며 살짝 튀어오름(알 합치기 넉백처럼) — 무적 1.6초라 다시 맞지 않음
@@ -477,6 +479,16 @@ function useItem() {
       G.eff.whirl = ITEMS.whirl.dur; sfx.whirl(); p.inv = Math.max(p.inv, 3.3);
       for (const e of G.enemies) if ((e.type === 'whirlpool' || e.type === 'mine') && e.x < W + 40) killEnemy(e, 'whirl');
       break;
+    case 'rain': G.eff.rain = ITEMS.rain.dur; if (!snd('gift', 0.9)) sfx.gold(); break; // 쿠키런 「젤리 비」처럼
+    case 'rocket': G.eff.rocket = ITEMS.rocket.dur; p.inv = Math.max(p.inv, ITEMS.rocket.dur + 0.6); p.slide = false; p.slideHold = false; snd('boost', 0.9); shake = 10; break;
+    case 'transform': { // 화면 속 장애물이 진주로(쿠키런 「젤리 변신」)
+      let n = 0; snd('hatch', 0.8); flash = 0.4; flashColor = '#fff3c0';
+      for (const e of G.enemies) if (!e.dead && e.x < W + 40 && e.x > -40) { e.dead = true; n++; G.eggsArr.push({ x: e.x, y: e.y, gold: n % 4 === 0, t: 0 }); burst(e.x, e.y, '#ffe36b', 14, 300); }
+      for (const o of G.breaks) if (!o.dead && o.x < W + 40) { o.dead = true; n++; G.eggsArr.push({ x: o.x, y: o.y, gold: true, t: 0 }); burst(o.x, o.y, '#ffe36b', 14, 300); }
+      for (const o of G.obs) if (!o.dead && o.k === 'pillar' && o.x < W + 40 && o.x + o.w > 0) { o.dead = true; n++; for (let i = 0; i < 4; i++) G.eggsArr.push({ x: o.x + o.w / 2, y: o.y1 - 30 - i * 50, pearl: true, t: 0 }); burst(o.x + o.w / 2, o.y1 - 60, '#ffe36b', 18, 320); }
+      pop(W / 2, H / 2 - 100, n ? `${n}개가 진주로!` : '진주 마법!', C.yellow, 30, true);
+      break;
+    }
     case 'bolt':
       sfx.bolt(); flash = 0.6; flashColor = '#e8f4ff'; shake = 18; freeze = 0.12;
       for (const e of G.enemies) {
@@ -517,11 +529,14 @@ function spawnEggRain() {
   for (let i = 0; i < 9; i++) G.eggsArr.push({ x: W + 30 + i * 36, y: clamp(y0 + Math.sin(i * 0.7 + T) * amp, CEIL + 30, SEABED - 30), gold: true, bonus: true, t: rand(0, 6) });
 }
 // 점수(쿠키런 방식): 진주·밟기·처치·상자·글자·보스·거리로 쌓이고, 소나기(피버) 중엔 두 배
-function addScore(v) { if (G && !G.banked) G.score += Math.round(v * (G.feverT > 0 ? 2 : 1)); }
+const scoreMult = () => Math.min(20, 1 + Math.floor((save.missionsDone || 0) / 2)); // 도전 2개마다 점수 배수 +1(최대 ×20)
+function addScore(v) { if (G && !G.banked) G.score += Math.round(v * (G.feverT > 0 ? 2 : 1) * (hasTr('scale') ? 1.15 : 1) * scoreMult()); }
 function collectEgg(e) {
   e.got = true;
+  if (e.clock && G.bonus) { G.bonus.t += 2; pop(e.x, e.y - 30, '+2초!', '#7cf0ff', 26, true); snd('ready', 0.8); return; }
+  if (e.clock) return;
   if (e.potion) { // 기운 물약: 작은 +10 · 큰 +30, 처음 기운보다 넘치지 않음
-    const v = e.potion === 'b' ? 30 : 10, before = G.en;
+    const v = (e.potion === 'b' ? 30 : 10) * (hasTr('bottle') ? 1.5 : 1), before = G.en;
     G.en = Math.min(G.maxEn, G.en + v); G.enHealT = 0.7; G.enHealFrom = before;
     if (!snd('potion', 0.9)) sfx.revive(); haptic([10, 20]);
     burst(e.x, e.y, '#ff9ac0', 14, 260); ring(G.p.x, G.p.y, '#ff9ac0', 70, 0.35, 5);
@@ -530,7 +545,7 @@ function collectEgg(e) {
   }
   if (e.pearl) { // 물방울 구슬: 알은 아니고 연속·질주·소나기 게이지만
     G.pearls = (G.pearls || 0) + 1; runXp(1); addScore(100 + Math.min(G.combo, 20) * 10);
-    G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.95;
+    G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(쿠키런)
     if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
     snd('egg', 0.45, comboRate(Math.min(G.combo, 10)), 0.04); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
@@ -542,11 +557,11 @@ function collectEgg(e) {
   setFace('happy', 0.35); runXp(3);
   const mult = (G.feverT > 0 ? 2 : 1) * (G.eff.double > 0 ? 2 : 1);
   const v = Math.round((e.gold ? (e.bonus ? 1 : G.run ? 3 : 5) : 1) * mult * (G.run && hasPerk('legend') ? 1.2 : 1)) || 1;
-  earn(e.loose ? 'drop' : e.bonus ? 'rain' : e.gold ? 'gold' : 'egg', v); addScore(e.gold ? 3000 : 500);
+  earn(e.loose ? 'drop' : e.bonus ? 'rain' : e.gold ? 'gold' : 'egg', v); addScore(e.gold ? (hasTr('hook') ? 6000 : 3000) : 500);
   if (G.feverT > 0) G.feverEggs += v;
   if (!e.loose && !e.bonus) G.eggsGot++;
   fx.push({ k: 'eggfly', sx: e.x, sy: e.y, life: 0.5, max: 0.5, gold: e.gold });
-  G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.95;
+  G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(쿠키런)
   if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + (e.gold && !e.bonus ? 10 : 2.5));
   if (e.gold && !e.bonus) { sfx.gold(); pop(e.x, e.y - 24, `황금 진주 +${v}`, C.yellow, 26); burst(e.x, e.y, '#ffe36b', 16); track('gold'); }
   else { sfx.egg(G.combo); burst(e.x, e.y, '#eafff2', 5, 160); }
@@ -843,7 +858,7 @@ function updatePlay(dt) {
   const bossFight = G.boss && !G.boss.dead;
   const whirling = E.whirl > 0;
   const scroll = cfg.speed * G.slowMul * (G.boosting > 0 || whirling ? 2.3 : 1) * (bossFight ? 0.55 : 1) * (p.dead ? 0.3 : 1);
-  G.dist += scroll * dt;
+  if (!G.bonus) G.dist += scroll * dt; // 보너스 바다 동안은 진행도가 멈춤(끝·보스가 안 끼어들게)
   updateBubbles(dt, scroll);
   p.scale = lerp(p.scale, E.giant > 0 ? 1.75 : 1, Math.min(1, dt * 8));
 
@@ -1181,7 +1196,16 @@ function updatePlay(dt) {
     if (!p.dead && p.x > G.goal.x + 20) levelClear(); // 문 한가운데를 지나갈 때
   }
 }
+// 도착 문 높이 보너스(마리오 런 깃대처럼): 문 한가운데를 지날 때의 높이로 1~5단계
+const GOAL_BAND = [{ pearl: 2, score: 1000 }, { pearl: 4, score: 2000 }, { pearl: 6, score: 4000 }, { pearl: 10, score: 8000 }, { pearl: 20, score: 20000 }];
+function goalBand() { return G.run ? clamp(Math.ceil((GROUND - G.p.fy) / 58), 1, 5) : 0; }
 function levelClear() {
+  if (G.run && G.goal && G.n !== LAST) {
+    const band = goalBand(), gb = GOAL_BAND[band - 1]; G.goalBand = band;
+    earn('goal', gb.pearl); addScore(gb.score);
+    later(350, () => pop(W / 2, H / 2 + 10, band === 5 ? `완벽!! 진주 +${gb.pearl}` : `높이 ${band}단계 · 진주 +${gb.pearl}`, band === 5 ? '#ffe14a' : '#ffffff', band === 5 ? 44 : 32, true));
+    for (let i = 0; i < band; i++) later(500 + i * 220, () => { fireworks(1); snd('firework', 0.7, 1 + i * 0.1); });
+  }
   addScore(10000 + (G.run ? Math.round(G.en) * 100 : 0)); // 도착 보너스 + 남은 기운
   G.won = true; G.winT = 1.1; G.p.inv = 99; G.p.flip = 0;
   setFace('happy', 9);
@@ -1245,8 +1269,18 @@ function drawGoal(gx) {
     for (let j = 0; j < 8; j++) { const rr2 = j % 2 ? 2 : 8 * s + 2, aa = j * Math.PI / 4; ctx.lineTo(sx + Math.cos(aa) * rr2, sy + Math.sin(aa) * rr2); }
     ctx.closePath(); ctx.fill();
   }
+  // 높이 별 사다리(마리오 깃대처럼): 높이 지날수록 큰 보상 — 지나면 닿은 단계까지 불이 켜짐
+  if (G.run) for (let i = 1; i <= 5; i++) {
+    const sy = GROUND - (i - 0.5) * 58, lit = G.goalBand >= i, near = !G.goalBand && Math.abs((GROUND - G.p.fy) / 58 + 0.5 - i) < 0.6 && G.goal.x - G.p.x < 400;
+    const r = (i === 5 ? 17 : 13) * (lit ? 1.25 + Math.sin(T * 8 + i) * 0.08 : 1);
+    ctx.fillStyle = 'rgba(10,20,40,.35)'; ctx.beginPath(); ctx.arc(gx + 20, sy, r + 6, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.globalAlpha = lit ? 1 : near ? 0.85 : 0.45; drawStar(gx + 20, sy, r, true); ctx.restore();
+    if (lit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5; drawStar(gx + 20, sy, r * 1.5, true); ctx.restore(); }
+    if (i === 5 && !G.goalBand) text('완벽!', gx + 52, sy, 12, '#ffe14a', { align: 'left', body: true });
+  }
 }
 function drawEgg(e) {
+  if (e.clock) { const y = e.y + Math.sin(e.t * 4) * 3; ctx.fillStyle = '#7cf0ff'; ctx.beginPath(); ctx.arc(e.x, y, 15, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); ctx.beginPath(); ctx.moveTo(e.x, y); ctx.lineTo(e.x, y - 8); ctx.moveTo(e.x, y); ctx.lineTo(e.x + 6, y + 3); ctx.stroke(); return; }
   if (e.potion) { // 기운 물약(코덱스 그림) + 분홍 빛
     const y = e.y + Math.sin(e.t * 3) * 4, h = e.potion === 'b' ? 66 : 50;
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(e.x, y, 2, e.x, y, h); g.addColorStop(0, 'rgba(255,140,190,.5)'); g.addColorStop(1, 'rgba(255,140,190,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, y, h, 0, Math.PI * 2); ctx.fill(); ctx.restore();
@@ -1451,7 +1485,11 @@ function drawWorld() {
   const face = p.dead ? 'dead' : G.boosting > 0 || E.giant > 0 ? 'boost' : p.faceT > 0 ? p.face : p.scared ? 'scared' : 'normal';
   const bob = p.dead ? 0 : Math.sin(p.ph * 0.5) * 2.5;
   if (E.giant > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 110); g.addColorStop(0, 'rgba(120,255,160,.35)'); g.addColorStop(1, 'rgba(120,255,160,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 110, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-  if (G.run) { drawRunShadow(); drawBeatRing(); drawRunHero(face, p.blinkT < 0, blink && T - (G.hurtAt || -9) > 0.45 ? 0.5 : 1); } // 맞은 직후 0.45초는 또렷하게(맞은 몸짓이 보이게), 그다음 깜빡임
+  if (G.run && G.bonus) { // 보너스 바다: 금빛 바다 + 줄 안내
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,210,90,${0.10 + 0.04 * Math.sin(T * 3)})`; ctx.fillRect(0, 0, W, H); ctx.restore();
+    for (const ly of BONUS_LANES()) { ctx.fillStyle = 'rgba(255,255,255,.08)'; rr(0, ly - 48, W, 48, 24); ctx.fill(); }
+  }
+  if (G.run) { drawRunShadow(); drawBeatRing(); drawRunHero(face, p.blinkT < 0, blink && T - (G.hurtAt || -9) > 0.45 ? 0.5 : 1); if (G.bonus) drawBonusBubble(); } // 맞은 직후 0.45초는 또렷하게(맞은 몸짓이 보이게), 그다음 깜빡임
   else if (G.boosting > 0 && !REDUCE) { // 질주 중 빨강·파랑으로 갈라지는 잔상
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     drawHero(p.x - 6 * p.scale - 8, p.y + (4 + bob) * p.scale, HERO_H * p.scale, p.rot + p.flip, { ghost: '#ff3355', alpha: 0.5, ph: p.ph, boost: true });
@@ -1536,12 +1574,17 @@ function drawHUD() {
   if (G.run) sx += 270 + G.shield * 28;
   else for (let i = 0; i < G.shield; i++) { icon('e_shield', sx, 80, 26); sx += 30; }
   // 켜진 아이템 효과 (남은 시간 고리)
-  for (const k of ['magnet', 'double', 'freeze', 'giant', 'lamp', 'whirl']) {
-    const v = G.eff[k]; if (v <= 0) continue;
-    const max = Math.max(v, ITEMS[k].dur);
-    ctx.fillStyle = 'rgba(16,16,18,.55)'; ctx.beginPath(); ctx.arc(sx + 4, 80, 17, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = C.yellow; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx + 4, 80, 17, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, v / max)); ctx.stroke();
-    drawItemIcon(k, sx + 4, 80, 22); sx += 42;
+  // 켜진 아이템: 서브웨이 서퍼처럼 오른쪽 가장자리에 아이콘 + 줄어드는 막대를 세로로 쌓음(2초 아래면 깜빡, 끝나면 퐁)
+  let iy = G.run ? 104 : 130; const ix = W - SAFE - 40;
+  for (const k of ['magnet', 'double', 'freeze', 'giant', 'lamp', 'whirl', 'rain', 'rocket']) {
+    const v = G.eff[k]; if (v <= 0) { if (G.effOn && G.effOn[k]) { G.effOn[k] = false; snd('bubble', 0.6, 1.3); } continue; }
+    G.effOn = G.effOn || {}; G.effOn[k] = true;
+    const max = Math.max(v, ITEMS[k].dur), blinkI = v < 2 && Math.sin(T * 18) < 0;
+    ctx.fillStyle = 'rgba(16,16,18,.55)'; rr(ix - 28, iy - 22, 56, 54, 14); ctx.fill();
+    if (!blinkI) drawItemIcon(k, ix, iy - 2, 30);
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(ix - 22, iy + 20, 44, 6, 3); ctx.fill();
+    ctx.fillStyle = v < 2 ? '#ff5470' : C.yellow; rr(ix - 22, iy + 20, Math.max(4, 44 * Math.min(1, v / max)), 6, 3); ctx.fill();
+    iy += 60;
   }
   const bx = W / 2 - 180, by = 20, bw = 360, bh = 14;
   if (G.boss && !G.boss.dead && G.run) drawBossBar(G.boss);
@@ -1570,6 +1613,10 @@ function drawHUD() {
   if (G.run) { // 쿠키런처럼 오른쪽 위: 이번 판 점수(굴러 올라감) + 이번 판 진주
     G.scoreShow += (G.score - G.scoreShow) * Math.min(1, 1 / 60 * 10); if (G.score - G.scoreShow < 1) G.scoreShow = G.score;
     text(Math.round(G.scoreShow).toLocaleString(), W - SAFE - 20, 28, 28, '#ffffff', { align: 'right', lw: 5 });
+    const mlt = scoreMult(); if (mlt > 1) { // 점수 배수 상자(서브웨이 서퍼)
+      ctx.font = `800 ${fs(28)}px ${FONT}`; const sw2 = ctx.measureText(Math.round(G.scoreShow).toLocaleString()).width;
+      const mx = W - SAFE - 20 - sw2 - 34; ctx.fillStyle = '#ff7a00'; rr(mx - 22, 15, 44, 26, 9); ctx.fill(); text(`×${mlt}`, mx, 28, 15, '#ffffff', { stroke: false });
+    }
     ctx.font = `800 ${fs(18)}px ${FONT}`; const ew = ctx.measureText(String(G.eggs)).width;
     drawPearl(W - SAFE - 92 - ew - 14, 64, 18 * (1 + hudPulse * 1.6)); text(String(G.eggs), W - SAFE - 92, 64, 18, C.yellow, { align: 'right' });
   } else eggBadge(eh.x, eh.y, save.eggs + G.eggs, 28 * (1 + hudPulse * 1.6));
