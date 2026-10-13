@@ -159,7 +159,7 @@ const UPS = [
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
   'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'boss_jelly', 'boss_crab', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
   'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock', 'goal_gate',
-  'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip'];
+  'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip', 'fx_lightning'];
 
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
 const LV_PERKS = {

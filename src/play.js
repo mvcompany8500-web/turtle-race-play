@@ -1120,7 +1120,7 @@ function updatePlay(dt) {
   G.inks = G.inks.filter((k) => k.a > 0.02 && k.x > -150);
   // 문어 다리 휘두르기
   for (const s of G.sweeps) {
-    if (!s.on) { s.t -= dt; if (s.t <= 0) { s.on = true; sfx.swoosh(); shake = 8; } continue; }
+    if (!s.on) { s.t -= dt; if (s.t <= 0) { s.on = true; if (s.zap) { sfx.bolt(); snd('swoosh', 0.5, 1.4); } else sfx.swoosh(); shake = 8; } continue; } // 번개는 번개 소리, 문어 다리는 휘익
     s.x -= 1200 * dt;
     if (!p.dead && p.y > s.y0 - p.r && p.y < s.y1 + p.r && Math.abs(p.x - s.x) < 60) {
       if (!(G.boosting > 0 || E.giant > 0 || whirling)) hitPlayer({ type: 'boss' });
@@ -1363,7 +1363,18 @@ function drawWorld() {
   // 문어 다리
   for (const s of G.sweeps) {
     if (!s.on) { ctx.fillStyle = `rgba(255,60,90,${0.18 + 0.15 * Math.sin(T * 30)})`; ctx.fillRect(0, s.y0, W, s.y1 - s.y0); if (s.lane) text(s.lane === 'low' ? '↑ 점프!' : '뛰지 마요!', W / 2, (s.y0 + s.y1) / 2, 34, '#ffffff', { stroke: 'rgba(200,20,50,.9)', lw: 7 }); continue; }
-    if (s.zap) { // 번개 줄: 줄 전체에 찌릿한 번개
+    if (s.zap && IMG.spr_fx_lightning && ready(IMG.spr_fx_lightning)) { // 번개 줄: 코덱스 번개 그림을 줄 따라 이어 붙이고 깜빡임
+      const im = IMG.spr_fx_lightning, b = obox(im), lh = (s.y1 - s.y0) * 1.5, lw = (lh * b.w) / b.h, my = (s.y0 + s.y1) / 2;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(124,240,255,.14)'; ctx.fillRect(s.x - 40, s.y0, W - s.x + 100, s.y1 - s.y0);
+      for (let x = s.x - 40, i = 0; x < W + 60; x += lw * 0.8, i++) {
+        const fl = 0.75 + 0.25 * Math.sin(T * 50 + i * 2);
+        ctx.globalAlpha = fl; ctx.save(); ctx.translate(x + lw / 2, my + Math.sin(T * 40 + i) * 3); if ((Math.floor(T * 14) + i) % 2) ctx.scale(1, -1); // 번쩍일 때마다 모양이 바뀌어 보이게
+        ctx.drawImage(im, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
+      }
+      ctx.restore(); continue;
+    }
+    if (s.zap) { // 번개 줄(그림이 아직 없을 때)
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let k = 0; k < 4; k++) {
         ctx.strokeStyle = k % 2 ? '#ffffff' : '#7cf0ff'; ctx.lineWidth = k % 2 ? 2 : 6; ctx.beginPath();
@@ -1467,15 +1478,22 @@ function drawWorld() {
   // 경고는 어둠 위에
   for (const w of G.warns) {
     const blinkOn = Math.sin(T * 30) > 0;
-    if (w.kind === 'eel' || w.kind === 'sword') {
-      ctx.strokeStyle = w.kind === 'sword' ? `rgba(255,213,74,${blinkOn ? 0.8 : 0.35})` : `rgba(255,50,80,${blinkOn ? 0.7 : 0.3})`; ctx.lineWidth = 3; ctx.setLineDash([16, 10]);
-      ctx.beginPath(); ctx.moveTo(0, w.y); ctx.lineTo(W, w.y); ctx.stroke(); ctx.setLineDash([]);
+    // 돌진 길 예고: 선 대신 빛나는 띠 + 왼쪽으로 흐르는 화살 + 오른쪽 끝에 올 몬스터 얼굴(가까울수록 진하게)
+    const k = clamp(1 - w.t / (w.max || 1), 0, 1), gold = w.kind === 'sword', col = gold ? '255,200,70' : '255,60,90';
+    const bh = 26 + k * 6, band = ctx.createLinearGradient(0, 0, W, 0); // 땅 줄·머리 줄이 붙어 있어 띠는 얇게(어느 줄인지 또렷)
+    band.addColorStop(0, `rgba(${col},0)`); band.addColorStop(0.55, `rgba(${col},${0.10 + 0.12 * k})`); band.addColorStop(1, `rgba(${col},${0.28 + 0.25 * k})`);
+    ctx.fillStyle = band; rr(0, w.y - bh / 2, W, bh, bh / 2); ctx.fill();
+    ctx.save(); ctx.globalAlpha = 0.35 + 0.5 * k;
+    for (let i = 0; i < 9; i++) { // ‹ 화살이 거북 쪽으로 흐름
+      const ax = W - SAFE - 130 - ((T * (260 + 300 * k) + i * 110) % (W - 60)), aw = 12;
+      if (ax < 40) continue;
+      ctx.strokeStyle = `rgba(${col},${0.5 + 0.5 * (ax / W)})`; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(ax + aw, w.y - 8); ctx.lineTo(ax, w.y); ctx.lineTo(ax + aw, w.y + 8); ctx.stroke();
     }
-    if (blinkOn || w.t > w.max * 0.5) {
-      ctx.fillStyle = '#ff3355';
-      ctx.beginPath(); ctx.moveTo(W - 14 - SAFE, w.y); ctx.lineTo(W - 50 - SAFE, w.y - 22); ctx.lineTo(W - 50 - SAFE, w.y + 22); ctx.fill();
-      text('!', W - 66 - SAFE, w.y + 2, 34, '#ff3355', { stroke: '#fff', lw: 5 });
-    }
+    ctx.restore();
+    const face = IMG['spr_' + (w.kind === 'sword' ? 'swordfish' : w.kind)], fx0 = W - SAFE - 34 - k * 26 + Math.sin(T * 30) * k * 3;
+    if (face && ready(face)) { ctx.save(); ctx.beginPath(); ctx.rect(W - SAFE - 90, w.y - 60, 90 + SAFE, 120); ctx.clip(); drawImg(face, fx0 + 20, w.y, 56 + k * 10, 0, 0.9); ctx.restore(); }
+    if (blinkOn || w.t > w.max * 0.5) text('!', W - SAFE - 92, w.y - 26, 34, gold ? '#ffc846' : '#ff3355', { stroke: '#fff', lw: 5 });
   }
 }
 function drawPops() {
