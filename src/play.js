@@ -481,9 +481,9 @@ function useItem() {
       G.eff.whirl = ITEMS.whirl.dur; sfx.whirl(); p.inv = Math.max(p.inv, 3.3);
       for (const e of G.enemies) if ((e.type === 'whirlpool' || e.type === 'mine') && e.x < W + 40) killEnemy(e, 'whirl');
       break;
-    case 'rain': G.eff.rain = ITEMS.rain.dur; if (!snd('gift', 0.9)) sfx.gold(); break; // 쿠키런 「젤리 비」처럼
+    case 'rain': G.eff.rain = ITEMS.rain.dur; if (!snd('gift', 0.9)) sfx.gold(); break; // 인기 게임 「젤리 비」처럼
     case 'rocket': G.eff.rocket = ITEMS.rocket.dur; p.inv = Math.max(p.inv, ITEMS.rocket.dur + 0.6); p.slide = false; p.slideHold = false; snd('boost', 0.9); shake = 10; break;
-    case 'transform': { // 화면 속 장애물이 진주로(쿠키런 「젤리 변신」)
+    case 'transform': { // 화면 속 장애물이 진주로(인기 게임 「젤리 변신」)
       let n = 0; snd('hatch', 0.8); flash = 0.4; flashColor = '#fff3c0';
       for (const e of G.enemies) if (!e.dead && e.x < W + 40 && e.x > -40) { e.dead = true; n++; G.eggsArr.push({ x: e.x, y: e.y, gold: n % 4 === 0, t: 0 }); burst(e.x, e.y, '#ffe36b', 14, 300); }
       for (const o of G.breaks) if (!o.dead && o.x < W + 40) { o.dead = true; n++; G.eggsArr.push({ x: o.x, y: o.y, gold: true, t: 0 }); burst(o.x, o.y, '#ffe36b', 14, 300); }
@@ -530,7 +530,7 @@ function spawnEggRain() {
   const y0 = G.run ? rand(SEABED - 220, SEABED - 90) : rand(CEIL + 90, SEABED - 90), amp = G.run ? rand(30, 70) : rand(40, 90);
   for (let i = 0; i < 9; i++) G.eggsArr.push({ x: W + 30 + i * 36, y: clamp(y0 + Math.sin(i * 0.7 + T) * amp, CEIL + 30, SEABED - 30), gold: true, bonus: true, t: rand(0, 6) });
 }
-// 점수(쿠키런 방식): 진주·밟기·처치·상자·글자·보스·거리로 쌓이고, 소나기(피버) 중엔 두 배
+// 점수(인기 게임 방식): 진주·밟기·처치·상자·글자·보스·거리로 쌓이고, 소나기(피버) 중엔 두 배
 const scoreMult = () => Math.min(20, 1 + Math.floor((save.missionsDone || 0) / 2)); // 도전 2개마다 점수 배수 +1(최대 ×20)
 function addScore(v) { if (G && !G.banked) G.score += Math.round(v * (G.feverT > 0 ? 2 : 1) * (hasTr('scale') ? 1.15 : 1) * scoreMult()); }
 function collectEgg(e) {
@@ -547,7 +547,7 @@ function collectEgg(e) {
   }
   if (e.pearl) { // 물방울 구슬: 알은 아니고 연속·질주·소나기 게이지만
     G.pearls = (G.pearls || 0) + 1; runXp(1); addScore(100 + Math.min(G.combo, 20) * 10);
-    G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(쿠키런)
+    G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
     if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
     snd('egg', 0.45, comboRate(Math.min(G.combo, 10)), 0.04); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
@@ -563,7 +563,7 @@ function collectEgg(e) {
   if (G.feverT > 0) G.feverEggs += v;
   if (!e.loose && !e.bonus) G.eggsGot++;
   fx.push({ k: 'eggfly', sx: e.x, sy: e.y, life: 0.5, max: 0.5, gold: e.gold });
-  G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(쿠키런)
+  G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
   if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + (e.gold && !e.bonus ? 10 : 2.5));
   if (e.gold && !e.bonus) { sfx.gold(); pop(e.x, e.y - 24, `황금 진주 +${v}`, C.yellow, 26); burst(e.x, e.y, '#ffe36b', 16); track('gold'); }
   else { sfx.egg(G.combo); burst(e.x, e.y, '#eafff2', 5, 160); }
@@ -825,11 +825,12 @@ function chooseBless(i) {
 
 // ───────── 이어하기 ─────────
 const reviveCost = () => (G.freeRevive ? 0 : Math.round(40 * Math.pow(2, G.revives) * G.D.revive * (hasPerk('reviveCheap') ? 0.5 : 1)));
-const canRevive = () => G.revives < 3 && (G.freeRevive || save.eggs + G.eggs >= reviveCost());
+// 이어하기는 「이번 판에서 모은 진주」로만 — 모아 둔 진주는 보석으로 살 수 있어서, 그걸 쓰면 이어하기를 간접으로 파는 셈(조사 규칙: 목숨·이어하기 판매 금지)
+const canRevive = () => G.revives < 3 && (G.freeRevive || G.eggs >= reviveCost());
 function doRevive() {
   if (!canRevive()) { sfx.no(); return; }
-  const cost = reviveCost(), fromRun = Math.min(G.eggs, cost);
-  G.eggs -= fromRun; save.eggs -= cost - fromRun;
+  const cost = reviveCost();
+  G.eggs -= cost;
   if (G.freeRevive) G.freeRevive = false;
   G.revives++;
   const p = G.p;
@@ -1198,7 +1199,7 @@ function updatePlay(dt) {
     if (!p.dead && p.x > G.goal.x + 20) levelClear(); // 문 한가운데를 지나갈 때
   }
 }
-// 도착 문 높이 보너스(마리오 런 깃대처럼): 문 한가운데를 지날 때의 높이로 1~5단계
+// 도착 문 높이 보너스(인기 게임 깃대처럼): 문 한가운데를 지날 때의 높이로 1~5단계
 const GOAL_BAND = [{ pearl: 2, score: 1000 }, { pearl: 4, score: 2000 }, { pearl: 6, score: 4000 }, { pearl: 10, score: 8000 }, { pearl: 20, score: 20000 }];
 function goalBand() { return G.run ? clamp(Math.ceil((GROUND - G.p.fy) / 58), 1, 5) : 0; }
 function levelClear() {
@@ -1271,7 +1272,7 @@ function drawGoal(gx) {
     for (let j = 0; j < 8; j++) { const rr2 = j % 2 ? 2 : 8 * s + 2, aa = j * Math.PI / 4; ctx.lineTo(sx + Math.cos(aa) * rr2, sy + Math.sin(aa) * rr2); }
     ctx.closePath(); ctx.fill();
   }
-  // 높이 별 사다리(마리오 깃대처럼): 높이 지날수록 큰 보상 — 지나면 닿은 단계까지 불이 켜짐
+  // 높이 별 사다리(인기 게임 깃대처럼): 높이 지날수록 큰 보상 — 지나면 닿은 단계까지 불이 켜짐
   if (G.run) for (let i = 1; i <= 5; i++) {
     const sy = GROUND - (i - 0.5) * 58, lit = G.goalBand >= i, near = !G.goalBand && Math.abs((GROUND - G.p.fy) / 58 + 0.5 - i) < 0.6 && G.goal.x - G.p.x < 400;
     const r = (i === 5 ? 17 : 13) * (lit ? 1.25 + Math.sin(T * 8 + i) * 0.08 : 1);
@@ -1581,7 +1582,7 @@ function drawHUD() {
   if (G.run) sx += 270 + G.shield * 28;
   else for (let i = 0; i < G.shield; i++) { icon('e_shield', sx, 80, 26); sx += 30; }
   // 켜진 아이템 효과 (남은 시간 고리)
-  // 켜진 아이템: 서브웨이 서퍼처럼 오른쪽 가장자리에 아이콘 + 줄어드는 막대를 세로로 쌓음(2초 아래면 깜빡, 끝나면 퐁)
+  // 켜진 아이템: 인기 게임처럼 오른쪽 가장자리에 아이콘 + 줄어드는 막대를 세로로 쌓음(2초 아래면 깜빡, 끝나면 퐁)
   let iy = G.run ? 104 : 130; const ix = W - SAFE - 40;
   for (const k of ['magnet', 'double', 'freeze', 'giant', 'lamp', 'whirl', 'rain', 'rocket']) {
     const v = G.eff[k]; if (v <= 0) { if (G.effOn && G.effOn[k]) { G.effOn[k] = false; snd('bubble', 0.6, 1.3); } continue; }
@@ -1617,10 +1618,10 @@ function drawHUD() {
     drawImg(IMG.princess, bx + bw + 22, by + bh / 2, 30, 0, n === LAST ? 1 : 0.45);
   }
   const eh = eggHud();
-  if (G.run) { // 쿠키런처럼 오른쪽 위: 이번 판 점수(굴러 올라감) + 이번 판 진주
+  if (G.run) { // 인기 게임처럼 오른쪽 위: 이번 판 점수(굴러 올라감) + 이번 판 진주
     G.scoreShow += (G.score - G.scoreShow) * Math.min(1, 1 / 60 * 10); if (G.score - G.scoreShow < 1) G.scoreShow = G.score;
     text(Math.round(G.scoreShow).toLocaleString(), W - SAFE - 20, 28, 28, '#ffffff', { align: 'right', lw: 5 });
-    const mlt = scoreMult(); if (mlt > 1) { // 점수 배수 상자(서브웨이 서퍼)
+    const mlt = scoreMult(); if (mlt > 1) { // 점수 배수 상자(인기 게임)
       ctx.font = `800 ${fs(28)}px ${FONT}`; const sw2 = ctx.measureText(Math.round(G.scoreShow).toLocaleString()).width;
       const mx = W - SAFE - 20 - sw2 - 34; ctx.fillStyle = '#ff7a00'; rr(mx - 22, 15, 44, 26, 9); ctx.fill(); text(`×${mlt}`, mx, 28, 15, '#ffffff', { stroke: false });
     }

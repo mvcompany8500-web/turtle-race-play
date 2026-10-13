@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 점프 달리기 (쿠키런·마리오 런식 타이밍)
+// 터틀 레이스 — 점프 달리기 (인기 게임·인기 게임식 타이밍)
 // 왼쪽 톡 = 점프(꾹 = 높이, 공중에서 한 번 더 = 이단 점프) · 오른쪽 꾹 = 숙이기(공중이면 급강하)
 // 위에서 밟으면 처치(가시 달린 건 빼고) · 발판 · ? 조개 · 「바·다·축·제」 글자 · 코스 패턴 · 첫 판 연습
 
@@ -15,7 +15,7 @@ const STOMP_NO = { urchin: '가시가 있어요!', mine: '펑!', whirlpool: '' }
 const hasPerk = (k) => Object.keys(LV_PERKS).some((lv) => LV_PERKS[lv].k === k && save.lv >= +lv);
 const maxJumps = () => (hasPerk('triple') ? 3 : 2) + (typeof abStar === 'function' ? abStar('triple') : 0);
 const maxHearts = () => [4, 3, 2][save.diff] + ['heart', 'heart2', 'heart3'].filter(hasPerk).length;
-// 기운(쿠키런 에너지 방식): 하트 1개 = 기운 25. 시간이 지나면 조금씩 줄고, 부딪히면 25, 기운 물약으로 채움
+// 기운(인기 게임 에너지 방식): 하트 1개 = 기운 25. 시간이 지나면 조금씩 줄고, 부딪히면 25, 기운 물약으로 채움
 const HIT_E = 25;
 const maxEnergy = () => maxHearts() * HIT_E;
 const xpNeed = (lv) => Math.round(60 + 55 * Math.pow(lv, 1.45)); // docs/balance.md: Lv5 ≈ 4번 바다, Lv10 ≈ 25번 바다, Lv20 = 끝까지 깨고도 더
@@ -118,7 +118,7 @@ function runMove(dt) {
   const tx = G.boosting > 0 && bossOn ? G.boss.x - 70 : E.whirl > 0 ? 520 + SAFE : G.boosting > 0 ? PX() + 70 : PX();
   const follow = G.boosting > 0 && bossOn ? 9 : 5;
   p.x = lerp(p.x, tx, Math.min(1, dt * follow));
-  // 왕초보 도움(마리오 런처럼): 「쉬움」에선 작은 가시를 놓치면 알아서 폴짝
+  // 왕초보 도움(인기 게임처럼): 「쉬움」에선 작은 가시를 놓치면 알아서 폴짝
   if (save.diff === 0 && p.onG && !p.slideHold && !p.dead && p.buf <= 0 && G.enemies.some((e) => !e.dead && e.type === 'urchin' && e.y > GROUND - 50 && e.x - p.x > 62 && e.x - p.x < 92)) {
     p.holdJ = true; doJump(true); p.holdJ = false;
     G.assists = (G.assists || 0) + 1; if (G.assists <= 2) pop(p.x, p.y - 70, '쉬움: 가시는 알아서 폴짝!', '#9ff3ff', 18);
@@ -181,7 +181,7 @@ function stomp(e) {
   ring(e.x, e.y - 10, '#ffffff', 90, 0.3, 8);
   if (!snd('stomp', 1, comboRate(Math.min(G.stompChain, 5)))) sfx.stomp(); haptic([15, 10, 30]); // 연속 밟기마다 한 음씩 위로
   const c = G.stompChain;
-  const cv = c >= 2 ? Math.min(8, 2 ** (c - 1)) : 0; if (cv) earn('stompChain', cv); // 마리오처럼 연속 밟기 진주 1→2→4→8
+  const cv = c >= 2 ? Math.min(8, 2 ** (c - 1)) : 0; if (cv) earn('stompChain', cv); // 인기 게임처럼 연속 밟기 진주 1→2→4→8
   pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속! 진주 +${cv}` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
   say(['one', 'two', 'three', 'wow'][Math.min(c, 4) - 1], true); // 하나! 둘! 셋! 대박!
   if (c === 3) reaction(1, '3단 밟기!');
@@ -342,7 +342,7 @@ function bumpBlock(o) {
   o.hit = true; o.bumpT = 0.25; addScore(800); if (p.vy < 0) p.vy = 160; G.bumps++;
   sfx.bump(); haptic(20); shake = Math.max(shake, 6);
   ring(o.x, o.y, C.yellow, 80, 0.35, 6);
-  // 보상은 거북이에게 바로(마리오 동전처럼) — 위로 튀어 못 먹는 일이 없게
+  // 보상은 거북이에게 바로(인기 게임 동전처럼) — 위로 튀어 못 먹는 일이 없게
   burst(o.x, o.y - 20, '#ffe36b', 20, 360);
   if (Math.random() < 0.4 && !G.item) {
     G.item = rollItem(); G.itemPop = 0.6; sfx.box();
@@ -357,7 +357,7 @@ function bumpBlock(o) {
   }
   runXp(5);
 }
-// ───────── 보너스 바다(쿠키런 보너스 타임 방식) ─────────
+// ───────── 보너스 바다(인기 게임 보너스 타임 방식) ─────────
 // 장애물 없음 · 기운 안 줄어듦 · 위/가운데/아래 3줄 진주 길(점프 = 한 줄 위, 숙이기 = 한 줄 아래) · 시계 진주 +2초 · 끝나면 내려와 1초 무적
 const BONUS_LANES = () => [GROUND - 40, GROUND - 165, GROUND - 290];
 function startBonus() {
@@ -402,17 +402,17 @@ function getLetter(o) {
   burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
   pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
   coachOnce('letter', { text: '「바·다·축·제」 글자를 모아요', sub: '4개 다 모으면 보너스 바다 15초!', spot: { x: W / 2, y: 52, w: 200, h: 46 }, state: 'play' });
-  if (G.letters.every(Boolean)) { // 쿠키런 보너스 타임처럼: 글자를 다 모으면 보너스 바다 15초
+  if (G.letters.every(Boolean)) { // 인기 게임 보너스 타임처럼: 글자를 다 모으면 보너스 바다 15초
     G.letters = [0, 0, 0, 0];
     startBonus();
   }
 }
-// 기운(쿠키런 방식): 시간이 지나며 조금씩 줄고, 0이 되면 다음에 땅에 닿을 때 쓰러짐 · 물약으로 채움
+// 기운(인기 게임 방식): 시간이 지나며 조금씩 줄고, 0이 되면 다음에 땅에 닿을 때 쓰러짐 · 물약으로 채움
 function updateEnergy(dt) {
   const p = G.p;
   const running = !p.dead && !G.won && G.enterT <= 0 && !cine && !G.tut && state === 'play';
   if (running && G.boosting <= 0 && !G.bonus) G.en = Math.max(0, G.en - G.drain * dt);
-  if (running) addScore(runSpd() * dt * 0.4); // 거리 점수 // 질주 중엔 안 줄어듦(쿠키런 보너스 타임처럼)
+  if (running) addScore(runSpd() * dt * 0.4); // 거리 점수 // 질주 중엔 안 줄어듦(인기 게임 보너스 타임처럼)
   if (G.enShow > G.en) { G.enLagT = (G.enLagT || 0) - dt; if (G.enLagT <= 0) G.enShow = Math.max(G.en, G.enShow - G.maxEn * 0.9 * dt); } else G.enShow = G.en;
   if (G.enHealT > 0) G.enHealT -= dt;
   const low = G.en / G.maxEn < 0.2;
@@ -660,7 +660,7 @@ function tinted(c, color) {
   if (!m[color]) { const t = document.createElement('canvas'); t.width = c.width; t.height = c.height; const g = t.getContext('2d'); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, t.width, t.height); m[color] = t; }
   return m[color];
 }
-function drawBonusBubble() { // 보너스 바다: 반짝이는 거품을 타고 둥실(쿠키런에선 펫이 들어 올림)
+function drawBonusBubble() { // 보너스 바다: 반짝이는 거품을 타고 둥실(인기 게임에선 펫이 들어 올림)
   const p = G.p, r = 54 + Math.sin(T * 5) * 3;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const g = ctx.createRadialGradient(p.x - 14, p.y - 18, 6, p.x, p.y - 6, r); g.addColorStop(0, 'rgba(255,255,255,.25)'); g.addColorStop(0.7, 'rgba(120,230,255,.12)'); g.addColorStop(1, 'rgba(160,240,255,.5)');
@@ -747,7 +747,7 @@ function drawRunPads() {
   }
 }
 function drawRunHud(L) {
-  // 기운 막대(쿠키런 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
+  // 기운 막대(인기 게임 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
   const bx = L + 30, by = 50, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
   const blink = low && Math.sin(T * 12) > 0;
   ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(bx - 4, by - 4, bw + 8, bh + 8, (bh + 8) / 2); ctx.fill();

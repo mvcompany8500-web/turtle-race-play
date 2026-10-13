@@ -43,6 +43,28 @@ const PAY = {
   },
 };
 function askBuy(prod, onDone) { buying = { prod, onDone, t: 0 }; sfx.click(); }
+// 보호자 확인(앱스토어 어린이 규칙 1.3: 결제·바깥 링크 전에 어른만 풀 수 있는 문제). 맞히면 10분 동안 다시 안 물음
+let gateUntil = 0, gate = null;
+function withGate(then) {
+  if (Date.now() < gateUntil) { then(); return; }
+  const a = 13 + Math.floor(Math.random() * 7), b = 4 + Math.floor(Math.random() * 6), ans = a * b; // 두 자리 × 한 자리(어린이가 바로 못 푸는 정도)
+  const opts = shuffle([ans, ans + b, ans - a]);
+  gate = { q: `${a} × ${b} = ?`, ans, opts, then }; sfx.click();
+}
+function drawGate() {
+  if (!gate) return false;
+  buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
+  ctx.save(); ctx.translate(OX(), 0);
+  ctx.fillStyle = 'rgba(8,8,12,.85)'; ctx.fillRect(-OX(), 0, W, H);
+  panel(270, 120, 420, 300, { fill: C.gray });
+  text('보호자 확인', 480, 158, 24, C.text, { stroke: false });
+  text('어른이 풀어 주세요', 480, 192, 14, C.sub, { body: true, stroke: false });
+  text(gate.q, 480, 246, 36, C.yellow, { stroke: false });
+  gate.opts.forEach((v, i) => button(300 + i * 124, 290, 112, 54, String(v), () => { const g = gate; gate = null; if (v === g.ans) { gateUntil = Date.now() + 10 * 60e3; g.then(); } else { sfx.no(); toast('답이 달라요', C.danger); if (buying) buying = null; } }, { size: 22, kind: 'soft' }));
+  button(400, 360, 160, 42, '닫기', () => { gate = null; if (buying) buying = null; sfx.click(); }, { size: 15, kind: 'soft' });
+  ctx.restore();
+  return true;
+}
 async function confirmBuy() {
   const b = buying; if (!b || b.busy) return;
   b.busy = true;
@@ -71,6 +93,7 @@ function exchange(x) { if (!spendGems(x.gems)) return; save.eggs += x.pearls; pe
 
 // 결제 확인 창 (모든 화면 위)
 function drawBuyConfirm() {
+  if (drawGate()) return;
   if (!buying) return;
   const p = buying.prod, test = !PAY.real();
   buttons.length = 0;
@@ -82,11 +105,13 @@ function drawBuyConfirm() {
   text(p.name, 480, 178, 22, C.yellow, { stroke: false });
   if (p.desc) text(p.desc, 480, 210, 15, C.sub, { body: true, stroke: false });
   else if (p.gems) text(`보석 ${(p.gems + (p.bonus || 0)).toLocaleString()}개${p.bonus ? ` (보너스 ${p.bonus})` : ''}`, 480, 210, 16, C.sub, { body: true, stroke: false });
-  text(won(p.won), 480, 252, 34, '#ffffff', { stroke: false });
-  if (test) { ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(286, 280, 388, 34, 10); ctx.fill(); text('시험 결제예요 · 실제로 돈이 나가지 않아요', 480, 297, 14, C.yellow, { body: true, stroke: false }); }
-  text('14세 미만은 보호자 동의 · 7일 안 청약철회', 480, 330, 13, C.sub, { body: true, stroke: false });
-  button(290, 360, 200, 56, buying.busy ? '처리 중…' : '결제하기', confirmBuy, { size: 19, disabled: !!buying.busy });
-  button(500, 360, 170, 56, '취소', () => { buying = null; sfx.click(); }, { size: 17, kind: 'soft' });
+  text(won(p.won), 480, 246, 34, '#ffffff', { stroke: false });
+  text(p.id === 'pass' ? '부가세 포함 · 한 번 결제(자동 갱신 없음) · 이번 달만' : '부가세 포함', 480, 274, 13, C.sub, { body: true, stroke: false });
+  if (test) { ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(286, 288, 388, 30, 10); ctx.fill(); text('시험 결제예요 · 실제로 돈이 나가지 않아요', 480, 303, 14, C.yellow, { body: true, stroke: false }); }
+  text('14세 미만은 보호자 동의 · 안 쓴 상품은 7일 안 청약철회', 480, 326, 13, C.sub, { body: true, stroke: false });
+  text('쓴 보석·받은 보상은 철회가 제한돼요 · 이용약관 2조', 480, 350, 13, C.mute, { body: true, stroke: false });
+  button(290, 366, 200, 52, buying.busy ? '처리 중…' : '결제하기', () => withGate(confirmBuy), { size: 19, disabled: !!buying.busy });
+  button(500, 366, 170, 52, '취소', () => { buying = null; sfx.click(); }, { size: 17, kind: 'soft' });
   ctx.restore();
 }
 // 보석 배지
@@ -289,7 +314,7 @@ function drawStory() {
   button(960 + OX() - SAFE - 140, 14, 120, 40, '건너뛰기', () => { save.chapters[story.w] = 1; persist(); const a = story.after; story = null; a(); }, { size: 15, kind: 'soft' });
 }
 
-// ───────── 초보 안내(쿠키런 튜토리얼처럼): 화면을 어둡게 하고 한 곳만 동그랗게 비춰 손가락으로 가리킴 ─────────
+// ───────── 초보 안내(인기 게임 튜토리얼처럼): 화면을 어둡게 하고 한 곳만 동그랗게 비춰 손가락으로 가리킴 ─────────
 // coachOnce(id, { text, sub, spot: {x,y,r}(화면 좌표), wait: 'jump'|'slide'|'boost'|'item'|'tap', pass }) — 처음 한 번만
 // 판 중에는 세계가 멈춰 기다리고, 말한 동작을 하면 풀림. 메뉴 안내(pass)는 누르면 닫히고 누른 단추도 그대로 눌림
 let coach = null;
@@ -312,7 +337,7 @@ function coachDone(kind) {
   return true; // 다른 걸 눌렀으면 계속 기다림
 }
 function finishCoach() {
-  save.coach[coach.id] = true; persist();
+  save.coach = save.coach || {}; save.coach[coach.id] = true; persist();
   if (G && G.p && state === 'play') G.p.inv = Math.max(G.p.inv, 0.8); // 멈췄다 풀릴 때 억울하게 맞지 않게
   coach = null; snd('click', 0.6);
 }

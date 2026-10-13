@@ -141,7 +141,7 @@ const SKINS = [
   { k: 'hanbok', name: '설빔 한복', gems: 220 }, // 보석 옷(꾸미기만 — 힘은 같음)
   { k: 'astronaut', name: '우주 비행사', gems: 300 },
 ];
-// 보물(쿠키런 보물 방식): 사서 2개까지 끼우면 판마다 힘이 붙음
+// 보물(인기 게임 보물 방식): 사서 2개까지 끼우면 판마다 힘이 붙음
 const TREASURES = [
   { k: 'compass', name: '바다 나침반', desc: '질주 30으로 출발', cost: 900 },
   { k: 'charm', name: '거품 부적', desc: '판마다 방패 +1', cost: 1400 },

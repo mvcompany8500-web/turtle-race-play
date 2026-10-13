@@ -32,7 +32,7 @@ const missionsReady = () => save.missions.filter((m) => m.done).length;
 function claimMission(i) {
   const m = save.missions[i];
   if (!m || !m.done) return;
-  save.eggs += m.reward; save.missionsDone = (save.missionsDone || 0) + 1; // 점수 배수가 영구히 오름(서브웨이 서퍼 방식)
+  save.eggs += m.reward; save.missionsDone = (save.missionsDone || 0) + 1; // 점수 배수가 영구히 오름(인기 게임 방식)
   if (save.missionsDone % 2 === 0) toast(`점수 배수 ×${scoreMult()}로 올랐어요!`, '#ff9a3c');
   save.missions.splice(i, 1); ensureMissions(); persist();
   fountain(W / 2, 200 + i * 86, m.reward); sfx.gift(); haptic([20, 30, 40]);
@@ -48,7 +48,7 @@ const giftReady = () => Date.now() >= (save.giftAt || 0);
 function giftLeft() { const s = Math.max(0, Math.ceil(((save.giftAt || 0) - Date.now()) / 1000)); return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`; }
 function openGift() {
   if (!giftReady()) { sfx.no(); toast(`선물은 ${giftLeft()} 뒤에 와요`); return; }
-  const n = Math.round(rand(20, 60));
+  const n = 20 + Math.floor(Math.random() * 41); // 20~60 각 개수 같은 확률(확률 정보와 같게)
   save.eggs += n; save.giftAt = Date.now() + 3 * 3600e3; persist();
   fountain(W / 2, 40, n); confetti(40); sfx.gift(); haptic([20, 30, 40]);
   toast(`선물 상자! 진주 +${n}`, C.yellow);
@@ -410,7 +410,7 @@ function drawMap() {
     text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', L + 114, 510, 14, C.sub, { align: 'left', body: true, stroke: false });
   }
   DIFFS.forEach((d, i) => button(R - 486 + i * 84, 470, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
-  // 쿠키런 「플레이」 단추처럼: 노랑→주황, 두꺼운 아래 그림자, 1.2초 맥박, 3초마다 빛줄이 지나감
+  // 인기 게임 「플레이」 단추처럼: 노랑→주황, 두꺼운 아래 그림자, 1.2초 맥박, 3초마다 빛줄이 지나감
   const bounce = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, bx0 = R - 226, by0 = 458, bw0 = 216, bh0 = 64;
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(bounce, bounce); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
   const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
@@ -505,6 +505,35 @@ function goFullscreen() {
     Promise.resolve(rq.call(el)).then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* 지원 안 함 */ } }).catch(() => toast('이 브라우저는 꽉 찬 화면을 못 써요'));
   } else toast('아이폰은 공유 → 「홈 화면에 추가」로 꽉 차게 볼 수 있어요', C.blueD);
 }
+// 확률 정보(게임산업법 확률형 아이템 정보공개): 진주는 보석으로도 바꿀 수 있어 펫 부화는 「간접 유료」 → 확률을 모두 적음
+let probOpen = false;
+function drawProbInfo() {
+  if (!probOpen) return false;
+  buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
+  ctx.save(); ctx.translate(OX(), 0);
+  ctx.fillStyle = 'rgba(8,8,12,.88)'; ctx.fillRect(-OX(), 0, W, H);
+  panel(120, 26, 720, 488, { fill: C.gray });
+  text('확률 정보', 480, 60, 24, C.text, { stroke: false });
+  const left = PETS.filter((p) => !save.pets.includes(p.k)), pc = left.length ? (100 / left.length).toFixed(2) : '0';
+  const lines = [
+    ['펫 알 부화', `진주 ${hatchCost()}개 · 진주는 보석으로도 살 수 있어 유료 확률 상품이에요`],
+    ['', left.length ? `아직 없는 펫 ${left.length}마리 중 하나 · 모두 같은 확률 ${pc}% · 이미 가진 펫은 안 나와요` : '펫을 다 모았어요(더는 부화하지 않아요)'],
+    ['', left.length ? left.map((p) => `${p.name} ${pc}%`).join(' · ') : ''],
+    ['선물 상자', '무료 · 3시간마다 · 진주 20~60개 중 하나(각 개수 같은 확률, 약 2.4%)'],
+    ['? 상자(판 중)', '무료 · 아이템 40% / 진주 60%(황금 +5 30% · +3 70%) · 아이템을 들고 있으면 진주'],
+    ['', '아이템: 그 바다에서 나올 수 있는 것끼리 같은 확률 (맞았거나 보스전이면 거품 방패·번개·커지는 물약 2.2배)'],
+    ['확률 없는 것', '별 상자(진주 80) · 보석 · 옷 · 보물 · 꼬리 · 패스 — 적힌 그대로 받아요'],
+  ];
+  let y = 100;
+  for (const [h, t] of lines) {
+    if (h) { text(h, 150, y, 16, C.yellow, { align: 'left', stroke: false }); y += 24; }
+    if (t) wrapText(t, 660, 13).forEach((l) => { text(l, 166, y, 13, '#ffffff', { align: 'left', body: true, stroke: false }); y += 20; });
+    y += 2;
+  }
+  button(724, 40, 100, 38, '닫기 ✕', () => { probOpen = false; sfx.click(); }, { size: 14, kind: 'soft' });
+  ctx.restore();
+  return true;
+}
 function drawSettings() {
   overlayBase(280, 40, 400, 470, '설정', null);
   const rows = [
@@ -519,13 +548,14 @@ function drawSettings() {
     button(names ? 490 : 520, y, names ? 160 : 130, 44, names ? names[on ? 0 : 1] : on ? '켜짐' : '꺼짐', fn, { size: 15, kind: on ? 'primary' : 'soft' });
   }));
   text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', 480, 340, 14, C.sub, { body: true, stroke: false });
-  button(312, 366, 338, 44, '꽉 찬 화면으로 보기', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
+  button(484, 366, 166, 44, '확률 정보', () => { probOpen = true; sfx.click(); }, { size: 14, kind: 'soft' });
+  button(312, 366, 166, 44, '꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
   button(312, 418, 166, 44, '첫 이야기', startIntro, { size: 14, kind: 'soft' });
   button(484, 418, 80, 44, '저장↑', exportSave, { size: 13, kind: 'soft' });
   button(570, 418, 80, 44, '불러오기', importSave, { size: 13, kind: 'soft' });
-  button(312, 468, 108, 32, '이용약관', () => window.open('legal/terms.html', '_blank'), { size: 13, kind: 'soft' });
-  button(426, 468, 120, 32, '개인정보', () => window.open('legal/privacy.html', '_blank'), { size: 13, kind: 'soft' });
-  button(552, 468, 98, 32, '만든 사람', () => window.open('legal/credits.html', '_blank'), { size: 13, kind: 'soft' });
+  button(312, 468, 108, 32, '이용약관', () => withGate(() => window.open('legal/terms.html', '_blank')), { size: 13, kind: 'soft' });
+  button(426, 468, 120, 32, '개인정보', () => withGate(() => window.open('legal/privacy.html', '_blank')), { size: 13, kind: 'soft' });
+  button(552, 468, 98, 32, '만든 사람', () => withGate(() => window.open('legal/credits.html', '_blank')), { size: 13, kind: 'soft' });
 }
 
 // ───────── 첫 이야기: 공주 납치 ─────────
@@ -802,7 +832,7 @@ function drawShop() {
       panel(x, y, w, h, { sel: maxed, fill: maxed ? 'rgba(60,52,20,.92)' : undefined });
       if (fl > 0) { ctx.save(); ctx.globalAlpha = fl; ctx.strokeStyle = C.yellow; ctx.lineWidth = 3 + fl * 5; rr(x - 2, y - 2, w + 4, h + 4, 22); ctx.stroke(); ctx.restore(); }
       const ut = shop.upFlash && shop.upFlash.i === i ? shop.upFlash.t : 9;
-      if (ut < 0.3 + 0.4) { // 쿠키런 레벨 업처럼: 진주가 위 진주 칸에서 날아오고(0.4초) → 카드에 빛기둥(0.3초)
+      if (ut < 0.3 + 0.4) { // 인기 게임 레벨 업처럼: 진주가 위 진주 칸에서 날아오고(0.4초) → 카드에 빛기둥(0.3초)
         const eh2 = eggHud(), sx0 = eh2.x - OX(), sy0 = eh2.y;
         for (let j = 0; j < 6; j++) { const k = clamp((ut - j * 0.03) / 0.35, 0, 1); if (k <= 0 || k >= 1) continue; const e = 1 - Math.pow(1 - k, 2); drawPearl(lerp(sx0, x + 46, e), lerp(sy0, y + 50, e) - Math.sin(k * Math.PI) * 60, 16 * (1 - k * 0.4)); }
         if (ut > 0.35 && ut < 0.7) { const a = 1 - (ut - 0.35) / 0.35; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a; drawImg(IMG.spr_fx_pillar, x + w / 2, y + h / 2, h * 1.3); ctx.restore(); }
@@ -914,7 +944,7 @@ function drawShop() {
       const price = s.gems ? `보석 ${s.gems}` : `진주 ${s.cost}`, can = s.gems ? save.gems >= s.gems : save.eggs >= s.cost;
       button(x + 12, y + 118, w - 24, 30, on ? '입는 중' : own ? '입기' : price, () => buySkin(s), { size: 13, kind: on ? 'soft' : own ? 'soft' : s.gems ? 'yellow' : 'primary', disabled: !own && !can });
     }));
-    if (pages > 1) { // 쿠키런 옷장처럼 넘겨 보기
+    if (pages > 1) { // 인기 게임 옷장처럼 넘겨 보기
       button(560, 444, 52, 28, '◀', () => { shop.skinPage = (pg + pages - 1) % pages; sfx.click(); }, { size: 14, kind: 'soft' });
       text(`${pg + 1} / ${pages}`, 652, 458, 14, C.sub, { body: true, stroke: false });
       button(692, 444, 52, 28, '▶', () => { shop.skinPage = (pg + 1) % pages; sfx.click(); }, { size: 14, kind: 'soft' });
@@ -925,6 +955,7 @@ function drawShop() {
     text('알 부화', 175, 336, 22, C.text, { stroke: false });
     const left = PETS.length - save.pets.length;
     text(left ? `안 가진 펫 ${left}마리 중 하나 · 각 ${(100 / left).toFixed(1)}%` : '다 모았어요', 175, 364, 13, C.sub, { body: true, stroke: false }); // 확률 공개
+    button(234, 126, 68, 30, '확률', () => { probOpen = true; sfx.click(); }, { size: 13, kind: 'soft' });
     const all = save.pets.length >= PETS.length;
     button(64, 396, 222, 52, all ? '다 모았어요!' : `진주 ${hatchCost()}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < hatchCost() });
     PETS.forEach((p, i) => withRise(i, () => {
@@ -1003,7 +1034,7 @@ function drawRevive() { // 조사 D 규칙: 시간 압박(카운트다운)·아�
   const cost = reviveCost(), ok = canRevive(), bw = (RR - RL - 12) / 2;
   button(RL, 300, bw, 64, G.freeRevive ? '공짜로 일어나기' : `이어하기 · 진주 ${cost}`, doRevive, { size: 17, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
   button(RL + bw + 12, 300, bw, 64, '결과 보기', giveUp, { size: 17, kind: 'soft' });
-  if (!ok) text(`진주가 ${cost - (save.eggs + G.eggs)}개 모자라요`, RM, 384, 13, C.sub, { body: true, stroke: false });
+  text(ok || G.freeRevive ? `이번 판에서 모은 진주 ${G.eggs}개로` : `이번 판 진주가 ${cost - G.eggs}개 모자라요 (모아 둔 진주는 안 써요)`, RM, 384, 13, C.sub, { body: true, stroke: false });
 }
 // ───────── 결과 화면 공통: 오른쪽 카드 한 장 · 안쪽 여백 32 · 표처럼 정렬 · 아래 단추 한 줄 ─────────
 const RC = { x: 380, y: 22, w: 556, h: 496 }, RL = RC.x + 32, RR = RC.x + RC.w - 32, RM = RC.x + RC.w / 2;
@@ -1070,7 +1101,7 @@ const BOSS_LINES = {
   40: '아귀 여왕의 보물고 너머에 심연의 왕궁이 보여요!',
   45: '왕꽃게가 집게를 내려놨어요! 이제 상어왕만 남았어요!',
 };
-// 결과 순서(쿠키런 결과 화면을 따라): 0.3초 점수가 굴러 오름(1.2초, 따르륵) → 쾅 → 신기록 띠 → 별 하나씩 → 진주 → 경험치. 화면을 누르면 바로 끝으로
+// 결과 순서(인기 게임 결과 화면을 따라): 0.3초 점수가 굴러 오름(1.2초, 따르륵) → 쾅 → 신기록 띠 → 별 하나씩 → 진주 → 경험치. 화면을 누르면 바로 끝으로
 const SCORE_AT = [0.3, 1.5], STAR_AT = [1.95, 2.2, 2.45], EGG_AT = 2.7;
 function scoreRoll() { const k = clamp((endT - SCORE_AT[0]) / (SCORE_AT[1] - SCORE_AT[0]), 0, 1); return Math.round(G.score * (1 - Math.pow(1 - k, 3))); }
 function updateScoreRoll() {

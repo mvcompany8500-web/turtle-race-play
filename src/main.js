@@ -95,7 +95,7 @@ cvs.addEventListener('pointerdown', (e) => {
   if (state === 'title') { if (lx > 100 && lx < 400 && pt.y > 130 && pt.y < 450) buddyAct(); else startGame(); }
   else if (state === 'intro') introAdvance();
   else if (state === 'ending') endingTap();
-  else if (state === 'clear' && endT < 3.2) endT = 3.2; // 누르면 굴러 오르던 숫자가 바로 끝까지(쿠키런처럼 빨리 넘기기)
+  else if (state === 'clear' && endT < 3.2) endT = 3.2; // 누르면 굴러 오르던 숫자가 바로 끝까지(인기 게임처럼 빨리 넘기기)
   else if (state === 'story') storyTap();
   else if (state === 'map' && !map.overlay) mapDown(pt);
   else if (state === 'play' && !G.p.dead && G.run) {
@@ -124,6 +124,7 @@ let last = performance.now(), prevState = state;
 // 프레임 재기: 2초 동안 평균이 느리면(45프레임 아래) 화질을 낮춰 조작이 굼뜨지 않게
 let fpsAcc = 0, fpsN = 0;
 let flashPrev = 0; const flashHits = [];
+let playSec = 0, restAt = 3600; // 이번에 켠 뒤 판을 한 시간
 function frame(now) {
   const raw = (now - last) / 1000;
   const dt = Math.min(0.05, raw); last = now; T += dt;
@@ -160,6 +161,12 @@ function update(dt) {
   if (state === 'shop') updateShop(dt);
   if (state === 'title') setMusic('title');
   updateCutin(dt); updateScreenFx(dt); juiceRealtime(dt);
+  // 과몰입 예방(게임산업법 이용 시간 안내): 판을 1시간 할 때마다 다음 지도·결과 화면에서 한 번 쉬어 가기 안내
+  if (state === 'play') playSec += dt;
+  if (playSec >= restAt && !coach && ['map', 'clear', 'dead'].includes(state) && stateT > 1) {
+    const hrs = Math.floor(playSec / 3600); restAt = (hrs + 1) * 3600;
+    coach = { id: 'rest' + hrs, t: 0, wait: 'tap', pass: true, state, text: `${hrs}시간째 달리고 있어요`, sub: '눈과 손가락을 잠깐 쉬어 주세요 · 오늘 판은 그대로 남아요', spot: null }; snd('ready', 0.6);
+  }
   if (updateCoach(dt)) return; // 안내 중엔 세계 멈춤
   if (state === 'play') coachRunTriggers();
   if (freeze > 0) { freeze -= dt; return; }
@@ -236,6 +243,8 @@ function render() {
   drawEggFly();
   drawToasts();
   drawCoach(); // 초보 안내
+  drawProbInfo(); // 확률 정보
+  if (!buying) drawGate(); // 보호자 확인(링크 열기 등)
   drawBuyConfirm(); // 결제 확인 창은 맨 위
 }
 requestAnimationFrame(frame);
