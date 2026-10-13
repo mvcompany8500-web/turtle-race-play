@@ -15,12 +15,17 @@ const STOMP_NO = { urchin: '가시가 있어요!', mine: '펑!', whirlpool: '' }
 const hasPerk = (k) => Object.keys(LV_PERKS).some((lv) => LV_PERKS[lv].k === k && save.lv >= +lv);
 const maxJumps = () => (hasPerk('triple') ? 3 : 2) + (typeof abStar === 'function' ? abStar('triple') : 0);
 const maxHearts = () => [4, 3, 2][save.diff] + ['heart', 'heart2', 'heart3'].filter(hasPerk).length;
+// 기운(쿠키런 에너지 방식): 하트 1개 = 기운 25. 시간이 지나면 조금씩 줄고, 부딪히면 25, 기운 물약으로 채움
+const HIT_E = 25;
+const maxEnergy = () => maxHearts() * HIT_E;
 const xpNeed = (lv) => Math.round(60 + 55 * Math.pow(lv, 1.45)); // docs/balance.md: Lv5 ≈ 4번 바다, Lv10 ≈ 25번 바다, Lv20 = 끝까지 깨고도 더
 
 function runInit() {
   const p = G.p;
   G.run = true;
-  G.hp = G.maxHp = maxHearts();
+  G.en = G.maxEn = G.enShow = maxEnergy(); G.enHealT = 0; G.potionT = 9;
+  // 한 판을 끝까지 달리면 기운 30%가 줄어드는 빠르기(물약을 안 먹어도 시간만으로는 안 쓰러짐 — 조사: 시간 압박 금지)
+  G.drain = G.cfg.endless ? 0.9 : (maxEnergy() * 0.3) / Math.max(25, G.cfg.length / G.cfg.speed);
   G.obs = []; G.letters = [0, 0, 0, 0]; G.stomps = 0; G.stompChain = 0; G.bumps = 0;
   G.courseAt = G.dist + W * 0.95; G.pats = 0; G.lastPat = '';
   G.letterAt = [0.14, 0.36, 0.58, 0.8].map((k) => G.cfg.length * k);
@@ -150,7 +155,7 @@ function stomp(e) {
     if (msg && !e.toldNo && G.p.inv <= 0) { e.toldNo = true; pop(e.x, e.y - 44, msg, '#ff9aa8', 22); }
     return false;
   }
-  G.stomps++; G.stompChain++; p.land = 0.12; // 발이 닿는 순간 찌그러졌다가 튀어오르며 길쭉
+  G.stomps++; G.stompChain++; addScore(500 * Math.min(G.stompChain, 8)); p.land = 0.12; // 발이 닿는 순간 찌그러졌다가 튀어오르며 길쭉
   p.vy = -(p.holdJ ? 860 : 640); p.jumps = Math.min(p.jumps, 1); p.bounced = true; p.onG = false;
   freeze = Math.max(freeze, 0.05); shake = Math.max(shake, 10);
   ring(e.x, e.y - 10, '#ffffff', 90, 0.3, 8);
@@ -308,7 +313,7 @@ function smashPillar(o) {
 }
 function bumpBlock(o) {
   const p = G.p;
-  o.hit = true; o.bumpT = 0.25; if (p.vy < 0) p.vy = 160; G.bumps++;
+  o.hit = true; o.bumpT = 0.25; addScore(800); if (p.vy < 0) p.vy = 160; G.bumps++;
   sfx.bump(); haptic(20); shake = Math.max(shake, 6);
   ring(o.x, o.y, C.yellow, 80, 0.35, 6);
   // 보상은 거북이에게 바로(마리오 동전처럼) — 위로 튀어 못 먹는 일이 없게
@@ -327,7 +332,7 @@ function bumpBlock(o) {
   runXp(5);
 }
 function getLetter(o) {
-  o.dead = true; G.letters[o.i] = 1;
+  o.dead = true; G.letters[o.i] = 1; addScore(3000);
   sfx.letter(); haptic([10, 20, 30]);
   burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
   pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
@@ -338,8 +343,30 @@ function getLetter(o) {
     fireworks(4);
   }
 }
+// 기운(쿠키런 방식): 시간이 지나며 조금씩 줄고, 0이 되면 다음에 땅에 닿을 때 쓰러짐 · 물약으로 채움
+function updateEnergy(dt) {
+  const p = G.p;
+  const running = !p.dead && !G.won && G.enterT <= 0 && !cine && !G.tut && state === 'play';
+  if (running && G.boosting <= 0) G.en = Math.max(0, G.en - G.drain * dt);
+  if (running) addScore(runSpd() * dt * 0.4); // 거리 점수 // 질주 중엔 안 줄어듦(쿠키런 보너스 타임처럼)
+  if (G.enShow > G.en) { G.enLagT = (G.enLagT || 0) - dt; if (G.enLagT <= 0) G.enShow = Math.max(G.en, G.enShow - G.maxEn * 0.9 * dt); } else G.enShow = G.en;
+  if (G.enHealT > 0) G.enHealT -= dt;
+  const low = G.en / G.maxEn < 0.2;
+  if (running && low) { G.beatT = (G.beatT || 0) - dt; if (G.beatT <= 0) { G.beatT = 0.85; snd('heartbeat', 0.8); edgeFlash('#ff3355', 0.5); } }
+  if (running && G.en <= 0 && p.onG) { G.lastHit = 'tired'; pop(p.x, p.y - 70, '기운이 다 떨어졌어요…', '#ff9aa8', 26, true); killPlayer(); return; }
+  // 물약 놓기: 보통 14초마다 작은 물약(땅 근처), 가끔 큰 물약(높은 곳 — 이단 점프로)
+  if (running && !(G.boss && !G.boss.dead)) {
+    G.potionT -= dt;
+    if (G.potionT <= 0) {
+      G.potionT = rand(12, 16);
+      const big = Math.random() < 0.22;
+      G.eggsArr.push({ x: W + 60, y: big ? GROUND - 230 : GROUND - 70, potion: big ? 'b' : 's', t: 0 });
+    }
+  }
+}
 function updateObs(dt, scroll) {
   const p = G.p, E = G.eff, mighty = G.boosting > 0 || E.giant > 0 || E.whirl > 0;
+  updateEnergy(dt);
   const magL = hasPerk('letterLuck') ? 160 : 0;
   for (const o of G.obs) {
     o.t += dt; o.x -= scroll * dt;
@@ -626,14 +653,23 @@ function drawRunPads() {
   }
 }
 function drawRunHud(L) {
-  // 하트
-  let hx = L + 14;
-  for (let i = 0; i < G.maxHp; i++) {
-    const full = i < G.hp, s = full && i === G.hp - 1 && G.p.inv > 0 ? 1 + Math.sin(T * 20) * 0.12 : 1;
-    drawItemIcon('heart', hx, 60, 26 * s);
-    if (!full) { ctx.fillStyle = 'rgba(16,16,18,.7)'; ctx.beginPath(); ctx.arc(hx, 60, 12, 0, Math.PI * 2); ctx.fill(); }
-    hx += 28;
+  // 기운 막대(쿠키런 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
+  const bx = L + 30, by = 50, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
+  const blink = low && Math.sin(T * 12) > 0;
+  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(bx - 4, by - 4, bw + 8, bh + 8, (bh + 8) / 2); ctx.fill();
+  if (ks > k) { ctx.fillStyle = '#ff3355'; rr(bx, by, bw * ks, bh, bh / 2); ctx.fill(); } // 잃은 만큼(빨강)
+  if (k > 0) {
+    ctx.save(); rr(bx, by, Math.max(bh, bw * k), bh, bh / 2); ctx.clip();
+    const g = ctx.createLinearGradient(0, by, 0, by + bh); g.addColorStop(0, blink ? '#ff8aa0' : '#ffe14a'); g.addColorStop(1, blink ? '#ff3355' : '#ff9a1f');
+    ctx.fillStyle = g; ctx.fillRect(bx, by, bw * k, bh);
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; for (let x = bx - 30 + ((T * 40) % 24); x < bx + bw * k; x += 24) { ctx.beginPath(); ctx.moveTo(x, by + bh); ctx.lineTo(x + 10, by); ctx.lineTo(x + 18, by); ctx.lineTo(x + 8, by + bh); ctx.fill(); } // 흐르는 줄무늬
+    if (G.enHealT > 0) { const k0 = clamp((G.enHealFrom || 0) / G.maxEn, 0, 1); ctx.fillStyle = `rgba(110,235,255,${Math.min(1, G.enHealT / 0.3)})`; ctx.fillRect(bx + bw * k0, by, bw * (k - k0), bh); } // 채운 만큼 하늘색
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(bx, by + 2, bw * k, 4);
+    ctx.restore();
   }
+  const hs = 34 * (low ? 1 + Math.abs(Math.sin(T * 4.5)) * 0.18 : G.p.inv > 0 && T - (G.hurtAt || -9) < 0.5 ? 1.15 : 1);
+  drawItemIcon('heart', bx - 6, by + bh / 2, hs);
+  let hx = bx + bw + 22;
   for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, 60, 24); hx += 28; }
   if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, 60, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
   // 바·다·축·제 글자 (보스전엔 체력바 자리라 숨김)

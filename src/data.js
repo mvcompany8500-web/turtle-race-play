@@ -159,20 +159,20 @@ const UPS = [
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',
   'boss_shark', 'boss_king', 'boss_octopus', 'boss_pirate', 'boss_angler', 'boss_jelly', 'boss_crab', 'rock', 'chest', 'ice', 'bg1', 'bg2', 'bg3', 'bg4', 'bg5',
   'map1a', 'map1b', 'map2a', 'map2b', 'map3a', 'map3b', 'map4a', 'map4b', 'map5a', 'map5b', 'castle1', 'castle2', 'castle3', 'castle4', 'castle5', 'node', 'node_lock', 'goal_gate',
-  'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip', 'fx_lightning'];
+  'fx_slash', 'fx_slash_gold', 'fx_burst', 'fx_shock', 'fx_shadow', 'fx_pillar', 'fx_wave', 'fx_trail', 'qblock', 'qblock_used', 'ledge', 'pillar_body', 'pillar_tip', 'fx_lightning', 'potion_s', 'potion_b'];
 
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
 const LV_PERKS = {
-  2: { k: 'heart', name: '하트 +1', desc: '하트가 하나 늘어요', icon: 'heart' },
+  2: { k: 'heart', name: '기운 +25', desc: '최대 기운이 25 늘어요', icon: 'heart' },
   3: { k: 'stompEgg', name: '밟기 보너스', desc: '밟을 때마다 진주 +1', icon: 'egg' },
   4: { k: 'boostStart', name: '질주 예열', desc: '질주 게이지 25로 시작', icon: 'e_rocket' },
   5: { k: 'triple', name: '삼단 점프', desc: '공중에서 한 번 더 뛰어요', icon: 'e_sparkles' },
   6: { k: 'magnet', name: '진주 끌어오기', desc: '가까운 진주가 붙어 와요', icon: 'magnet' },
-  7: { k: 'heart2', name: '하트 +1', desc: '하트가 또 하나 늘어요', icon: 'heart' },
+  7: { k: 'heart2', name: '기운 +25', desc: '최대 기운이 또 25 늘어요', icon: 'heart' },
   8: { k: 'itemTime', name: '아이템 오래', desc: '아이템이 30% 오래가요', icon: 'e_gift' },
   9: { k: 'shockStomp', name: '쿵 충격파', desc: '밟으면 주변 적도 날아가요', icon: 'bolt' },
   10: { k: 'shieldStart', name: '거품 출발', desc: '판마다 방패 하나 들고 시작', icon: 'e_shield' },
-  12: { k: 'heart3', name: '하트 +1', desc: '하트가 또또 하나!', icon: 'heart' },
+  12: { k: 'heart3', name: '기운 +25', desc: '최대 기운이 또또 25!', icon: 'heart' },
   14: { k: 'letterLuck', name: '글자 자석', desc: '바·다·축·제 글자가 끌려와요', icon: 'magnet' },
   16: { k: 'feverLong', name: '긴 바다 축제', desc: '바다 축제 3초 더', icon: 'e_fire' },
   18: { k: 'reviveCheap', name: '씩씩한 마음', desc: '이어하기 알 반값', icon: 'e_sparkles' },

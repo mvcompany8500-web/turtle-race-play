@@ -949,7 +949,7 @@ function bottomButtons(primaryLabel, primaryFn, secondary) {
   secondary.forEach(([label, fn], i) => button(RL + i * (bw + gap), RC.y + RC.h - 54, bw, 40, label, fn, { size: 14, kind: 'soft' }));
 }
 const restToday = () => { toast('오늘도 잘했어요! 내일 또 만나요 🐢', C.ok); enterMap(); }; // 「오늘은 여기까지」(조사: 같은 크기로 보이게)
-const HIT_TIPS = { urchin: '가시는 점프로 넘어요 · 짧게 톡 = 낮게', shark: '빨간 ! 뒤 상어: 땅 줄이면 점프, 머리 줄이면 숙이기', eel: '빨간 줄은 곰치 돌진 — 바로 점프!', swordfish: '청새치는 머리 높이 — 오른쪽 꾹 숙이기', rock: '보라 기둥은 숙이기, 바위는 점프(위에서 밟으면 부서져요)', mine: '기뢰 아래 가시는 짧게 톡!', boss: '큰 적 띠 글자를 봐요: ↑ 뛰어요 / ↓ 숙여요', jelly: '해파리는 위에서 밟으면 통통!', puffer: '부푼 복어는 못 밟아요 — 일찍 높게', crab: '게는 위에서 밟으면 끝!', ray: '가오리는 머리 높이 — 숙이기', phantom: '유령 해파리는 숙여서 지나가요', angler: '아귀가 덥석 오면 점프!' };
+const HIT_TIPS = { tired: '분홍 기운 물약을 먹으면 기운이 차요 · 질주 중엔 기운이 안 줄어요', urchin: '가시는 점프로 넘어요 · 짧게 톡 = 낮게', shark: '빨간 ! 뒤 상어: 땅 줄이면 점프, 머리 줄이면 숙이기', eel: '빨간 줄은 곰치 돌진 — 바로 점프!', swordfish: '청새치는 머리 높이 — 오른쪽 꾹 숙이기', rock: '보라 기둥은 숙이기, 바위는 점프(위에서 밟으면 부서져요)', mine: '기뢰 아래 가시는 짧게 톡!', boss: '큰 적 띠 글자를 봐요: ↑ 뛰어요 / ↓ 숙여요', jelly: '해파리는 위에서 밟으면 통통!', puffer: '부푼 복어는 못 밟아요 — 일찍 높게', crab: '게는 위에서 밟으면 끝!', ray: '가오리는 머리 높이 — 숙이기', phantom: '유령 해파리는 숙여서 지나가요', angler: '아귀가 덥석 오면 점프!' };
 function drawDead() {
   const a = Math.min(1, G.deadT / 0.25), endless = G.cfg.endless;
   ctx.fillStyle = `rgba(16,16,18,${0.66 * a})`; ctx.fillRect(-OX(), 0, W, H);
@@ -966,8 +966,9 @@ function drawDead() {
     if (G.prevBest > 0) { const fx2 = RL + (RR - RL) * Math.min(1, G.prevBest / 100); ctx.fillStyle = C.yellow; ctx.fillRect(fx2 - 2, by - 5, 4, 22); }
   }
   const line2 = G.newBest ? '최고 기록 갱신!' : !endless && G.prevBest >= 100 ? `이미 깬 바다 · 별 ${save.stars[G.n] || 0}/3` : `최고까지 ${G.prevBest - G.prog}${endless ? '미터' : '%'}${G.lastProg != null ? ` · 지난번 ${G.lastProg}% → 이번 ${G.prog}%` : ''}`;
-  text(line2, RM, RC.y + 160, 15, G.newBest ? C.yellow : C.text, { body: true, stroke: false });
-  cardDivider(RC.y + 184);
+  text(`점수 ${(G.score || 0).toLocaleString()}${G.prevBestScore ? ` · 최고 ${Math.max(G.prevBestScore, G.score || 0).toLocaleString()}` : ''}`, RM, RC.y + 150, 14, C.sub, { body: true, stroke: false });
+  text(line2, RM, RC.y + 172, 14, G.newBest ? C.yellow : C.text, { body: true, stroke: false });
+  cardDivider(RC.y + 192);
   rewardRow(RC.y + 210, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggs}`, C.yellow, `가진 진주 ${save.eggs.toLocaleString()}`);
   rewardRow(RC.y + 244, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
   if (G.appEgg) rewardRow(RC.y + 278, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : G.appEgg.short ? '짧은 판' : '오늘 3판 다 받음');
@@ -990,10 +991,16 @@ const BOSS_LINES = {
   40: '아귀 여왕의 보물고 너머에 심연의 왕궁이 보여요!',
   45: '왕꽃게가 집게를 내려놨어요! 이제 상어왕만 남았어요!',
 };
-const STAR_AT = [0.5, 0.95, 1.4];
-function updateClear() {
+// 결과 순서(쿠키런 결과 화면을 따라): 0.3초 점수가 굴러 오름(1.2초, 따르륵) → 쾅 → 신기록 띠 → 별 하나씩 → 진주 → 경험치. 화면을 누르면 바로 끝으로
+const SCORE_AT = [0.3, 1.5], STAR_AT = [1.95, 2.2, 2.45], EGG_AT = 2.7;
+function scoreRoll() { const k = clamp((endT - SCORE_AT[0]) / (SCORE_AT[1] - SCORE_AT[0]), 0, 1); return Math.round(G.score * (1 - Math.pow(1 - k, 3))); }
+function updateScoreRoll() {
+  if (endT > SCORE_AT[0] && endT < SCORE_AT[1]) { G.rollT = (G.rollT || 0) - 1 / 60; if (G.rollT <= 0) { G.rollT = 0.05; snd('count', 0.5, 1 + clamp((endT - SCORE_AT[0]) / 1.2, 0, 1) * 0.6); } }
+  if (endT >= SCORE_AT[1] && !G.rollDone) { G.rollDone = true; snd('react', 0.9); shake = 6; haptic(30); if (G.newBestScore) { snd('lvup', 0.9, 1, 0, 0.25); confetti(80); } }
+}
+function updateClear() { updateScoreRoll();
   if (endT < 4 && Math.random() < 0.035) fireworks(1, 520 + OX(), W - 40 - SAFE, 40);
-  const shown = Math.floor(G.eggs * clamp((endT - 1.7) / 1.1, 0, 1));
+  const shown = Math.floor(G.eggs * clamp((endT - EGG_AT) / 0.8, 0, 1));
   if (shown > (G.eggShown || 0)) snd('count', 0.35, 1 + (shown % 7) * 0.03, 0.06);
   G.eggShown = shown;
   while (G.starShown < 3 && endT >= STAR_AT[G.starShown]) {
@@ -1002,6 +1009,18 @@ function updateClear() {
     if (got) { shake = 8 + i * 3; haptic(30 + i * 15); burst(500 + OX() + i * 110, 250, '#ffe36b', 18, 300); }
   }
 }
+// 점수 덩어리: 「점수」 + 굴러 오르는 큰 숫자 + (신기록이면 비스듬한 금빛 띠, 아니면 최고 기록)
+function drawScoreBlock(y) {
+  const v = scoreRoll(), done = endT >= SCORE_AT[1], pop = done ? 1 + Math.max(0, 0.25 - (endT - SCORE_AT[1]) * 1.2) : 1;
+  text('점수', RM, y - 30, 13, C.sub, { body: true, stroke: false });
+  ctx.save(); ctx.translate(RM, y); ctx.scale(pop, pop); text(v.toLocaleString(), 0, 0, 40, '#ffffff', { lw: 6 }); ctx.restore();
+  if (done && G.newBestScore) {
+    const a = endT - SCORE_AT[1], s2 = a < 0.2 ? 2 - a / 0.2 : 1;
+    ctx.save(); ctx.translate(RM + 150, y - 26); ctx.rotate(-0.14); ctx.scale(s2, s2); ctx.globalAlpha = Math.min(1, a / 0.1);
+    ctx.fillStyle = '#ffcf3a'; rr(-58, -15, 116, 30, 8); ctx.fill(); text('신기록!', 0, 1, 16, '#5a3a00', { stroke: false }); ctx.restore();
+    text(`+${(G.score - G.prevBestScore).toLocaleString()}`, RM, y + 30, 13, C.yellow, { body: true, stroke: false });
+  } else if (done && G.prevBestScore) text(`최고 ${Math.max(G.prevBestScore, G.score).toLocaleString()}`, RM, y + 30, 13, C.sub, { body: true, stroke: false });
+}
 function drawClear() {
   ctx.fillStyle = 'rgba(16,16,18,.55)'; ctx.fillRect(-OX(), 0, W, H);
   drawConfetti();
@@ -1009,24 +1028,23 @@ function drawClear() {
   if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 320 + Math.abs(Math.sin(T * 4 + 1)) * -10, 62);
   sayBubble(190, 370, 300, BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], '#ffd1ef');
   resultCard();
-  text(`${G.n}번 바다 성공!`, RM, RC.y + 42, 30, C.yellow, { lw: 6 });
-  if (save.diff === 2) icon('e_crown', RM + 120, RC.y + 40, 28, Math.sin(T * 4) * 0.1);
-  text(STAGES[G.n].name, RM, RC.y + 72, 14, C.sub, { body: true, stroke: false });
-  const labels = ['도착', '진주 70%', '안 맞기'], details = ['', `${G.eggsGot}/${G.eggsSpawned}`, G.hits ? `${G.hits}번 맞음` : '완벽!'];
+  text(`${G.n}번 바다 성공!`, RM, RC.y + 36, 24, C.yellow, { lw: 5 });
+  if (save.diff === 2) icon('e_crown', RM + 120, RC.y + 34, 26, Math.sin(T * 4) * 0.1);
+  drawScoreBlock(RC.y + 96);
+  const labels = ['도착', '진주 70%', '안 맞기'];
   for (let i = 0; i < 3; i++) {
-    const x = RM + (i - 1) * 130, y = RC.y + 118, shown = i < G.starShown, got = G.starGot[i];
+    const x = RM + (i - 1) * 110, y = RC.y + 158, shown = i < G.starShown, got = G.starGot[i];
     const age = endT - STAR_AT[i], sc = shown ? (got ? 1 + Math.max(0, 0.6 - age * 3) : 1) : 0;
-    drawStar(x, y, 28, false);
-    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawStar(0, 0, 28, true); ctx.restore(); }
-    text(labels[i], x, y + 40, 13, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
-    text(details[i] || ' ', x, y + 58, 12, C.mute, { body: true, stroke: false });
+    drawStar(x, y, 20, false);
+    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawStar(0, 0, 20, true); ctx.restore(); }
+    text(labels[i], x, y + 26, 12, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
   }
   cardDivider(RC.y + 194);
   // 받은 것(표): 진주는 굴러 오르고, 보너스는 하나씩 붙음
   rewardRow(RC.y + 220, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggShown || 0}`, C.yellow, G.diffBonus ? `난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus}` : '');
   let px = RL + 34;
   (G.settle || []).forEach((it, i) => {
-    const age = endT - (0.9 + i * 0.35); if (age < 0) return;
+    const age = endT - (EGG_AT + 0.5 + i * 0.35); if (age < 0) return;
     if (!it.played) { it.played = true; snd('count', 0.8, 1 + i * 0.12); haptic(10); }
     const label = `${it.s} +${it.v}`, w = measureW(label, 12) + 20, s2 = age < 0.12 ? 0.6 + (age / 0.12) * 0.4 : 1;
     ctx.save(); ctx.translate(px + w / 2, RC.y + 248); ctx.scale(s2, s2);
@@ -1036,7 +1054,6 @@ function drawClear() {
   });
   rewardRow(RC.y + 282, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
   if (G.appEgg) rewardRow(RC.y + 316, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : '오늘 3판 다 받음');
-  if (G.n < LAST) { const cur = levelCfg(G.n), nxt = levelCfg(G.n + 1); text(`다음 바다: 물살 ${Math.round(cur.speed)} → ${Math.round(nxt.speed)} · 조금 더 느려요`, RM, RC.y + 352, 12, C.sub, { body: true, stroke: false }); }
   bottomButtons('다음 바다로 ▶', () => enterMap(G.n), [['상점', () => openShop(G.n + 1)], ['다시 하기', () => startLevel(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }

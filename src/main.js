@@ -93,6 +93,7 @@ cvs.addEventListener('pointerdown', (e) => {
   if (state === 'title') { if (lx > 100 && lx < 400 && pt.y > 130 && pt.y < 450) buddyAct(); else startGame(); }
   else if (state === 'intro') introAdvance();
   else if (state === 'ending') endingTap();
+  else if (state === 'clear' && endT < 3.2) endT = 3.2; // 누르면 굴러 오르던 숫자가 바로 끝까지(쿠키런처럼 빨리 넘기기)
   else if (state === 'story') storyTap();
   else if (state === 'map' && !map.overlay) mapDown(pt);
   else if (state === 'play' && !G.p.dead && G.run) {

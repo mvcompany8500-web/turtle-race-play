@@ -173,7 +173,7 @@ function drawTaunt() {
 }
 // 체력바: 잔상(흰) → 빨강 그라데이션, 10칸, 30% 아래 맥동, 맞으면 떨림, 왼쪽 얼굴
 function drawBossBar(b) {
-  const w = Math.min(520, W - 420), x = W / 2 - w / 2, y = 22, h = 22;
+  const w = Math.min(520, W - 2 * (300 + SAFE)), x = W / 2 - w / 2, y = 22, h = 22; // 왼쪽 기운 막대와 안 겹치게
   const jolt = T - (b.barT || -9) < 0.24 ? 5 * (1 - (T - b.barT) / 0.24) : 0, jx = jolt ? rand(-jolt, jolt) : 0, jy = jolt ? rand(-jolt, jolt) * 0.5 : 0;
   ctx.save(); ctx.translate(jx, jy);
   ctx.fillStyle = 'rgba(8,10,30,.82)'; rr(x, y, w, h, 10); ctx.fill();
@@ -444,7 +444,7 @@ const ABIL = [
   { k: 'gold', name: '황금 손', desc: '진주가 15% 더', icon: 'x_sk_gold', max: 3 },
   { k: 'slow', name: '느긋한 물살', desc: '이번 판 물살 4% 느리게', icon: 'e_snow', max: 3 },
   { k: 'triple', name: '공중 한 번 더', desc: '공중에서 한 번 더 뛰어요', icon: 'x_sk_chain', max: 1 },
-  { k: 'heart', name: '하트 회복', desc: '하트 +1 (가득이면 최대 +1)', icon: 'heart', max: 9 },
+  { k: 'heart', name: '기운 회복', desc: '기운 +25 (가득이면 최대 +25)', icon: 'heart', max: 9 },
   { k: 'shield', name: '거품 방패', desc: '한 번 막아 줘요', icon: 'x_it_bubble', max: 9 },
   { k: 'item', name: '아이템 받기', desc: '빈 칸에 아이템을 넣어 줘요', icon: 'e_gift', max: 9 },
 ];
@@ -472,7 +472,7 @@ function applyAbility(a) {
   switch (a.k) {
     case 'ult': G.boost = Math.min(BMAX(), G.boost + 30); break;
     case 'slow': G.slowMul *= 0.96; break;
-    case 'heart': if (G.hp >= G.maxHp) G.maxHp++; G.hp = Math.min(G.maxHp, G.hp + 1); break;
+    case 'heart': if (G.en >= G.maxEn - 1) G.maxEn += HIT_E; G.en = Math.min(G.maxEn, G.en + HIT_E); G.enHealT = 0.6; break;
     case 'shield': G.shield++; break;
     case 'item': if (!G.item) G.item = rollItem(); else earn('bless', 10); break;
   }
@@ -518,7 +518,7 @@ function drawReady() {
   });
   withRise(3, () => {
     const best = endless ? `최고 ${save.endlessBest}미터` : save.best[n] ? `최고 기록 ${save.best[n]}%` : '처음 도전!';
-    text(`${best} · 하트 ${maxHearts()}개 · 거북 Lv ${save.lv}`, 480, 348, 15, C.text, { body: true, stroke: false });
+    text(`${best} · 기운 ${maxEnergy()} · 거북 Lv ${save.lv}`, 480, 348, 15, C.text, { body: true, stroke: false });
   });
   withRise(4, () => {
     drawBoosterRow(228, 388);
@@ -541,19 +541,19 @@ function runScore(cleared) {
 }
 function appEggs(cleared) {
   const ms = Math.round(G.t * 1000), day = kstDay();
-  G.score = runScore(cleared);
+  G.appScore = runScore(cleared); // 앱 거북알 계산용 점수(서버 eggsFor 와 같은 기준) — 화면 점수(G.score)와 따로
   if (!save.appEgg || save.appEgg.day !== day) save.appEgg = { day, runs: 0, total: (save.appEgg && save.appEgg.total) || 0 };
   const a = save.appEgg;
   G.appEgg = { eggs: 0, runs: a.runs, max: APP_EGG.runs, short: ms < APP_EGG.minMs, server: false };
   if (ms < APP_EGG.minMs || a.runs >= APP_EGG.runs) return;
-  const n = eggsFor(G.score);
+  const n = eggsFor(G.appScore);
   a.runs++; a.total += n; G.appEgg.eggs = n; G.appEgg.runs = a.runs;
   let tok = null; try { tok = localStorage.getItem('turtle.session'); } catch (e) { /* 개인 창 */ }
   if (tok && /(^|\.)turtle-buff\.com$/.test(location.hostname)) {
     G.appEgg.server = true; G.appEgg.pending = true;
     const ap = G.appEgg;
     fetch('/api/games/race/run', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${tok}` },
-      body: JSON.stringify({ score: G.score, ms: Math.min(ms, 400000), maxStage: G.n === ENDLESS ? 0 : G.n }) })
+      body: JSON.stringify({ score: G.appScore, ms: Math.min(ms, 400000), maxStage: G.n === ENDLESS ? 0 : G.n }) })
       .then((r) => (r.ok ? r.json() : null)).then((j) => { ap.pending = false; if (j) { ap.eggs = j.eggs; ap.runs = j.rewardedToday; ap.balance = j.balance; } else ap.failed = true; })
       .catch(() => { ap.pending = false; ap.failed = true; });
   }
