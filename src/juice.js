@@ -239,6 +239,7 @@ function bossLand(b) {
   snd('thud', 1); snd('roar', 0.9, 1, 0, 0.32); haptic([30, 40, 30, 40, 60]); // 쿵 먼저 → 땅이 울린 뒤 포효(같이 내면 뭉개짐)
   edgeFlash('#ff3355', 0.5);
   later(450, () => bossTaunt(true));
+  later(1700, () => G && G.boss && coachOnce('boss', { text: `${b.def.name}이 나타났어요!`, sub: '머리를 밟거나 질주로 들이받아요 · 공격 전 띠 글자(↑ 뛰어요 / ↓ 숙여요)를 봐요', spot: { x: b.x - 20, y: b.y, r: 120 }, state: 'play' }));
 }
 
 // ───────── ④ 박자 ─────────

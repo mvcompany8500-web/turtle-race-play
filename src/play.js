@@ -328,6 +328,7 @@ function killPlayer() {
   musicFever = false;
 }
 function tryBoost() {
+  if (coachDone('boost')) return;
   if (!G || G.p.dead || G.boosting > 0 || G.won || G.enterT > 0) return;
   if (G.boost < 100) { if (G.boost < 99) sfx.no(); return; }
   const lvl = G.run ? Math.min(3, Math.floor(G.boost / 100)) : 1;
@@ -464,6 +465,7 @@ function pickupBox(b) {
   if (!save.itemTipSeen) { save.itemTipSeen = true; toast(isTouch ? '아이템 버튼을 눌러서 써요' : 'E 키로 아이템을 써요', C.blueD); }
 }
 function useItem() {
+  if (coachDone('item')) return;
   if (!G || !G.item || G.p.dead || G.won || G.enterT > 0) { if (G && !G.item) sfx.no(); return; }
   const k = G.item, p = G.p; G.item = null;
   pop(W / 2, H / 2 - 150, ITEMS[k].name, '#ffffff', 36, true);

@@ -37,7 +37,7 @@ function runInit() {
   Object.assign(p, { fy: GROUND, vy: 0, onG: true, jumps: 0, slide: false, slideHold: false, holdJ: false, buf: 0, coyote: 0, land: 0, spin: 0, r: STAND_R, airT: 0 });
   p.y = GROUND - STAND_R;
   // 첫 판 연습: 정해진 순서로 하나씩 배우기
-  G.tut = !save.tutRun && G.n === 1 ? { seq: ['eggs', 'hop', 'eggs', 'duck', 'hop', 'wide', 'stomp', 'duck', 'stairs'], hint: null, slow: 0 } : null;
+  G.tut = !save.tutRun && G.n === 1 ? { seq: ['eggs', 'hop', 'eggs', 'duck', 'hop', 'wide', 'tutDouble', 'stomp', 'tutPotion', 'duck', 'stairs'], hint: null, slow: 0 } : null;
   G.bestFlag = null;
   const bd = G.cfg.endless ? (save.endlessBest || 0) * 40 : ((save.best[G.n] || 0) / 100) * G.cfg.length;
   if (bd > W && (G.cfg.endless || (save.best[G.n] || 0) < 100)) G.bestFlag = { d: bd, x: null, passed: false };
@@ -47,6 +47,7 @@ function runInit() {
 // ───────── 입력 ─────────
 const canAct = () => G && G.run && state === 'play' && !G.p.dead && !G.won && G.enterT <= 0;
 function jumpDown() {
+  if (coachDone('jump')) return;
   if (G && G.bonus) { bonusMoveLane(1); return; }
   if (!canAct()) return;
   const p = G.p;
@@ -60,6 +61,7 @@ function jumpUp() {
   if (p.vy < -330 && !p.bounced) p.vy *= 0.55; // 짧게 톡 = 낮게
 }
 function slideDown() {
+  if (coachDone('slide')) return;
   if (G && G.bonus) { bonusMoveLane(-1); return; }
   if (!canAct()) return;
   const p = G.p;
@@ -115,6 +117,11 @@ function runMove(dt) {
   const tx = G.boosting > 0 && bossOn ? G.boss.x - 70 : E.whirl > 0 ? 520 + SAFE : G.boosting > 0 ? PX() + 70 : PX();
   const follow = G.boosting > 0 && bossOn ? 9 : 5;
   p.x = lerp(p.x, tx, Math.min(1, dt * follow));
+  // 왕초보 도움(마리오 런처럼): 「쉬움」에선 작은 가시를 놓치면 알아서 폴짝
+  if (save.diff === 0 && p.onG && !p.slideHold && !p.dead && p.buf <= 0 && G.enemies.some((e) => !e.dead && e.type === 'urchin' && e.y > GROUND - 50 && e.x - p.x > 62 && e.x - p.x < 92)) {
+    p.holdJ = true; doJump(true); p.holdJ = false;
+    G.assists = (G.assists || 0) + 1; if (G.assists <= 2) pop(p.x, p.y - 70, '쉬움: 가시는 알아서 폴짝!', '#9ff3ff', 18);
+  }
   if (p.coyote > 0) p.coyote -= dt;
   if (p.dive > 0) p.dive -= dt;
   if (p.land > 0) p.land -= dt;
@@ -281,6 +288,11 @@ const PATS = [
     spike(x + w * 0.5); eggArc(x, w); pillar(p1, 64); eggLine(p1 - 30, 3, GROUND - 16, 40); spike(s2); eggArc(s2 - w * 0.5, w);
     return s2 + w * 0.5 - x;
   }],
+  ['tutDouble', 99, 0, (x) => { // 튜토리얼: 이단 점프가 꼭 필요한 긴 가시밭(꼭대기에서 멈추고 「한 번 더 톡!」)
+    const w = jumpW(), span = w * 0.95; for (let i = 0; i < 7; i++) spike(x + w * 0.3 + i * span / 6);
+    eggArc(x, w * 1.5, 240, 9, true); if (G.tut) G.tut.dbl = true; return w * 0.3 + span + REACT();
+  }],
+  ['tutPotion', 99, 0, (x) => { G.eggsArr.push({ x: x + 200, y: GROUND - 70, potion: 's', t: 0, tut: true }); eggLine(x, 4, GC()); return 320; }], // 튜토리얼: 기운 물약
   ['box', 1, 1, (x) => { G.boxes.push({ x: x + 140, y: GROUND - 150, t: 0 }); eggArc(x + 20, jumpW(), 150, 5); return 260; }],
 ];
 const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
@@ -353,6 +365,7 @@ function startBonus() {
   for (const e of G.enemies) if (!e.dead) { e.dead = true; G.eggsArr.push({ x: e.x, y: e.y, pearl: true, t: 0 }); burst(e.x, e.y, '#ffe36b', 10); }
   G.obs = G.obs.filter((o) => o.x < p.x - 80); G.breaks = []; G.warns = []; G.sweeps = []; G.shots = [];
   p.slide = false; p.slideHold = false; p.onG = false; p.vy = 0; p.inv = Math.max(p.inv, 0.5);
+  later(700, () => coachOnce('bonus', { text: '보너스 바다!', sub: '점프 = 위 줄 · 숙이기 = 아래 줄 · 진주를 쓸어 담아요', spot: null, state: 'play' }));
   reaction(4, '보너스 바다!!'); fireworks(4); pop(W / 2, H / 2 + 40, '점프 = 위 줄 · 숙이기 = 아래 줄', '#ffffff', 22, true); flash = 0.35; flashColor = '#bff8ff';
   if (!playSample('sfx_fever', 1)) sfx.fever(); say('wow', true); haptic([20, 30, 20, 30, 60]);
   musicFever = true;
@@ -387,6 +400,7 @@ function getLetter(o) {
   sfx.letter(); haptic([10, 20, 30]);
   burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
   pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
+  coachOnce('letter', { text: '「바·다·축·제」 글자를 모아요', sub: '4개 다 모으면 보너스 바다 15초!', spot: { x: W / 2, y: 52, w: 200, h: 46 }, state: 'play' });
   if (G.letters.every(Boolean)) { // 쿠키런 보너스 타임처럼: 글자를 다 모으면 보너스 바다 15초
     G.letters = [0, 0, 0, 0];
     startBonus();
@@ -455,6 +469,12 @@ const NEED_TXT = { jump: ['점프!', isTouch ? '왼쪽 화면을 톡!' : '스페
 function updateTutor() {
   const tu = G.tut; if (!tu) return;
   const p = G.p;
+  // 이단 점프 안내: 긴 가시밭 위 꼭대기에서 멈춤
+  if (tu.dbl && !p.onG && !p.dead && p.jumps === 1 && p.vy > -140 && G.enemies.some((e) => !e.dead && e.type === 'urchin' && e.x - p.x > -20 && e.x - p.x < 200))
+    coachOnce('double', { text: '공중에서 한 번 더 톡!', sub: '이단 점프로 긴 가시밭을 넘어요', spot: { x: SAFE + 66, y: H - 62, r: 62 }, wait: 'jump', state: 'play' });
+  // 기운 안내: 물약이 보이면
+  const pot = G.eggsArr.find((e) => e.tut && !e.got && e.x - p.x < 330);
+  if (pot) coachOnce('potion', { text: '기운은 조금씩 줄어요', sub: '분홍 물약을 먹으면 다시 차요 · 부딪히면 크게 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 59, w: 270, h: 46 }, state: 'play' });
   let need = null;
   if (p.onG && !p.dead) {
     for (const o of G.obs) if (o.k === 'pillar' && !o.taught && o.x - p.x < 230 && o.x - p.x > 40) { need = 'slide'; tu.obj = o; break; }

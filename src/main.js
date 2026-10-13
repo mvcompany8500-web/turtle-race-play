@@ -8,6 +8,7 @@ addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.repeat) return;
   userActed = true; initAudio();
+  if (coach && coach.wait === 'tap' && coachDone('tap')) return;
   onKey(e.code);
 });
 addEventListener('keyup', (e) => {
@@ -87,6 +88,7 @@ cvs.addEventListener('pointerdown', (e) => {
   e.preventDefault(); userActed = true; initAudio(); cvs.focus();
   if (PORTRAIT) return;
   const pt = toGame(e); mouse = pt;
+  if (coach && coach.wait === 'tap' && coachDone('tap')) return; // 안내 읽고 누르면 닫힘
   const b = hitButton(pt);
   if (b) { if (b.key) { press.key = b.key; press.down = true; haptic(8); } b.on(); return; }
   const lx = pt.x - OX(); // 메뉴 화면 좌표(가운데 960)
@@ -158,6 +160,8 @@ function update(dt) {
   if (state === 'shop') updateShop(dt);
   if (state === 'title') setMusic('title');
   updateCutin(dt); updateScreenFx(dt); juiceRealtime(dt);
+  if (updateCoach(dt)) return; // 안내 중엔 세계 멈춤
+  if (state === 'play') coachRunTriggers();
   if (freeze > 0) { freeze -= dt; return; }
   const sdt = dt * timeScale;
   updateFx(state === 'play' ? sdt : dt);
@@ -231,6 +235,7 @@ function render() {
   drawScreenFxTop();
   drawEggFly();
   drawToasts();
+  drawCoach(); // 초보 안내
   drawBuyConfirm(); // 결제 확인 창은 맨 위
 }
 requestAnimationFrame(frame);

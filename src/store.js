@@ -288,3 +288,77 @@ function drawStory() {
   if (story.shown >= line.length && Math.sin(T * 8) > 0) text('▼', 890, 498, 16, C.yellow, { stroke: false });
   button(960 + OX() - SAFE - 140, 14, 120, 40, '건너뛰기', () => { save.chapters[story.w] = 1; persist(); const a = story.after; story = null; a(); }, { size: 15, kind: 'soft' });
 }
+
+// ───────── 초보 안내(쿠키런 튜토리얼처럼): 화면을 어둡게 하고 한 곳만 동그랗게 비춰 손가락으로 가리킴 ─────────
+// coachOnce(id, { text, sub, spot: {x,y,r}(화면 좌표), wait: 'jump'|'slide'|'boost'|'item'|'tap', pass }) — 처음 한 번만
+// 판 중에는 세계가 멈춰 기다리고, 말한 동작을 하면 풀림. 메뉴 안내(pass)는 누르면 닫히고 누른 단추도 그대로 눌림
+let coach = null;
+const spotAt = (x, y) => { const m = ctx.getTransform(); return { x: (m.a * x + m.c * y + m.e) / K, y: (m.b * x + m.d * y + m.f) / K }; }; // 지금 그리는 좌표 → 화면 좌표
+const marks = {}; // 그릴 때 기록해 둔 단추 자리(화면 좌표)
+function markSpot(id, x, y, r) { const s = spotAt(x, y); marks[id] = { x: s.x, y: s.y, r }; }
+function coachOnce(id, o) {
+  save.coach = save.coach || {};
+  if (save.coach[id] || coach || (typeof LAB !== 'undefined' && LAB.noCoach)) return false;
+  coach = { id, t: 0, wait: 'tap', ...o };
+  snd('ready', 0.7); haptic(15);
+  return true;
+}
+// 돌려주는 값: true = 이 입력은 안내가 먹음(동작 안 함), false = 동작도 그대로
+function coachDone(kind) {
+  if (!coach) return false;
+  if (coach.t < 0.35) return true; // 너무 빨리 눌러 못 읽고 넘어가지 않게
+  if (coach.wait === kind) { finishCoach(); return false; } // 말한 동작을 함 → 풀리며 그 동작 실행
+  if (coach.wait === 'tap') { const pass = coach.pass; finishCoach(); return !pass; } // 읽고 누름 → 닫힘(메뉴 안내는 누른 단추도 눌림)
+  return true; // 다른 걸 눌렀으면 계속 기다림
+}
+function finishCoach() {
+  save.coach[coach.id] = true; persist();
+  if (G && G.p && state === 'play') G.p.inv = Math.max(G.p.inv, 0.8); // 멈췄다 풀릴 때 억울하게 맞지 않게
+  coach = null; snd('click', 0.6);
+}
+function drawCoach() {
+  if (!coach) return;
+  const c = coach, a = Math.min(1, c.t / 0.25), sp = c.spot;
+  ctx.save(); ctx.globalAlpha = a;
+  // 어둡게 + 구멍
+  ctx.fillStyle = 'rgba(8,10,20,.62)'; ctx.beginPath(); ctx.rect(0, 0, W, H);
+  const pulse = 1 + Math.sin(T * 5) * 0.05;
+  const hole = () => { if (sp.w) { const w = sp.w * pulse, h = sp.h * pulse; const x = sp.x - w / 2, y = sp.y - h / 2, r = h / 2; ctx.moveTo(x + r, y); ctx.arcTo(x, y, x, y + h, r); ctx.arcTo(x, y + h, x + w, y + h, r); ctx.arcTo(x + w, y + h, x + w, y, r); ctx.arcTo(x + w, y, x, y, r); ctx.closePath(); } else { const r = sp.r * pulse; ctx.moveTo(sp.x + r, sp.y); ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2, true); } };
+  if (sp) hole(); // 동그라미 또는 둥근 네모(막대용)
+  ctx.fill('evenodd');
+  if (sp) { ctx.strokeStyle = '#ffe14a'; ctx.lineWidth = 4; ctx.beginPath(); hole(); ctx.stroke(); }
+  // 손가락(구멍 아래에서 위를 가리킴, 구멍이 아래쪽이면 위에서 아래로)
+  if (sp) {
+    const rr0 = sp.w ? sp.h / 2 : sp.r, below = sp.y < H * 0.55, bob = Math.sin(T * 7) * 8, hx = sp.x + (sp.w ? sp.w * 0.2 : sp.r * 0.35), hy = below ? sp.y + rr0 + 34 + bob : sp.y - rr0 - 34 - bob;
+    ctx.save(); ctx.translate(hx, hy); if (!below) ctx.rotate(Math.PI);
+    if (!drawImg(IMG.spr_hand_point, 0, 0, 64)) text('👆', 0, 0, 44, '#fff', { stroke: false });
+    ctx.restore();
+  }
+  // 말풍선(구멍과 반대쪽)
+  const top = sp ? sp.y > H * 0.5 : false, bw = Math.min(560, W - 60), bx = W / 2 - bw / 2, by = top ? 70 : H - 200;
+  ctx.fillStyle = 'rgba(27,28,31,.96)'; rr(bx, by, bw, 116, 22); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2; ctx.stroke();
+  drawImg(IMG.hello, bx + 54, by + 60, 92);
+  text(c.text, bx + 108, by + 38, 22, C.yellow, { align: 'left', stroke: false });
+  if (c.sub) wrapText(c.sub, bw - 130, 16).slice(0, 2).forEach((l, i) => text(l, bx + 108, by + 70 + i * 24, 16, '#ffffff', { align: 'left', body: true, stroke: false }));
+  const hint = { jump: isTouch ? '왼쪽을 톡!' : '스페이스 / ↑', slide: isTouch ? '오른쪽을 꾹!' : '↓', boost: '번개 단추를 눌러요', item: '아이템 단추를 눌러요', tap: '눌러서 계속' }[c.wait];
+  if (c.t > 0.6 && Math.sin(T * 6) > -0.3) text(hint, bx + bw - 18, by + 100, 13, C.sub, { align: 'right', body: true, stroke: false });
+  ctx.restore();
+}
+function updateCoach(dt) {
+  if (!coach) return false;
+  coach.t += dt;
+  if (coach.state && coach.state !== state) { coach = null; return false; } // 화면이 바뀌면 그 안내는 접음(다음에 다시)
+  return state === 'play'; // 판 중이면 세계를 멈춤
+}
+
+// 판 중 처음 나오는 것들 안내(첫 판 튜토리얼 밖에서도)
+function coachRunTriggers() {
+  if (!G || !G.run || state !== 'play' || coach || G.p.dead || G.won || G.enterT > 0 || cine) return;
+  if (G.tut) return; // 첫 판(기본 연습) 동안은 다른 안내 없음 — 첫 판 기본 연습(점프·숙이기·이단 점프·밟기·물약)이 끝난 뒤에
+  const p = G.p, low = G.en / G.maxEn;
+  const bb = BOOST_BTN(), ib = ITEM_BTN();
+  if (G.boost >= 100 && !G.bonus && G.boosting <= 0) coachOnce('boost', { text: '질주가 꽉 찼어요!', sub: '번개 단추를 누르면 앞을 다 들이받아요', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, wait: 'boost', state: 'play' });
+  else if (G.item && isTouch) coachOnce('item', { text: `아이템 「${ITEMS[G.item].name}」!`, sub: ITEMS[G.item].desc, spot: { x: ib.x, y: ib.y, r: ib.r + 14 }, wait: 'item', state: 'play' });
+  else if (low < 0.25 && G.en > 0) coachOnce('lowEn', { text: '기운이 얼마 안 남았어요', sub: '분홍 물약을 먹으면 차요 · 질주 중엔 안 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 59, w: 270, h: 46 }, state: 'play' });
+  else if (G.n >= 2 && G.t > 4 && p.onG && !G.enemies.some((e) => !e.dead && e.x - p.x < 420 && e.x > p.x - 40)) coachOnce('beat', { text: '고리가 금색일 때 뛰면', sub: '「박자 딱!」 — 질주가 빨리 차고 진주도 받아요', spot: { x: p.x, y: p.y, r: 90 }, state: 'play' });
+}

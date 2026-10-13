@@ -100,6 +100,11 @@ function mapGo(target) {
   sfx.click();
 }
 function updateMap(dt) {
+  // 지도 초보 안내: 처음엔 「달리기!」, 첫 성공 뒤 진주가 모이면 상점
+  if (!map.overlay && !map.unlock && !map.path.length && stateT > 0.8) {
+    if (marks.play && !save.runs) coachOnce('map', { text: '「달리기!」를 눌러 출발해요', sub: '왼쪽 = 점프 · 오른쪽 꾹 = 숙이기', spot: marks.play, pass: true, state: 'map' });
+    else if (marks.shopBtn && Object.keys(save.best || {}).length && save.eggs >= 85) coachOnce('shopBtn', { text: '진주로 실력을 키워요', sub: '상점에서 「실력 키우기」 — 한 번 사면 모든 판에 계속', spot: marks.shopBtn, pass: true, state: 'map' });
+  }
   // 새 바다 열리는 연출
   const u = map.unlock;
   if (u) {
@@ -387,6 +392,7 @@ function drawMap() {
     const bx = R - 60 - i * 70, by = 10;
     button(bx, by, 58, 58, '', on, { kind: i === 1 ? 'primary' : i === 4 && gr ? 'yellow' : 'soft' });
     if (ic) icon(ic, bx + 29, by + 24, 30, ic === 'e_gift' && gr ? Math.sin(T * 10) * 0.2 : 0);
+    if (i === 1) markSpot('shopBtn', bx + 29, by + 29, 44);
     if (sym === 'gear') { ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(bx + 29, by + 24, 9, 0, Math.PI * 2); ctx.stroke(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; ctx.beginPath(); ctx.moveTo(bx + 29 + Math.cos(a) * 11, by + 24 + Math.sin(a) * 11); ctx.lineTo(bx + 29 + Math.cos(a) * 15, by + 24 + Math.sin(a) * 15); ctx.stroke(); } }
     text(label, bx + 29, by + 48, 13, C.text, { stroke: false, weight: 700 });
     if (i === 6 && achReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(achReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
@@ -417,6 +423,7 @@ function drawMap() {
   ctx.restore();
   text('달리기!', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 6 : 2), 30, '#ffffff', { stroke: '#b4560a', lw: 6 });
   ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 6, '달리기!', mapPlay, { size: 26 }); ctx.restore();
+  markSpot('play', bx0 + bw0 / 2, by0 + bh0 / 2, 96);
   ctx.restore();
   ctx.restore();
   if (map.overlay === 'missions') drawMissions();
@@ -739,6 +746,10 @@ function levelPet(k) {
   shopSay(`${PETS.find((p) => p.k === k).name} ${lv + 1}단계!`);
 }
 function updateShop(dt) {
+  if (stateT > 0.6 && !shop.hatch && !buying) {
+    const T0 = { up: ['up', '실력 키우기', '진주로 사서 키우면 모든 판에 계속 적용돼요 · 「지금 → 다음」을 봐요'], skin: ['skin', '옷장', '산 옷은 달릴 때도 그대로 입어요 · 힘은 똑같고 꾸미기만'], tr: ['tr', '보물', '2개까지 끼우면 판마다 힘이 붙어요 · 누르면 끼우기/빼기'], pet: ['pet', '펫', '알을 부화하면 펫이 따라다니며 도와줘요 · 확률은 화면에 적혀 있어요'] }[shop.tab];
+    if (T0) coachOnce('shop_' + T0[0], { text: T0[1], sub: T0[2], spot: null, pass: true, state: 'shop' });
+  }
   if (shop.msgT > 0) shop.msgT -= dt;
   if (shop.upFlash) { shop.upFlash.t += dt; if (shop.upFlash.t > 1.3) shop.upFlash = null; }
   if (shop.turn) {
