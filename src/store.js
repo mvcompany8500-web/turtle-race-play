@@ -41,7 +41,24 @@ const PAY = {
     if (PAY.real()) { try { return await window.TurtlePay.buy(prod.id); } catch (e) { return { ok: false }; } } // { ok, receipt } — 영수증 검증은 서버(앱)에서
     return { ok: true, test: true };
   },
+  // 구매 복원(애플 3.1.1·구글 결제): 다시 깔거나 기기를 바꿔도 「한 번만 사는 상품」(스타터 팩·이번 달 패스)을 되돌려 받음
+  async restore() {
+    if (window.TurtlePay && window.TurtlePay.restore) { try { return await window.TurtlePay.restore(); } catch (e) { return { ok: false }; } } // { ok, ids: ['starter', 'pass:2026-10', ...] }
+    return { ok: true, ids: [], test: true };
+  },
 };
+async function restoreBuys() {
+  sfx.click();
+  const r = await PAY.restore();
+  if (!r || !r.ok) { toast('복원하지 못했어요 · 잠시 뒤 다시', C.danger); return; }
+  let n = 0;
+  for (const id of r.ids || []) {
+    if (id === 'starter' && !save.starter) { save.starter = true; if (!save.trails.includes('gold')) save.trails.push('gold'); n++; } // 스타터 팩: 꼬리(한 번만 사는 꾸밈)와 「샀어요」 표시
+    if (id === 'pass:' + kstMonth()) { passSeason(); if (!save.pass.prem) { save.pass.prem = true; n++; } }
+  }
+  persist();
+  toast(n ? `구매 ${n}개를 되돌렸어요` : r.test ? '시험 결제라 되돌릴 구매가 없어요' : '되돌릴 구매가 없어요', n ? C.yellow : '#ffffff');
+}
 function askBuy(prod, onDone) { buying = { prod, onDone, t: 0 }; sfx.click(); }
 // 보호자 확인(앱스토어 어린이 규칙 1.3: 결제·바깥 링크 전에 어른만 풀 수 있는 문제). 맞히면 10분 동안 다시 안 물음
 let gateUntil = 0, gate = null;

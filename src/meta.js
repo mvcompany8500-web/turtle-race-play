@@ -373,10 +373,12 @@ function drawMap() {
   button(L + 130, 14, 156, 42, `별 ${totalStars()} · ${cr ? '상자 열기!' : '상자 ' + chestGoal()}`, openChest, { size: 14, kind: cr ? 'yellow' : 'soft' });
   if (save.streak.day) { // 출석 글: 바쁜 지도 위에서도 읽히게 어두운 띠 위에
     const st = `출석 ${save.streak.day}일째${save.streak.rest ? ` · 쉬는 카드 ${save.streak.rest}` : ''}${save.streak.lost ? ` · 오늘 ${3 - (save.streak.lostRuns || 0)}판 더 하면 ${save.streak.lost}일 되찾기` : ''}`;
-    ctx.font = `600 ${fs(14)}px ${FONT}`; const sw = Math.min(ctx.measureText(st).width, R - 480 - (L + 306) - 16); // 오른쪽 둥근 단추 7개(70 간격) 앞까지
+    ctx.font = `600 ${fs(14)}px ${FONT}`; const room = R - 480 - (L + 306) - 16; // 오른쪽 둥근 단추 7개(70 간격) 앞까지
+    let st2 = st; if (ctx.measureText(st2).width > room) st2 = `출석 ${save.streak.day}일째`; // 좁은 폰: 짧게
+    const sw = Math.min(ctx.measureText(st2).width, room);
     ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(L + 294, 20, sw + 24, 30, 15); ctx.fill();
     ctx.save(); rr(L + 294, 20, sw + 24, 30, 15); ctx.clip();
-    text(st, L + 306, 35, 14, C.yellow, { align: 'left', body: true, stroke: false }); ctx.restore();
+    text(st2, L + 306, 35, 14, C.yellow, { align: 'left', body: true, stroke: false }); ctx.restore();
   }
   const gr = giftReady();
   const btns = [
@@ -534,6 +536,13 @@ function drawProbInfo() {
   ctx.restore();
   return true;
 }
+// 기록 지우기(구글 플레이·애플 개인정보: 앱 안에서 데이터를 지울 수 있게) — 두 번 눌러야 지움
+let wipeAsk = 0;
+function askWipe() {
+  if (Date.now() - wipeAsk > 4000) { wipeAsk = Date.now(); sfx.no(); toast('정말 지울까요? 4초 안에 한 번 더 누르면 모든 기록이 지워져요', C.danger); return; }
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('turtle-race') || k === 'lab.keep') localStorage.removeItem(k); } catch (e) { /* 무시 */ } // 이 게임 기록만(앱 로그인 turtle.session 은 그대로)
+  location.reload();
+}
 function drawSettings() {
   overlayBase(280, 40, 400, 470, '설정', null);
   const rows = [
@@ -550,7 +559,7 @@ function drawSettings() {
   text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', 480, 340, 14, C.sub, { body: true, stroke: false });
   button(484, 366, 166, 44, '확률 정보', () => { probOpen = true; sfx.click(); }, { size: 14, kind: 'soft' });
   button(312, 366, 166, 44, '꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
-  button(312, 418, 166, 44, '첫 이야기', startIntro, { size: 14, kind: 'soft' });
+  button(312, 418, 166, 44, '기록 지우기', askWipe, { size: 14, kind: 'soft' });
   button(484, 418, 80, 44, '저장↑', exportSave, { size: 13, kind: 'soft' });
   button(570, 418, 80, 44, '불러오기', importSave, { size: 13, kind: 'soft' });
   button(312, 468, 108, 32, '이용약관', () => withGate(() => window.open('legal/terms.html', '_blank')), { size: 13, kind: 'soft' });
@@ -907,7 +916,8 @@ function drawShop() {
       panel(40, 306, 880, 120);
       text('보석으로 진주 바꾸기', 70, 334, 16, C.text, { align: 'left', stroke: false });
       EXCHANGE.forEach((x2, i) => button(70 + i * 250, 352, 230, 52, `보석 ${x2.gems} → 진주 ${x2.pearls.toLocaleString()}`, () => exchange(x2), { size: 14, kind: 'soft', disabled: save.gems < x2.gems }));
-      text(`가진 보석 ${save.gems}`, 600, 378, 14, '#9fe3ff', { align: 'left', body: true, stroke: false });
+      text(`가진 보석 ${save.gems}`, 590, 334, 14, '#9fe3ff', { align: 'left', body: true, stroke: false });
+      button(760, 316, 140, 36, '구매 복원', restoreBuys, { size: 14, kind: 'soft' });
     });
   } else if (shop.tab === 'tr') { // 보물: 왼쪽 끼운 칸 2개, 오른쪽 보물 8개
     save.trs = save.trs || []; save.trEq = save.trEq || [];

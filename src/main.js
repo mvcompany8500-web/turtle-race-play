@@ -21,7 +21,28 @@ addEventListener('keyup', (e) => {
 const RUN_JUMP = ['Space', 'ArrowUp', 'KeyW', 'KeyJ'], RUN_SLIDE = ['ArrowDown', 'KeyS', 'KeyK'];
 const autoPause = () => { for (const k in keys) keys[k] = false; drag = null; releaseRunInput(); if (state === 'play' && G && !G.p.dead && !G.won) state = 'pause'; };
 addEventListener('blur', autoPause);
-document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+document.addEventListener('visibilitychange', () => { // 백그라운드로 가면 소리 엔진도 멈춤(배터리·백그라운드 소리 금지), 돌아오면 다시
+  if (document.hidden) { autoPause(); try { if (ac && ac.state === 'running') ac.suspend(); } catch (e) { /* 무시 */ } }
+  else { try { if (ac && ac.state === 'suspended' && userActed) ac.resume(); } catch (e) { /* 무시 */ } }
+});
+// 안드로이드 「뒤로」 단추: 페이지를 떠나지 않고 게임 안에서 한 단계 뒤로(구글 플레이 품질 기준)
+// 창 닫기 → 판 중이면 멈춤 → 멈춤이면 계속 → 상점·판 전·결과 → 지도 → 지도에서 처음 화면 → 처음 화면에서만 진짜 뒤로
+try { history.replaceState({ g: 0 }, ''); history.pushState({ g: 1 }, ''); } catch (e) { /* 무시 */ }
+addEventListener('popstate', () => {
+  const stay = () => { try { history.pushState({ g: 1 }, ''); } catch (e) { /* 무시 */ } };
+  if (gate) { gate = null; if (buying) buying = null; return stay(); }
+  if (probOpen) { probOpen = false; return stay(); }
+  if (buying) { buying = null; return stay(); }
+  if (coach && coach.pass) { coach = null; return stay(); }
+  if (state === 'map' && map.overlay) { map.overlay = null; return stay(); }
+  if (state === 'play') { if (G && !G.p.dead && !G.won) state = 'pause'; return stay(); }
+  if (state === 'pause') { state = 'play'; return stay(); }
+  if (['shop', 'ready', 'clear', 'dead', 'story', 'intro'].includes(state)) { enterMap(); return stay(); }
+  if (state === 'map' || state === 'ending') { state = 'title'; return stay(); }
+  if (state !== 'title') return stay(); // 이어하기·쉼터 같은 고르는 화면은 그대로(실수로 판을 잃지 않게)
+  // 처음 화면에서만: 그대로 한 번 더 뒤로 → 앱/브라우저가 닫음
+  history.back();
+});
 
 function onKey(c) {
   const go = c === 'Space' || c === 'Enter';
@@ -83,9 +104,21 @@ function onKey(c) {
   }
 }
 function toGame(e) { const r = cvs.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
-function hitButton(pt) { for (let i = buttons.length - 1; i >= 0; i--) { const b = buttons[i]; if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) return b; } return null; }
+function hitButton(pt) {
+  for (let i = buttons.length - 1; i >= 0; i--) { const b = buttons[i]; if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) return b; }
+  // 작은 단추도 손가락으로 누르기 쉽게: 화면에서 44pt(애플 권장)보다 작으면 둘레를 넓혀 잡고, 겹치면 가운데가 가장 가까운 단추
+  if (state === 'play') return null; // 달리는 중엔 넓히지 않음(점프·숙이기 터치를 단추가 뺏지 않게)
+  const min = 44 / Math.max(0.3, CSS_S); let best = null, bd = 1e9;
+  for (const b of buttons) {
+    if (b.w >= W * 0.9) continue; // 화면 전체 막이(창 뒤 누르기 막기)는 빼고
+    const ex = Math.max(0, (min - b.w) / 2), ey = Math.max(0, (min - b.h) / 2);
+    if (pt.x >= b.x - ex && pt.x <= b.x + b.w + ex && pt.y >= b.y - ey && pt.y <= b.y + b.h + ey) { const d = Math.hypot(pt.x - (b.x + b.w / 2), pt.y - (b.y + b.h / 2)); if (d < bd) { bd = d; best = b; } }
+  }
+  return best;
+}
 cvs.addEventListener('pointerdown', (e) => {
   e.preventDefault(); userActed = true; initAudio(); cvs.focus();
+  if (!persistAsked && navigator.storage && navigator.storage.persist) { persistAsked = true; navigator.storage.persist().catch(() => {}); } // 기록이 브라우저 정리로 지워지지 않게(사파리 7일 규칙 등)
   if (PORTRAIT) return;
   const pt = toGame(e); mouse = pt;
   if (coach && coach.wait === 'tap' && coachDone('tap')) return; // 안내 읽고 누르면 닫힘
@@ -124,7 +157,7 @@ let last = performance.now(), prevState = state;
 // 프레임 재기: 2초 동안 평균이 느리면(45프레임 아래) 화질을 낮춰 조작이 굼뜨지 않게
 let fpsAcc = 0, fpsN = 0;
 let flashPrev = 0; const flashHits = [];
-let playSec = 0, restAt = 3600; // 이번에 켠 뒤 판을 한 시간
+let playSec = 0, restAt = 3600, persistAsked = false; // 이번에 켠 뒤 판을 한 시간
 function frame(now) {
   const raw = (now - last) / 1000;
   const dt = Math.min(0.05, raw); last = now; T += dt;
