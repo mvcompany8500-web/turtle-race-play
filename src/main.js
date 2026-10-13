@@ -135,25 +135,22 @@ function update(dt) {
   stateT += dt;
   springStep(press.sp, press.down ? 0.96 : 1, dt, SPRING_SNAPPY);
   if (!press.down && Math.abs(press.sp.v - 1) < 0.002) press.key = null;
-  if (REDUCE) { shake = 0; zoom = 1; flash = Math.min(flash, 0.2); }
+  if (REDUCE || save.noShake) { shake = 0; zoom = 1; flash = Math.min(flash, 0.2); } // 흔들림 끄기(설정)
   updateBuddy(dt);
   shake = Math.max(0, shake - dt * 55);
   flash = Math.max(0, flash - dt * 2.2);
   timeScale = lerp(timeScale, 1, Math.min(1, dt * 2.6));
   zoom = lerp(zoom, 1, Math.min(1, dt * 5));
   hudPulse = Math.max(0, hudPulse - dt);
-  for (const t of toasts) t.t -= dt;
+  // 알림은 판·결과·멈춤 화면 위에 겹치지 않게 지도/상점에서 하나씩만 보여줌(그때까지 줄 세움)
+  if (toastOK()) { if (toasts.length) toasts[0].t -= dt; }
   while (toasts.length && toasts[0].t <= 0) toasts.shift();
-  if (toasts.length > 3) toasts.splice(0, toasts.length - 3);
+  if (toasts.length > 6) toasts.splice(0, toasts.length - 6);
   if (PORTRAIT) { autoPause(); return; }
   if (state === 'pause' || state === 'bless') return;
   if (state === 'dead' && G) G.deadT += dt;
   if (state === 'clear' || state === 'ending') { endT += dt; if (state === 'clear') updateClear(); }
-  if (state === 'revive') {
-    G.reviveT -= dt;
-    if (Math.ceil(G.reviveT) < G.reviveTick) { G.reviveTick = Math.ceil(G.reviveT); sfx.tick(); haptic(10); }
-    if (G.reviveT <= 0) giveUp();
-  }
+
   if (state === 'intro') updateIntro(dt);
   if (state === 'map') updateMap(dt);
   if (state === 'shop') updateShop(dt);
@@ -196,7 +193,7 @@ function render() {
     if (G.run) { ctx.save(); if (shake > 0) ctx.translate(rand(-shake, shake) * 0.3, 0); drawHitNums(); ctx.restore(); }
     drawBoostOverlay();
     drawScreenFxBack();
-    drawUltCine(); drawTaunt();
+    drawUltCine(); if (!cine) drawSprFx(); drawTaunt();
     if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawHUD(); }
     if (state === 'play') drawCutin();
   } else if (state === 'map' || state === 'intro') {

@@ -55,8 +55,15 @@ function openGift() {
 function checkStreak() {
   const t = today();
   if (save.streak.last === t) return;
-  save.streak.day = save.streak.last === today(1) ? save.streak.day + 1 : 1;
-  save.streak.last = t;
+  const st = save.streak; if (st.rest == null) st.rest = 1; // 쉬는 날 카드(최대 2장)
+  let gap = 1; while (gap < 30 && st.last && st.last !== today(gap)) gap++; // 마지막 출석이 며칠 전?
+  const missed = st.last ? gap - 1 : 0;
+  if (!st.last || gap >= 30) st.day = 1;
+  else if (missed === 0) st.day++;
+  else if (missed <= st.rest) { st.rest -= missed; st.day++; toast(`쉬는 날 카드 ${missed}장으로 연속 지켰어요!`, '#7cd8ff'); }
+  else { st.lost = st.day; st.lostRuns = 0; st.day = 1; toast(`연속이 끊겼어요. 오늘 3판 하면 ${st.lost}일 연속을 되찾아요!`, C.yellow); }
+  if (st.day % 7 === 0 && st.rest < 2) { st.rest++; toast('7일 연속! 쉬는 날 카드 +1', '#7cd8ff'); }
+  st.last = t;
   const r = Math.min(70, save.streak.day * 10);
   save.eggs += r; persist();
   fountain(W / 2, H / 2, r);
@@ -354,11 +361,17 @@ function drawMap() {
   // 위쪽: 알·별 상자 / 둥근 버튼
   const L = SAFE + 14, R = W - SAFE - 14;
   eggBadge(L + 34, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
-  drawLvBadge(L + 6, 64);
-  gemBadge(L + 22, 112, save.gems, 22);
+  drawLvBadge(L + 6, 62);
+  gemBadge(L + 22, 118, save.gems, 22);
   const cr = chestReady();
   button(L + 130, 14, 156, 42, `별 ${totalStars()} · ${cr ? '상자 열기!' : '상자 ' + chestGoal()}`, openChest, { size: 14, kind: cr ? 'yellow' : 'soft' });
-  if (save.streak.day) text(`출석 ${save.streak.day}일째`, L + 300, 35, 14, C.yellow, { align: 'left', body: true });
+  if (save.streak.day) { // 출석 글: 바쁜 지도 위에서도 읽히게 어두운 띠 위에
+    const st = `출석 ${save.streak.day}일째${save.streak.rest ? ` · 쉬는 카드 ${save.streak.rest}` : ''}${save.streak.lost ? ` · 오늘 ${3 - (save.streak.lostRuns || 0)}판 더 하면 ${save.streak.lost}일 되찾기` : ''}`;
+    ctx.font = `600 ${fs(14)}px ${FONT}`; const sw = Math.min(ctx.measureText(st).width, R - 480 - (L + 306) - 16); // 오른쪽 둥근 단추 7개(70 간격) 앞까지
+    ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(L + 294, 20, sw + 24, 30, 15); ctx.fill();
+    ctx.save(); rr(L + 294, 20, sw + 24, 30, 15); ctx.clip();
+    text(st, L + 306, 35, 14, C.yellow, { align: 'left', body: true, stroke: false }); ctx.restore();
+  }
   const gr = giftReady();
   const btns = [
     ['설정', () => { map.overlay = 'settings'; sfx.click(); }, null, 'gear'],
@@ -428,22 +441,22 @@ function drawDex() {
   overlayBase(60, 66, 840, 420, '바다 도감', 'e_dex');
   const found = ENEMY_KEYS.filter((k) => save.dex[k]).length;
   text(`${found}/${ENEMY_KEYS.length} 만남`, 880, 104, 13, C.sub, { align: 'right', body: true, stroke: false });
-  ENEMY_KEYS.forEach((k, i) => withRise(i, () => {
-    const col = i % 4, row = Math.floor(i / 4), x = 80 + col * 202, y = 128 + row * 112, info = ENEMIES[k], d = save.dex[k];
-    panel(x, y, 192, 102, { fill: C.sel, r: 16 });
-    ctx.save(); ctx.beginPath(); rr(x, y, 70, 102, 16); ctx.clip();
-    if (d) drawEnemy({ type: k, x: x + 36, y: y + 52, r: k === 'puffer' ? 16 : k === 'eel' ? 10 : 18, t: T, ph: 0, len: 40, baseY: y + 52, top: false, armed: false }, x + 200, y + 52);
-    else text('?', x + 36, y + 52, 40, C.mute, { stroke: false });
+  ENEMY_KEYS.forEach((k, i) => withRise(i, () => { // 13마리 → 5칸 × 3줄(4칸이면 4줄째가 화면 밖)
+    const col = i % 5, row = Math.floor(i / 5), x = 74 + col * 164, y = 124 + row * 104, cw = 156, ch = 96, info = ENEMIES[k], d = save.dex[k];
+    panel(x, y, cw, ch, { fill: C.sel, r: 16 });
+    ctx.save(); ctx.beginPath(); rr(x, y, 60, ch, 16); ctx.clip();
+    if (d) drawEnemy({ type: k, x: x + 32, y: y + 48, r: k === 'puffer' ? 15 : k === 'eel' ? 9 : 16, t: T, ph: 0, len: 36, baseY: y + 48, top: false, armed: false }, x + 200, y + 48);
+    else text('?', x + 32, y + 48, 36, C.mute, { stroke: false });
     ctx.restore();
-    ctx.save(); rr(x, y, 192, 102, 16); ctx.clip();
-    const small = fs(13) > 16; // 폰: 글자가 커지니 설명 줄은 빼고 이름·약점만
+    ctx.save(); rr(x, y, cw, ch, 16); ctx.clip();
+    const tx = x + 64;
     if (d) {
-      text(info.name, x + 76, y + 22, 16, C.text, { align: 'left', stroke: false });
-      if (!small) text(info.trait, x + 76, y + 46, 13, C.sub, { align: 'left', body: true, stroke: false });
-      drawItemIcon(info.weak, x + 88, y + (small ? 64 : 76), 22);
-      text(ITEMS[info.weak].name, x + 102, y + (small ? 64 : 76), 13, d.weak ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
-      if (small) text(`약점`, x + 76, y + 88, 13, C.mute, { align: 'left', body: true, stroke: false });
-    } else text(`${info.intro}번 바다`, x + 76, y + 50, 13, C.mute, { align: 'left', body: true, stroke: false });
+      text(info.name, tx, y + 24, 14, C.text, { align: 'left', stroke: false });
+      ctx.font = `600 ${fs(13)}px ${FONT}`; const lw = ctx.measureText('약점').width;
+      text('약점', tx, y + 62, 13, C.mute, { align: 'left', body: true, stroke: false });
+      drawItemIcon(info.weak, tx + lw + 16, y + 62, 22);
+      if (fs(13) <= 16) text(ITEMS[info.weak].name, tx + lw + 30, y + 62, 13, d.weak ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
+    } else text(`${info.intro}번 바다`, tx, y + 48, 13, C.mute, { align: 'left', body: true, stroke: false });
     ctx.restore();
   }));
   button(400, 476 - 38, 160, 40, '닫기', () => { map.overlay = null; sfx.click(); }, { size: 16, kind: 'soft' });
@@ -480,7 +493,7 @@ function drawSettings() {
     ['조작', save.ctrl !== 'swim', () => { save.ctrl = save.ctrl === 'swim' ? 'run' : 'swim'; persist(); sfx.click(); }, ['점프 달리기', '자유 헤엄']],
     ['배경 음악', !save.musicOff, () => { save.musicOff = !save.musicOff; persist(); initAudio(); }],
     ['효과음', !save.sfxOff, () => { save.sfxOff = !save.sfxOff; persist(); initAudio(); sfx.tap(); }],
-    ['진동', save.haptics, () => { save.haptics = !save.haptics; persist(); haptic(30); }],
+    ['진동 · 흔들림', save.haptics && !save.noShake, () => { const on = save.haptics && !save.noShake; save.haptics = !on; save.noShake = on; persist(); haptic(30); }],
   ];
   rows.forEach(([label, on, fn, names], i) => withRise(i, () => {
     const y = 96 + i * 58;
@@ -672,7 +685,7 @@ function wearSkin(k) {
   if (save.skin === k) return;
   if (!REDUCE) shop.turn = { t: 0, from: save.skin, to: k }; // 앱의 휘리릭 턴: 앞 → 옆 → 뒤 → 옆 → 앞(새 옷)
   save.skin = k; persist(); haptic(30);
-  snd('swoosh', 0.8, 1.2);
+  if (REDUCE) snd('tada', 0.9);
 }
 function buySkin(s) {
   if (save.skins.includes(s.k)) { wearSkin(s.k); shopSay(`${s.name} 입었어요`); return; }
@@ -699,7 +712,13 @@ function levelPet(k) {
 }
 function updateShop(dt) {
   if (shop.msgT > 0) shop.msgT -= dt;
-  if (shop.turn) { shop.turn.t += dt / 0.92; if (shop.turn.t >= 1) { shop.turn = null; sfx.buy(); haptic([15, 30, 15]); } }
+  if (shop.turn) {
+    const tr = shop.turn; tr.t += dt / 0.92; tr.n = tr.n || 0;
+    // 몸이 옆→뒤→옆으로 바뀌는 순간(easeInOutCubic 이 1/4·2/4·3/4 를 지나는 t)에 휙 소리, 앞으로 돌아오면 짠
+    const STEPS = [0.397, 0.5, 0.603];
+    while (tr.n < 3 && tr.t >= STEPS[tr.n]) { snd('spin', 0.9, 0.92 + tr.n * 0.1); tr.n++; }
+    if (tr.t >= 1) { shop.turn = null; snd('tada', 0.9); haptic([15, 30, 15]); }
+  }
   if (shop.hatch) {
     const h = shop.hatch; h.t += dt;
     if (h.t < 1.3 && Math.random() < dt * 8) { snd('tick', 0.5, 0.9 + h.t * 0.3, 0.1); haptic(8); }
@@ -753,12 +772,12 @@ function drawShop() {
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined });
       for (let k = 0; k < 9; k++) { // 미리보기: 꼬리 색 점
         const c = t.k === 'none' ? 'rgba(255,255,255,.15)' : t.k === 'rainbow' ? `hsl(${(T * 200 + k * 40) % 360},95%,65%)` : (TRAIL_COL[t.k] || ['#fff'])[k % (TRAIL_COL[t.k] || ['#fff']).length];
-        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 30 + k * 18, y + 50 + Math.sin(T * 6 + k) * 8, 6 - k * 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 30 + k * 18, y + 40 + Math.sin(T * 6 + k) * 7, 6 - k * 0.4, 0, Math.PI * 2); ctx.fill();
       }
-      drawImg(IMG.side, x + w - 40, y + 50, 64);
-      text(t.name, x + w / 2, y + 96, 17, C.text, { stroke: false });
-      if (t.how && !own) text(t.how, x + w / 2, y + 118, 12, C.sub, { body: true, stroke: false });
-      button(x + 16, y + 126, w - 32, 32, on ? '쓰는 중' : own ? '쓰기' : t.gems ? `보석 ${t.gems}` : '얻는 곳 보기', () => buyTrail(t), { size: 14, kind: on ? 'soft' : own ? 'soft' : t.gems ? 'yellow' : 'soft', disabled: on });
+      drawImg(IMG.side, x + w - 40, y + 40, 56);
+      text(t.name, x + w / 2, y + 80, 17, C.text, { stroke: false });
+      if (t.how && !own) text(t.how, x + w / 2, y + 104, 12, C.sub, { body: true, stroke: false });
+      button(x + 16, y + 122, w - 32, 34, on ? '쓰는 중' : own ? '쓰기' : t.gems ? `보석 ${t.gems}` : '얻는 곳 보기', () => buyTrail(t), { size: 14, kind: on ? 'soft' : own ? 'soft' : t.gems ? 'yellow' : 'soft', disabled: on });
     }));
   } else if (shop.tab === 'gem') {
     GEM_PACKS.forEach((p, i) => withRise(i, () => {
@@ -783,7 +802,7 @@ function drawShop() {
       panel(40, 306, 880, 120);
       text('보석으로 진주 바꾸기', 70, 334, 16, C.text, { align: 'left', stroke: false });
       EXCHANGE.forEach((x2, i) => button(70 + i * 250, 352, 230, 52, `보석 ${x2.gems} → 진주 ${x2.pearls.toLocaleString()}`, () => exchange(x2), { size: 14, kind: 'soft', disabled: save.gems < x2.gems }));
-      text(`보석 ${save.gems} · 이어하기 보석 ${REVIVE_GEMS}`, 600, 378, 14, '#9fe3ff', { align: 'left', body: true, stroke: false });
+      text(`가진 보석 ${save.gems}`, 600, 378, 14, '#9fe3ff', { align: 'left', body: true, stroke: false });
     });
   } else if (shop.tab === 'skin') {
     panel(40, 118, 250, 350);
@@ -818,8 +837,8 @@ function drawShop() {
       }
     }));
   }
-  if (shop.msgT > 0) text(shop.msg, 480, 482, 18, '#ffffff', { stroke: false });
-  else text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 482, 13, C.sub, { body: true, stroke: false });
+  if (shop.msgT > 0) text(shop.msg, 480, 474, 18, '#ffffff', { stroke: false });
+  else text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', 480, 474, 13, C.sub, { body: true, stroke: false });
   button(480 - 230, H - 50, 220, 44, `${nameOf(shop.next)} 출발!`, () => startLevel(shop.next), { size: 17 });
   button(480 + 10, H - 50, 220, 44, '지도로', () => enterMap(), { size: 17, kind: 'soft' });
   if (shop.hatch) drawHatch();
@@ -872,50 +891,67 @@ function drawBless() {
 }
 
 // ───────── 결과 화면 ─────────
-function drawRevive() {
+function drawRevive() { // 조사 D 규칙: 시간 압박(카운트다운)·아깝다는 문구 없이, 두 버튼 같은 크기
   ctx.fillStyle = 'rgba(16,16,18,.66)'; ctx.fillRect(-OX(), 0, W, H);
-  drawImg(IMG.comfort, 220, 290 + Math.sin(T * 2) * 6, 250);
-  text('이어서 할까요?', 620, 86, 42, '#ffffff', { lw: 7 });
-  const left = Math.max(0, G.reviveT), k = left / 5;
-  ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.beginPath(); ctx.arc(620, 216, 66, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = k > 0.4 ? C.blueD : C.danger; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.arc(620, 216, 66, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
-  const s = 1 + (1 - (left % 1)) * 0.25;
-  ctx.save(); ctx.translate(620, 218); ctx.scale(s, s); text(String(Math.ceil(left)), 0, 0, 60, '#ffffff'); ctx.restore();
-  if (!G.cfg.endless) text(`지금 ${Math.floor(progress() * 100)}% — 여기서 끝내기 아까워요!`, 620, 310, 18, C.yellow, { body: true });
-  else text(`지금 ${meters()}미터 — 조금만 더!`, 620, 310, 18, C.yellow, { body: true });
-  const cost = reviveCost(), ok = canRevive();
-  button(460, 340, 320, 56, G.freeRevive ? '공짜로 일어나기!' : ok ? `이어하기 · 진주 ${cost}` : `진주 ${cost}개가 필요해요`, doRevive, { size: 19, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
-  if (!ok && !G.freeRevive) button(460, 404, 320, 44, `보석 ${REVIVE_GEMS}개로 이어하기 (보석 ${save.gems})`, () => { if (G.revives < 3 && spendGems(REVIVE_GEMS)) { G.freeRevive = true; doRevive(); } }, { size: 15, kind: 'yellow', disabled: save.gems < REVIVE_GEMS || G.revives >= 3 });
-  button(520, ok || G.freeRevive ? 410 : 456, 200, 40, '괜찮아요', giveUp, { size: 16, kind: 'soft' });
+  drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 250);
+  panel(RC.x, 110, RC.w, 300, { fill: 'rgba(27,28,31,.94)' });
+  text('이어서 할까요?', RM, 154, 30, '#ffffff', { stroke: false });
+  text(G.cfg.endless ? `지금 ${meters()}미터` : `지금 ${Math.floor(progress() * 100)}%`, RM, 196, 18, C.sub, { body: true, stroke: false });
+  const cost = reviveCost(), ok = canRevive(), bw = (RR - RL - 12) / 2;
+  button(RL, 300, bw, 64, G.freeRevive ? '공짜로 일어나기' : `이어하기 · 진주 ${cost}`, doRevive, { size: 17, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
+  button(RL + bw + 12, 300, bw, 64, '결과 보기', giveUp, { size: 17, kind: 'soft' });
+  if (!ok) text(`진주가 ${cost - (save.eggs + G.eggs)}개 모자라요`, RM, 384, 13, C.sub, { body: true, stroke: false });
 }
+// ───────── 결과 화면 공통: 오른쪽 카드 한 장 · 안쪽 여백 32 · 표처럼 정렬 · 아래 단추 한 줄 ─────────
+const RC = { x: 380, y: 22, w: 556, h: 496 }, RL = RC.x + 32, RR = RC.x + RC.w - 32, RM = RC.x + RC.w / 2;
+function resultCard() { panel(RC.x, RC.y, RC.w, RC.h, { fill: 'rgba(27,28,31,.94)' }); }
+function cardDivider(y) { ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(RL, y, RR - RL, 1); }
+function rewardRow(y, iconFn, label, value, color = C.text, sub) {
+  iconFn(RL + 12, y);
+  text(label, RL + 34, y + 1, 15, C.text, { align: 'left', body: true, stroke: false });
+  if (sub) text(sub, RL + 34 + measureW(label, 15) + 10, y + 1, 12, C.sub, { align: 'left', body: true, stroke: false });
+  text(value, RR, y + 1, 17, color, { align: 'right', stroke: false });
+}
+function measureW(s, size) { ctx.font = `600 ${fs(size)}px ${FONT}`; return ctx.measureText(s).width; }
+function sayBubble(x, y, w, line, color = '#ffffff') { // 왼쪽 캐릭터 아래 말풍선
+  const lines = wrapText(line, w - 32, 14).slice(0, 2), h = 22 + lines.length * fs(14) * 1.35;
+  ctx.fillStyle = 'rgba(27,28,31,.9)'; rr(x - w / 2, y, w, h, 16); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x, y - 10); ctx.lineTo(x + 10, y); ctx.fill();
+  lines.forEach((l, i) => text(l, x, y + 18 + i * fs(14) * 1.35, 14, color, { body: true, stroke: false }));
+}
+function bottomButtons(primaryLabel, primaryFn, secondary) {
+  button(RL, RC.y + RC.h - 118, RR - RL, 54, primaryLabel, primaryFn, { size: 20 });
+  const n = secondary.length, gap = 10, bw = (RR - RL - gap * (n - 1)) / n;
+  secondary.forEach(([label, fn], i) => button(RL + i * (bw + gap), RC.y + RC.h - 54, bw, 40, label, fn, { size: 14, kind: 'soft' }));
+}
+const restToday = () => { toast('오늘도 잘했어요! 내일 또 만나요 🐢', C.ok); enterMap(); }; // 「오늘은 여기까지」(조사: 같은 크기로 보이게)
+const HIT_TIPS = { urchin: '가시는 점프로 넘어요 · 짧게 톡 = 낮게', shark: '빨간 ! 뒤 상어: 땅 줄이면 점프, 머리 줄이면 숙이기', eel: '빨간 줄은 곰치 돌진 — 바로 점프!', swordfish: '청새치는 머리 높이 — 오른쪽 꾹 숙이기', rock: '보라 기둥은 숙이기, 바위는 점프(위에서 밟으면 부서져요)', mine: '기뢰 아래 가시는 짧게 톡!', boss: '큰 적 띠 글자를 봐요: ↑ 뛰어요 / ↓ 숙여요', jelly: '해파리는 위에서 밟으면 통통!', puffer: '부푼 복어는 못 밟아요 — 일찍 높게', crab: '게는 위에서 밟으면 끝!', ray: '가오리는 머리 높이 — 숙이기', phantom: '유령 해파리는 숙여서 지나가요', angler: '아귀가 덥석 오면 점프!' };
 function drawDead() {
-  const a = Math.min(1, G.deadT / 0.3);
+  const a = Math.min(1, G.deadT / 0.25), endless = G.cfg.endless;
   ctx.fillStyle = `rgba(16,16,18,${0.66 * a})`; ctx.fillRect(-OX(), 0, W, H);
   ctx.save(); ctx.globalAlpha = a;
-  drawImg(IMG.comfort, 200, 290 + Math.sin(T * 2) * 6, 260);
-  text('쿵! 부딪혔어요', 600, 60, 44, '#ff9aa8', { lw: 8 });
-  const bx = 400, by = 104, bw = 400, endless = G.cfg.endless;
-  text(endless ? `${G.prog}미터` : `${G.prog}%`, 600, by + 30, 50, '#ffffff');
+  drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 260);
+  sayBubble(190, 380, 300, '느려도 괜찮아요, 포기만 하지 마세요');
+  resultCard();
+  text('쿵! 부딪혔어요', RM, RC.y + 42, 30, '#ff9aa8', { lw: 6 });
+  text(endless ? `${G.prog}미터` : `${G.prog}%`, RM, RC.y + 92, 44, '#ffffff');
   if (!endless) {
-    ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(bx, by + 68, bw, 14, 7); ctx.fill();
-    ctx.fillStyle = C.blueD; rr(bx, by + 68, Math.max(14, bw * G.prog / 100), 14, 7); ctx.fill();
-    if (G.prevBest > 0) { const fxp = bx + bw * G.prevBest / 100; ctx.fillStyle = C.yellow; ctx.fillRect(fxp - 2, by + 62, 4, 26); }
+    const by = RC.y + 124;
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; rr(RL, by, RR - RL, 12, 6); ctx.fill();
+    ctx.fillStyle = C.blueD; rr(RL, by, Math.max(12, (RR - RL) * G.prog / 100), 12, 6); ctx.fill();
+    if (G.prevBest > 0) { const fx2 = RL + (RR - RL) * Math.min(1, G.prevBest / 100); ctx.fillStyle = C.yellow; ctx.fillRect(fx2 - 2, by - 5, 4, 22); }
   }
-  if (G.newBest) { icon('e_trophy', 470, by + 110, 34, Math.sin(T * 6) * 0.15); text('최고 기록 갱신!', 600, by + 110, 24, C.yellow); }
-  else if (!endless && G.prevBest >= 100) text(`이미 깬 바다예요. 별 ${(save.stars[G.n] || 0) < 3 ? `${save.stars[G.n] || 0}개 → 3개 도전!` : '3개 다 모았어요!'}`, 600, by + 110, 18, C.yellow, { body: true });
-  else text(`최고 기록까지 ${G.prevBest - G.prog}${endless ? '미터' : '%'} 남았어요. 조금만 더!`, 600, by + 110, 18, C.yellow, { body: true });
-  eggBadge(540, by + 150, `+${G.eggs}  (가진 진주 ${save.eggs})`, 26);
-  const need = cheapestNext(), m = closestMission();
-  const hint = need === Infinity ? '상점을 다 채웠어요!' : save.eggs >= need ? '상점에서 키울 수 있어요!' : `다음 키우기까지 알 ${need - save.eggs}개`;
-  drawXpRow(430, by + 180, 340);
-  if (G.appEgg) drawAppEgg(600, by + 216);
-  if (m && !G.appEgg) text(`도전 「${missionText(m)}」 ${m.prog}/${m.goal}`, 600, by + 210, 15, C.blueD, { body: true, stroke: false });
-  text('느려도 괜찮아요, 포기만 하지 마세요', 600, by + 252, 20, '#ffffff', { body: true });
+  const line2 = G.newBest ? '최고 기록 갱신!' : !endless && G.prevBest >= 100 ? `이미 깬 바다 · 별 ${save.stars[G.n] || 0}/3` : `최고까지 ${G.prevBest - G.prog}${endless ? '미터' : '%'}${G.lastProg != null ? ` · 지난번 ${G.lastProg}% → 이번 ${G.prog}%` : ''}`;
+  text(line2, RM, RC.y + 160, 15, G.newBest ? C.yellow : C.text, { body: true, stroke: false });
+  cardDivider(RC.y + 184);
+  rewardRow(RC.y + 210, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggs}`, C.yellow, `가진 진주 ${save.eggs.toLocaleString()}`);
+  rewardRow(RC.y + 244, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
+  if (G.appEgg) rewardRow(RC.y + 278, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : G.appEgg.short ? '짧은 판' : '오늘 3판 다 받음');
+  const tip = HIT_TIPS[G.lastHit] || '박자에 맞춰 뛰면 타이밍이 쉬워요';
+  ctx.fillStyle = 'rgba(255,213,74,.1)'; rr(RL, RC.y + 304, RR - RL, 34, 10); ctx.fill();
+  text(`💡 ${tip}`, RL + 14, RC.y + 322, 13, C.yellow, { align: 'left', body: true, stroke: false });
   ctx.restore();
-  button(420, 392, 360, 56, '다시 하기', () => startLevel(G.n), { size: 21 });
-  button(420, 460, 174, 44, '상점', () => openShop(G.n), { size: 16, kind: 'soft' });
-  button(606, 460, 174, 44, '지도로', () => enterMap(), { size: 16, kind: 'soft' });
+  bottomButtons('다시 하기 ▶', () => startLevel(G.n), [['상점', () => openShop(G.n)], ['지도로', () => enterMap()], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
 const CLEAR_LINES = ['공주님 왕관 조각을 찾았어요!', '상어왕의 발자국이 이어져요...', '바다 친구들이 응원해요!', '조금씩, 그래도 앞으로!', '공주님 목소리가 들려요!', '거의 다 왔어요!', '상어왕의 성이 보여요!'];
@@ -945,32 +981,39 @@ function updateClear() {
 function drawClear() {
   ctx.fillStyle = 'rgba(16,16,18,.55)'; ctx.fillRect(-OX(), 0, W, H);
   drawConfetti();
-  drawImg(IMG.cheer, 180, 280 + Math.abs(Math.sin(T * 4)) * -18, 260);
-  if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 400 + Math.abs(Math.sin(T * 4 + 1)) * -12, 70);
-  text(`${G.n}번 바다 성공!`, 610, 46, 40, C.yellow, { lw: 8 });
-  if (save.diff === 2) icon('e_crown', 790, 44, 34, Math.sin(T * 4) * 0.1);
-  const labels = ['도착', '진주 70%', '안 맞기'], details = ['', `${G.eggsGot}/${G.eggsSpawned}`, G.hits ? `${G.hits}번 맞음` : ''];
+  drawImg(IMG.cheer, 190, 220 + Math.abs(Math.sin(T * 4)) * -14, 250);
+  if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 320 + Math.abs(Math.sin(T * 4 + 1)) * -10, 62);
+  sayBubble(190, 370, 300, BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], '#ffd1ef');
+  resultCard();
+  text(`${G.n}번 바다 성공!`, RM, RC.y + 42, 30, C.yellow, { lw: 6 });
+  if (save.diff === 2) icon('e_crown', RM + 120, RC.y + 40, 28, Math.sin(T * 4) * 0.1);
+  text(STAGES[G.n].name, RM, RC.y + 72, 14, C.sub, { body: true, stroke: false });
+  const labels = ['도착', '진주 70%', '안 맞기'], details = ['', `${G.eggsGot}/${G.eggsSpawned}`, G.hits ? `${G.hits}번 맞음` : '완벽!'];
   for (let i = 0; i < 3; i++) {
-    const x = 470 + i * 140, y = 120, shown = i < G.starShown, got = G.starGot[i];
-    const age = endT - STAR_AT[i], s = shown ? (got ? 1 + Math.max(0, 0.6 - age * 3) : 1) : 0;
-    drawStar(x, y, 34, false);
-    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); drawStar(0, 0, 34, true); ctx.restore(); }
-    text(labels[i], x, y + 50, 14, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
-    if (details[i]) text(details[i], x, y + 72, 13, C.mute, { body: true, stroke: false });
+    const x = RM + (i - 1) * 130, y = RC.y + 118, shown = i < G.starShown, got = G.starGot[i];
+    const age = endT - STAR_AT[i], sc = shown ? (got ? 1 + Math.max(0, 0.6 - age * 3) : 1) : 0;
+    drawStar(x, y, 28, false);
+    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawStar(0, 0, 28, true); ctx.restore(); }
+    text(labels[i], x, y + 40, 13, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
+    text(details[i] || ' ', x, y + 58, 12, C.mute, { body: true, stroke: false });
   }
-  const cur = levelCfg(G.n), nxt = levelCfg(Math.min(LAST, G.n + 1));
-  drawXpRow(440, 212, 340);
-  if (G.appEgg) drawAppEgg(610, 400);
-  systemWindow(400, 232, 420, [
-    '다음 바다는 물살이 더 느려요.',
-    `· 물살 ${Math.round(cur.speed)} → ${Math.round(nxt.speed)} · 질주 차는 속도 ${cur.boostRate.toFixed(1)} → ${nxt.boostRate.toFixed(1)}`,
-  ]);
-  drawFish(430, 366, 0.7, true);
-  text(BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], 460, 366, 15, '#ffd1ef', { align: 'left', body: true });
-  if (fs(14) < 18 && !G.appEgg) text(`진주 +${G.eggShown || 0}${G.stomps ? ` · 밟기 ${G.stomps}` : ''}${G.diffBonus ? ` (난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus})` : ''} · 물리친 적 ${G.kills} · 최고 연속 ${G.chainBest} · 딱 맞은 아이템 ${G.weak}`, 610, 404, 14, C.sub, { body: true, stroke: false });
-  button(430, 426, 360, 56, '다음 바다로', () => enterMap(G.n), { size: 21 });
-  button(430, 490, 174, 40, '상점', () => openShop(G.n + 1), { size: 15, kind: 'soft' });
-  button(616, 490, 174, 40, '다시 하기', () => startLevel(G.n), { size: 15, kind: 'soft' });
+  cardDivider(RC.y + 194);
+  // 받은 것(표): 진주는 굴러 오르고, 보너스는 하나씩 붙음
+  rewardRow(RC.y + 220, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggShown || 0}`, C.yellow, G.diffBonus ? `난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus}` : '');
+  let px = RL + 34;
+  (G.settle || []).forEach((it, i) => {
+    const age = endT - (0.9 + i * 0.35); if (age < 0) return;
+    if (!it.played) { it.played = true; snd('count', 0.8, 1 + i * 0.12); haptic(10); }
+    const label = `${it.s} +${it.v}`, w = measureW(label, 12) + 20, s2 = age < 0.12 ? 0.6 + (age / 0.12) * 0.4 : 1;
+    ctx.save(); ctx.translate(px + w / 2, RC.y + 248); ctx.scale(s2, s2);
+    ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(-w / 2, -11, w, 22, 11); ctx.fill();
+    text(label, 0, 1, 12, C.yellow, { body: true, stroke: false }); ctx.restore();
+    px += w + 8;
+  });
+  rewardRow(RC.y + 282, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
+  if (G.appEgg) rewardRow(RC.y + 316, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : '오늘 3판 다 받음');
+  if (G.n < LAST) { const cur = levelCfg(G.n), nxt = levelCfg(G.n + 1); text(`다음 바다: 물살 ${Math.round(cur.speed)} → ${Math.round(nxt.speed)} · 조금 더 느려요`, RM, RC.y + 352, 12, C.sub, { body: true, stroke: false }); }
+  bottomButtons('다음 바다로 ▶', () => enterMap(G.n), [['상점', () => openShop(G.n + 1)], ['다시 하기', () => startLevel(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
 function drawEnding() {
@@ -981,7 +1024,7 @@ function drawEnding() {
   drawImg(IMG.princess, lerp(840, 590, meet), 300 + Math.sin(T * 3 + 1) * 5, 200, 0, 1, true);
   if (meet >= 1) for (let i = 0; i < 5; i++) {
     const t = (T * 0.6 + i / 5) % 1;
-    ctx.globalAlpha = 1 - t; text('♥', 485 + Math.sin(t * 9 + i) * 40, 220 - t * 160, 26 + i * 3, '#ff6fa8', { stroke: '#fff', lw: 3 }); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1 - t; text('♥', 485 + Math.sin(t * 9 + i) * 40, 255 - t * 90, 24 + i * 2, '#ff6fa8', { stroke: '#fff', lw: 3 }); ctx.globalAlpha = 1;
   }
   text('공주 거북이 구출 성공!', 480, 60, 48, C.yellow, { lw: 8 });
   const ti = G.talkI || 0;
@@ -1038,10 +1081,12 @@ function drawEggFly() {
     drawPearl(x, y, 24 - k * 8, k * 6, !!f.gold);
   }
 }
+function toastOK() { return state === 'map' && !map.overlay; }
 function drawToasts() {
-  toasts.forEach((t, i) => {
+  if (!toastOK()) return;
+  toasts.slice(0, 1).forEach((t, i) => {
     const age = 2.8 - t.t, a = Math.min(1, t.t / 0.3), slide = Math.min(1, age / 0.25);
-    const y = 82 + i * 48 - (1 - easeOutBack(slide)) * 40;
+    const y = 132 + i * 48 - (1 - easeOutBack(slide)) * 40;
     ctx.save(); ctx.globalAlpha = a;
     ctx.font = `600 ${fs(18)}px ${FONT}`; const w = ctx.measureText(t.s).width + 56;
     ctx.fillStyle = 'rgba(27,28,31,.94)'; rr(W / 2 - w / 2, y - 20, w, 40, 20); ctx.fill();
@@ -1054,12 +1099,12 @@ function drawToasts() {
 // ───────── 거북 레벨 · 결과 위에 뜨는 창(공주님 편지 → 레벨 업) ─────────
 function drawLvBadge(x, y) {
   const need = xpNeed(save.lv), k = clamp(save.xp / need, 0, 1);
-  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(x, y, 150, 30, 15); ctx.fill();
-  ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x + 15, y + 15, 15, 0, Math.PI * 2); ctx.fill();
-  text(String(save.lv), x + 15, y + 15, 14, '#fff', { stroke: false });
-  text('거북 레벨', x + 36, y + 9, 13, C.sub, { align: 'left', body: true, stroke: false });
-  ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(x + 36, y + 18, 104, 6, 3); ctx.fill();
-  ctx.fillStyle = C.yellow; rr(x + 36, y + 18, Math.max(6, 104 * k), 6, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(x, y, 150, 36, 18); ctx.fill();
+  ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x + 18, y + 18, 15, 0, Math.PI * 2); ctx.fill();
+  text(String(save.lv), x + 18, y + 18, 14, '#fff', { stroke: false });
+  text('거북 레벨', x + 40, y + 13, 13, '#d6dbe6', { align: 'left', body: true, stroke: false });
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(x + 40, y + 26, 100, 5, 2.5); ctx.fill();
+  ctx.fillStyle = C.yellow; rr(x + 40, y + 26, Math.max(5, 100 * k), 5, 2.5); ctx.fill();
 }
 function drawXpRow(x, y, w) {
   if (G.xpGain == null) return;

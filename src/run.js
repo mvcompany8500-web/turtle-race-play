@@ -155,6 +155,7 @@ function stomp(e) {
   sfx.stomp(); haptic([15, 10, 30]);
   const c = G.stompChain;
   pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속!` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
+  say(['one', 'two', 'three', 'wow'][Math.min(c, 4) - 1], true); // 하나! 둘! 셋! 대박!
   if (c === 3) reaction(1, '3단 밟기!');
   if (c === 5) reaction(3, '밟기 장인!!');
   if (hasPerk('stompEgg')) earn('perk', 1);
@@ -435,10 +436,13 @@ function drawRunObs() {
   }
   const f = G.bestFlag;
   if (f && f.x != null && !f.passed) {
-    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(f.x, GROUND); ctx.lineTo(f.x, GROUND - 170); ctx.stroke();
-    const wv = Math.sin(T * 6) * 5;
-    ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(f.x, GROUND - 170); ctx.lineTo(f.x + 70, GROUND - 158 + wv); ctx.lineTo(f.x, GROUND - 140); ctx.fill();
-    text('지난 기록', f.x + 4, GROUND - 190, 15, C.yellow, { body: true });
+    // 지난 기록: 금빛 빛기둥(코덱스 그림) + 이름표 — 막대 선 대신
+    const pl = IMG.spr_fx_pillar;
+    if (pl && ready(pl)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55 + Math.sin(T * 4) * 0.1; const ph = 230, pw = (ph * pl.naturalWidth) / pl.naturalHeight * 0.7; ctx.drawImage(pl, f.x - pw / 2, GROUND - ph, pw, ph); ctx.restore(); }
+    ctx.font = `600 ${fs(15)}px ${FONT}`; const lw = ctx.measureText('지난 기록').width + 24, ly = GROUND - 210 + Math.sin(T * 3) * 3;
+    ctx.fillStyle = 'rgba(16,16,18,.7)'; rr(f.x - lw / 2, ly - 15, lw, 30, 15); ctx.fill();
+    ctx.strokeStyle = C.yellow; ctx.lineWidth = 2; rr(f.x - lw / 2, ly - 15, lw, 30, 15); ctx.stroke();
+    text('지난 기록', f.x, ly, 15, C.yellow, { body: true, stroke: false });
   }
 }
 // 땅 그림자(점프 높이를 읽기 쉽게)
@@ -501,7 +505,18 @@ function drawRunHero(face, blink, alpha) {
   else { feet -= Math.abs(Math.sin(G.dist / 52 * Math.PI)) * 3; rot = 0.06; } // 달리며 통통 + 앞으로 살짝
   if (p.land > 0) { const k = p.land / 0.14; sx = 1 + k * 0.16; sy = 1 - k * 0.14; } // 착지 찌그러짐
   else if (!p.onG && p.vy < -300 && key !== 'hero_ball') { sx = 0.92; sy = 1.08; } // 솟구칠 때 길쭉
-  if (G.boosting > 0 && !REDUCE) for (let i = 1; i <= 3; i++) drawPoseAt(c, x - i * 26, feet, h * sy, rot, 1 - i * 0.25, true); // 질주 잔상
+  if (G.boosting > 0 && !REDUCE) {
+    // 질주: 발밑 물결을 타고 + 뒤로 보라 꼬리빛(코덱스 그림) + 잔상
+    const fl = 0.85 + Math.sin(T * 40) * 0.15, my = feet - h * 0.5;
+    const tr = IMG.spr_fx_trail, wv = IMG.spr_fx_wave;
+    if (tr && ready(tr)) for (const [ad, al] of [[false, 0.85], [true, 0.6]]) { // 진하게 한 번 + 빛으로 한 번(밝은 바다에서도 보이게)
+      const th = h * 1.5 * fl, tw = 460 + Math.sin(T * 25) * 30;
+      ctx.save(); if (ad) ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = al;
+      ctx.translate(x + 40, my); ctx.scale(-1, 1); ctx.drawImage(tr, 0, -th / 2, tw, th); ctx.restore();
+    }
+    if (wv && ready(wv)) { const wh = h * 1.05, ww = (wh * wv.naturalWidth) / wv.naturalHeight; ctx.save(); ctx.globalAlpha = 0.92; ctx.drawImage(wv, x - ww * 0.72, feet - wh * 0.86 + Math.sin(T * 18) * 3, ww, wh); ctx.restore(); }
+    for (let i = 1; i <= 3; i++) drawPoseAt(c, x - i * 26, feet, h * sy, rot, 1 - i * 0.25, true);
+  }
   ctx.save(); ctx.translate(x, feet); ctx.scale(sx, 1); ctx.translate(-x, -feet);
   drawPoseAt(c, x, feet, h * sy, rot, alpha);
   const st = SIDE_STYLE[save.skin] || {}, hx = HAT_AT[key];

@@ -71,6 +71,8 @@ function bank(cleared) {
   if (G.banked) return;
   G.banked = true;
   if (cleared) { G.clearBonus = 8 + Math.floor((G.n === ENDLESS ? 0 : G.n) * 0.6); earn('clear', G.clearBonus); } // 도착 보너스: 뒤 바다일수록 조금 더
+  G.settle = [];
+  if (cleared && G.run) { const h = Math.max(0, G.hp); if (h) { earn('settle', h * 5); G.settle.push({ s: `남은 하트 ♥×${h}`, v: h * 5 }); } if (G.beatBest >= 5) { earn('settle', 5); G.settle.push({ s: `박자 최고 ${G.beatBest}연속`, v: 5 }); } if (G.stomps) { const v = Math.min(10, G.stomps); earn('settle', v); G.settle.push({ s: `밟기 ${G.stomps}번`, v }); } } // 끝나면 하나씩 반짝이며 더해짐
   G.diffBonus = Math.round(G.eggs * (G.D.eggs - 1));
   G.eggs = Math.max(0, G.eggs + G.diffBonus);
   save.eggs += G.eggs;
@@ -81,6 +83,7 @@ function bank(cleared) {
   } else {
     G.prog = cleared ? 100 : Math.floor(progress() * 100);
     G.prevBest = save.best[G.n] || 0;
+    save.lastProg = save.lastProg || {}; G.lastProg = save.lastProg[G.n]; save.lastProg[G.n] = G.prog; // 「지난번 → 이번」
     G.newBest = G.prog > G.prevBest;
     if (G.newBest) save.best[G.n] = G.prog;
   }
@@ -116,6 +119,13 @@ const popSeen = new Map();
 function pop(x, y, s, color = '#fff', size = 24, big = false) {
   if (T - (popSeen.get(s) ?? -9) < 0.4) return; popSeen.set(s, T); if (popSeen.size > 60) popSeen.clear();
   if (!big && state === 'play') { y = Math.max(y, 150); x = clamp(x, 110 + SAFE, W - 110 - SAFE); } // 위 HUD(게이지·글자)와 안 겹치게
+  // 이미 떠 있는 글자와 겹치면 아래로 한 줄씩 비킴(최대 4번)
+  const hw = (t) => String(t.s).length * fs(t.size) * 0.5;
+  for (let k = 0; k < 4; k++) {
+    const hit = pops.find((q) => q.life > 0.25 && Math.abs(q.x - x) < hw(q) + String(s).length * fs(size) * 0.5 && Math.abs(q.y - y) < (fs(q.size) + fs(size)) * 0.6);
+    if (!hit) break;
+    y = hit.y + (fs(hit.size) + fs(size)) * 0.62;
+  }
   pops.push({ x, y, s, color, size, life: big ? 1.4 : 0.9, max: big ? 1.4 : 0.9, big }); }
 function confetti(n = 70) {
   for (let i = 0; i < n; i++) fx.push({ k: 'confetti', x: rand(0, W), y: rand(-220, -10), vx: rand(-40, 40), vy: rand(120, 260), life: 3.2, max: 3.2, size: rand(4, 9), color: pick(['#ffd34d', '#ff6fa8', '#7cf0ff', '#8dff7a', '#b48bff']), rot: rand(0, 6) });
@@ -269,6 +279,7 @@ function setFace(f, t) { G.p.face = f; G.p.faceT = t; }
 function hitPlayer(src) {
   const p = G.p;
   if (p.inv > 0 || p.dead || G.won || G.eff.whirl > 0) return;
+  G.lastHit = src && src.type; // 실패 화면 팁용
   G.hits++;
   if (G.shield > 0) {
     G.shield--; p.inv = 1.4; shake = 12; freeze = 0.06; setFace('ouch', 0.6);
@@ -285,12 +296,18 @@ function hitPlayer(src) {
     burst(p.x, p.y, '#ffb3c0', 16, 320); ring(p.x, p.y, '#ff5470', 90, 0.4, 7);
     pop(p.x, p.y - 64, G.hp === 1 ? '하트 하나 남았어요!' : '아야!', '#ff9aa8', 26, G.hp === 1);
     if (!p.onG) p.vy = Math.min(p.vy, -300);
-    sfx.hurt(); haptic([40, 30, 60]);
+    sfx.hurt(); if (Math.random() < 0.5) say('ouch'); haptic([40, 30, 60]);
     if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 20);
     if (src && src.type && ENEMIES[src.type] && src.type !== 'urchin' && src.type !== 'whirlpool' && !src.run) src.dead = true;
     return;
   }
-  p.dead = true; p.vy = -260; G.deathT = 1.1; if (G.run) G.hp = 0;
+  if (G.run && save.runs <= 3 && !G.forgiven) { // 처음 3판은 실패해도 한 번 봐주기 (조사 00-레시피 1-1)
+    G.forgiven = true; G.hp = Math.max(1, Math.ceil(G.maxHp / 2)); p.inv = 2.2;
+    pop(W / 2, H / 2 - 60, '괜찮아! 한 번 봐줄게 ♥', '#ffd1ef', 36, true); sfx.revive(); haptic([30, 30, 60]);
+    for (const e of G.enemies) if (e.x < p.x + 300) { e.dead = true; burst(e.x, e.y, '#ffffff', 10); }
+    return;
+  }
+  p.dead = true; p.vy = -260; G.deathT = 0.7; // 1초 재시작(조사): 죽음 연출 짧게 if (G.run) G.hp = 0;
   freeze = 0.22; shake = 26; flash = 0.55; flashColor = '#ff3355'; timeScale = 0.3; zoomTo(1.14);
   burst(p.x, p.y, '#fff0a0', 34, 520); ring(p.x, p.y, '#ff5470', 140, 0.6, 10);
   sfx.die(); haptic([90, 40, 160]);
@@ -303,7 +320,10 @@ function tryBoost() {
   G.boost = G.run ? G.boost - lvl * 100 : 0; G.boosting = boostDur();
   if (lvl >= 2) { G.boosting = 0; G.p.inv = Math.max(G.p.inv, 3); ultCine(lvl); return; } // 2·3단은 연출 → 마무리 뒤 질주 // 2단·3단: 세계를 멈추고 그림자 군단이 화면의 적을 하나씩
   freeze = 0.05; flash = 0.35; flashColor = '#b48bff'; shake = 14; timeScale = 0.75; zoomTo(1.06);
-  ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12); ring(G.p.x, G.p.y, '#5fd4ff', 150, 0.45, 6);
+  ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12);
+  fxSpr('fx_shock', G.p.x, G.p.y, 200, { life: 0.55, from: 0.2, to: 2.2, vr: 2, add: false }); // 출발 충격파
+  fxSpr('fx_burst', G.p.x + 30, G.p.y, 150, { life: 0.35, from: 0.3, to: 1.3, add: false });
+  fxSpr('fx_slash', G.p.x + 120, G.p.y, 220, { life: 0.35, from: 0.6, to: 1.3, rot: 0.2, vx: 500, add: false });
   startCutin('boost', '질주!!', '앞을 막는 건 다 들이받아!', 0.7);
   burstRays(G.p.x, G.p.y, '#b48bff', 1.2, 24); edgeFlash('#8b5cff', 0.9);
   sfx.boost(); haptic([30, 30, 70]);
@@ -846,7 +866,7 @@ function updatePlay(dt) {
   // 등장
   if (G.enterT > 0) {
     G.enterT -= dt;
-    if (G.enterT <= 0) { pop(W / 2, H / 2 - 30, '출발!', C.yellow, 76, true); sfx.ready(); haptic([20, 30, 50]); zoomTo(1.04); }
+    if (G.enterT <= 0) { pop(W / 2, H / 2 - 30, '출발!', C.yellow, 76, true); sfx.ready(); say('go', true); haptic([20, 30, 50]); zoomTo(1.04); }
     const k = 1 - Math.max(0, G.enterT) / 0.8;
     p.x = lerp(-90, G.run ? PX() : 170 + SAFE, 1 - (1 - k) * (1 - k)); p.ph += dt * 18;
   }
@@ -959,7 +979,7 @@ function updatePlay(dt) {
         : w.kind === 'sword' ? { type: 'swordfish', x: W + 60, y: w.y, r: 18, vx: w.run ? -760 : -1050, t: 0, elite: w.elite, run: w.run }
           : { type: 'eel', x: W + 40, y: w.y, r: 12, vx: w.run ? -700 : -950, len: 150, t: 0, elite: w.elite, run: w.run };
       if (e.elite) { e.r *= 1.2; e.vx *= 1.2; }
-      addEnemy(e);
+      addEnemy(e); snd('dash', 0.8, rand(0.95, 1.1), 0.15); // 일직선 돌진: 깨끗한 「슝」
     }
   }
   G.warns = G.warns.filter((w) => !w.done);
@@ -1129,7 +1149,7 @@ function updatePlay(dt) {
   // 골
   if (G.goal) {
     G.goal.x -= scroll * dt;
-    if (!p.dead && p.x + p.r > G.goal.x - 34) levelClear();
+    if (!p.dead && p.x > G.goal.x + 20) levelClear(); // 문 한가운데를 지나갈 때
   }
 }
 function levelClear() {
@@ -1138,7 +1158,7 @@ function levelClear() {
   for (const e of G.enemies) { burst(e.x, e.y, (ENEMIES[e.type] || {}).color || '#fff', 10); e.dead = true; }
   G.enemies = []; G.shots = []; G.warns = []; G.sweeps = [];
   pop(W / 2, H / 2 - 60, G.n === LAST ? '공주님!' : '도착!', C.yellow, 60, true);
-  shake = 6; sfx.ready(); haptic([30, 40, 60]);
+  shake = 6; sfx.ready(); say('clear', true); haptic([30, 40, 60]);
   fireworks(5); burstRays(G.p.x, G.p.y, C.yellow, 1.2, 24);
 }
 function finishClear() {
@@ -1166,18 +1186,35 @@ function drawGoal(gx) {
     text('도와줘요!', gx + 50, y - 100, 22, '#ffd1ef');
     return;
   }
-  ctx.fillStyle = '#ff7f9e';
-  rr(gx, CEIL + 60, 26, SEABED - CEIL - 60, 12); ctx.fill();
-  ctx.fillStyle = '#ff5b84';
-  for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(gx + 13 + Math.sin(i * 2) * 8, CEIL + 90 + i * 62, 9, 0, Math.PI * 2); ctx.fill(); }
-  ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(gx + 13, CEIL + 60); ctx.lineTo(gx + 13, CEIL + 10); ctx.stroke();
-  const wave = Math.sin(T * 6) * 5;
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
-    ctx.fillStyle = (r + c) % 2 ? '#111' : '#fff';
-    ctx.fillRect(gx + 15 + c * 12, CEIL + 10 + r * 10 + wave * (c / 4), 12, 10);
+  // 도착 문: 코덱스 그림(산호 아치) + 뒤에서 도는 빛 + 올라가는 거품 + 반짝이
+  const cx = gx + 20, base = SEABED + 6, gh = 300;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const gl = ctx.createRadialGradient(cx, base - gh * 0.55, 20, cx, base - gh * 0.55, gh * 0.75);
+  gl.addColorStop(0, 'rgba(255,240,170,.45)'); gl.addColorStop(1, 'rgba(255,240,170,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cx, base - gh * 0.55, gh * 0.75, 0, Math.PI * 2); ctx.fill();
+  if (!LOWFX) for (let i = 0; i < 10; i++) {
+    const a = T * 0.5 + i * Math.PI / 5;
+    ctx.fillStyle = 'rgba(255,245,200,.07)'; ctx.beginPath(); ctx.moveTo(cx, base - gh * 0.55);
+    ctx.arc(cx, base - gh * 0.55, gh * 0.9, a, a + 0.16); ctx.closePath(); ctx.fill();
   }
-  text('도착', gx + 13, CEIL + 54, 18, '#fff');
-  drawFish(gx + 70, SEABED - 60 + Math.sin(T * 3) * 6, 0.8);
+  ctx.restore();
+  if (!drawImg(IMG.spr_goal_gate, cx, base - gh / 2 + Math.sin(T * 2) * 2, gh)) {
+    // 그림이 아직 안 왔을 때: 산호 아치 모양(막대 아님)
+    ctx.strokeStyle = '#ff7f9e'; ctx.lineWidth = 26; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(cx, base - 150, 95, Math.PI, 0); ctx.lineTo(cx + 95, base); ctx.moveTo(cx - 95, base - 150); ctx.lineTo(cx - 95, base); ctx.stroke();
+  }
+  for (let i = 0; i < 7; i++) { // 거품
+    const k = (T * 0.35 + i / 7) % 1, bx = cx + Math.sin(i * 3.1 + T * 2) * 70, by = base - k * gh * 1.1;
+    ctx.strokeStyle = `rgba(220,250,255,${0.7 * (1 - k)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(bx, by, 4 + (i % 3) * 3, 0, Math.PI * 2); ctx.stroke();
+  }
+  for (let i = 0; i < 6; i++) { // 반짝이
+    const a = i * 1.05 + T * 0.8, s = 0.5 + 0.5 * Math.sin(T * 5 + i * 2);
+    const sx = cx + Math.cos(a) * 120, sy = base - gh * 0.55 + Math.sin(a) * 120;
+    ctx.fillStyle = `rgba(255,250,210,${s})`; ctx.beginPath();
+    for (let j = 0; j < 8; j++) { const rr2 = j % 2 ? 2 : 8 * s + 2, aa = j * Math.PI / 4; ctx.lineTo(sx + Math.cos(aa) * rr2, sy + Math.sin(aa) * rr2); }
+    ctx.closePath(); ctx.fill();
+  }
 }
 function drawEgg(e) {
   if (e.pearl) {
@@ -1641,6 +1678,7 @@ function reaction(tier, word) {
   scr.reacts = [{ s: word || w, c, t: 0, dur: 1.15, tier, rot: rand(-0.1, 0.1) }];
   edgeFlash(c, 0.7); shake = Math.max(shake, 10 + tier * 5); zoomTo(1.03 + tier * 0.012);
   snd('react', 0.7 + tier * 0.08, 1 + tier * 0.06, 0.2);
+  say(['good', 'great', 'awesome', 'wow', 'legend'][tier]);
   haptic([20 + tier * 10, 20, 30 + tier * 15]);
   burstRays(W / 2, 128, c, 0.9, 14 + tier * 3);
 }

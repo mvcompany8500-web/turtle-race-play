@@ -8,11 +8,11 @@ function makeImpulse(sec, decay) {
   for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
   return b;
 }
-function initAudio() {
+function initAudio(boot = false) {
   if (!ac) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    ac = new AC();
+    try { ac = new AC({ latencyHint: 'interactive' }); } catch (e) { ac = new AC(); }
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
     master = ac.createGain(); master.connect(comp); comp.connect(ac.destination);
@@ -27,7 +27,7 @@ function initAudio() {
   applyVolumes();
   // 아이폰: 무음 스위치를 켜도 게임 소리가 나도록 (iOS 17+)
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* 지원 안 함 */ }
-  if (ac.state === 'suspended') ac.resume();
+  if (!boot && ac.state === 'suspended') ac.resume(); // 켜는 것만 첫 터치 때(브라우저 규칙), 받기·풀기는 미리
   loadSamples();
 }
 function applyVolumes() {
@@ -164,7 +164,7 @@ const TRACKS = {
     lead: 'E5 - G5 - C6 - B5 G5 D5 - G5 - B5 - A5 - C5 - E5 - A5 - G5 E5 F5 - A5 - C6 - - -'.split(' '), leadType: 'triangle' },
 };
 let curTrack = null, trackName = '', mStep = 0, mNext = 0, musicFever = false, synthT0 = null; // synthT0: 합성 음악 첫 음 시각(박자 시계용)
-function setMusic(name) { if (name === trackName) return; trackName = name; curTrack = TRACKS[name] || null; mStep = 0; mNext = 0; synthT0 = null; }
+function setMusic(name) { if (name === trackName) return; trackName = name; curTrack = TRACKS[name] || null; mStep = 0; mNext = 0; synthT0 = null; if (typeof ensureSample === 'function') ensureSample('bgm_' + name); } // 화면이 바뀌면 그 음악을 바로 받기
 function kick(t) { voice({ f: 160, f2: 45, t, d: 0.26, vol: 0.5, bus: musicBus }); }
 function snare(t) { nz({ t, d: 0.16, vol: 0.2, type: 'bandpass', f: 1800, f2: 1200, bus: musicBus }); voice({ type: 'triangle', f: 190, f2: 120, t, d: 0.08, vol: 0.1, bus: musicBus }); }
 function hat(t, open) { nz({ t, d: open ? 0.2 : 0.035, vol: 0.06, type: 'highpass', f: 7000, f2: 9000, bus: musicBus }); }
@@ -201,20 +201,32 @@ const SAMPLES = {};
 let samplesLoading = false, bgmSrc = null, bgmName = '', bgmGain = null, AUDIO_META = {}, bgmStartAt = null, bgmStartOff = 0, duckUntil = 0;
 // 큰 사건 때 음악을 잠깐 낮춤(효과음이 또렷하게)
 function duckMusic(sec) { if (!ac) return; duckUntil = Math.max(duckUntil, ac.currentTime + sec); if (bgmGain) bgmGain.gain.setTargetAtTime(0.42, ac.currentTime, 0.04); }
+// ── 시작하자마자 소리: 페이지가 열리면 바로 받기 시작 → 소리 장치도 미리 만들어 풀어 둠 → 첫 터치에 켜기만 ──
+const BYTES = {}, DECODING = {};
+const fetchBytes = (n) => (BYTES[n] = BYTES[n] || fetch(`assets/audio/${n}.mp3`).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
+const FIRST_SOUNDS = ['bgm_title', 'bgm_map', 'sfx_tap', 'sfx_click', 'sfx_egg', 'sfx_jump', 'sfx_jump2', 'sfx_land', 'sfx_stomp', 'sfx_ready', 'v_go', 'sfx_slide', 'sfx_hurt', 'sfx_count', 'sfx_beat'];
+FIRST_SOUNDS.forEach(fetchBytes);
+const META_P = fetch('assets/audio/meta.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+const LIST_P = fetch('assets/audio/list.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+function ensureSample(n) {
+  if (SAMPLES[n] || !ac) return Promise.resolve();
+  return (DECODING[n] = DECODING[n] || fetchBytes(n).then(async (b) => { if (b) { try { SAMPLES[n] = await ac.decodeAudioData(b.slice(0)); } catch (e) { /* 깨진 파일은 건너뜀 */ } } }));
+}
 async function loadSamples() {
   if (samplesLoading || !ac) return; samplesLoading = true;
-  let list = [];
-  // 파일을 분석해 둔 값: 효과음 크기 맞춤(gain), 음악 반복 구간(조용한 앞·페이드아웃 끝 빼고)
-  try { const r = await fetch('assets/audio/meta.json', { cache: 'no-cache' }); if (r.ok) AUDIO_META = await r.json(); } catch (e) { /* 없으면 기본값 */ }
-  try { const r = await fetch('assets/audio/list.json', { cache: 'no-cache' }); if (r.ok) list = await r.json(); } catch (e) { /* 파일 없음 = 합성음만 */ }
-  SAMPLE_LIST = list;
-  // 효과음 먼저(작음), 음악은 나중에
-  list.sort((a, b) => (a.startsWith('bgm_') ? 1 : 0) - (b.startsWith('bgm_') ? 1 : 0));
-  for (const n of list) {
-    try { const r = await fetch(`assets/audio/${n}.mp3`); if (!r.ok) continue; SAMPLES[n] = await ac.decodeAudioData(await r.arrayBuffer()); } catch (e) { /* 하나 깨져도 나머지는 */ }
-  }
+  AUDIO_META = await META_P;
+  const list = (SAMPLE_LIST = await LIST_P);
+  if (trackName) ensureSample('bgm_' + trackName); // 지금 화면 음악이 1순위
+  await Promise.all(FIRST_SOUNDS.filter((n) => list.includes(n)).map(ensureSample));
+  // 나머지: 효과음 먼저, 6개씩 동시에
+  const rest = list.filter((n) => !FIRST_SOUNDS.includes(n)).sort((a, b) => (a.startsWith('bgm_') ? 1 : 0) - (b.startsWith('bgm_') ? 1 : 0));
+  let i = 0;
+  await Promise.all([0, 1, 2, 3, 4, 5].map(async () => { while (i < rest.length) await ensureSample(rest[i++]); }));
 }
 let SAMPLE_LIST = [];
+let sayAt = -9;
+// 터틀이 목소리(외침): 서로 겹치지 않게 1초 간격 (조사 00-레시피: 콤보 칭찬 단계 + 터틀이 외침)
+function say(k, force = false) { if (!ac || save.sfxOff) return false; if (!force && ac.currentTime - sayAt < 1) return false; if (playSample('v_' + k, 0.9)) { sayAt = ac.currentTime; return true; } return false; }
 const sndLast = {};
 // 녹음 소리만(합성음 대신 안 함). cool: 같은 소리 최소 간격(초) — 촘촘히 겹쳐 지지직거리지 않게
 function snd(name, vol = 1, rate = 1, cool = 0) {
@@ -263,3 +275,5 @@ function bgmTick() {
   }
 }
 setInterval(bgmTick, 100);
+// 페이지가 열리자마자 소리 장치를 만들어 파일을 풀어 둠(아직 「켜지」 않음 — 첫 터치에 켜짐)
+try { initAudio(true); } catch (e) { /* 나중에 첫 터치 때 */ }

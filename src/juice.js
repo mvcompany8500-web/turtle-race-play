@@ -64,7 +64,28 @@ function shatter(key, x, y, h, n = 3, power = 1) {
   if (shards.length > 80) shards.splice(0, shards.length - 80);
 }
 // 멈칫 중에도 흘러야 하는 것(조각·숫자·별) — main.update 의 freeze 앞에서 부름
+// ───────── 그림 효과(코덱스가 그린 칼빛·폭발·충격파·빛기둥) — 진짜 시간으로 움직여 멈칫 중에도 살아 있음 ─────────
+const sprFx = [];
+// k: 그림 이름(fx_slash 등), h: 높이, o: { life, from, to(크기 배율), rot, vr, vx, vy, add(빛 섞기), delay, alpha, sx(가로 배율) }
+function fxSpr(k, x, y, h, o = {}) {
+  if (LOWFX && sprFx.length > 18) return;
+  sprFx.push({ k, x, y, h, t: -(o.delay || 0), life: o.life || 0.4, from: o.from ?? 0.6, to: o.to ?? 1.2, rot: o.rot || 0, vr: o.vr || 0, vx: o.vx || 0, vy: o.vy || 0, add: o.add !== false, a: o.alpha ?? 1, sx: o.sx || 1, flip: !!o.flip });
+}
+function drawSprFx() {
+  for (const f of sprFx) {
+    if (f.t < 0) continue;
+    const im = IMG['spr_' + f.k]; if (!im || !ready(im)) continue;
+    const k = clamp(f.t / f.life, 0, 1), sc = lerp(f.from, f.to, 1 - Math.pow(1 - k, 3));
+    const a = f.a * (k < 0.12 ? k / 0.12 : 1 - Math.pow(Math.max(0, (k - 0.45) / 0.55), 1.6));
+    const h = f.h * sc, w = (h * im.naturalWidth) / im.naturalHeight * f.sx;
+    ctx.save(); if (f.add) ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = clamp(a, 0, 1);
+    ctx.translate(f.x, f.y); ctx.rotate(f.rot); if (f.flip) ctx.scale(-1, 1);
+    ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
+  }
+}
 function juiceRealtime(dt) {
+  for (const f of sprFx) { f.t += dt; if (f.t > 0) { f.x += f.vx * dt; f.y += f.vy * dt; f.rot += f.vr * dt; } }
+  for (let i = sprFx.length - 1; i >= 0; i--) if (sprFx[i].t > sprFx[i].life) sprFx.splice(i, 1);
   for (const s of shards) { s.t += dt; s.vy += 1620 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.rot += s.vr * dt; }
   for (let i = shards.length - 1; i >= 0; i--) if (shards[i].t > shards[i].life) shards.splice(i, 1);
   for (const n of hitNums) { const age = T - n.t0; if (age > 0) { n.vy += 1150 * dt; n.vx *= Math.pow(0.96, dt * 60); n.x += n.vx * dt; n.y = Math.max(140, n.y + n.vy * dt); } }
@@ -312,13 +333,36 @@ function ultCine(lvl) {
   duckMusic(total + 0.4);
   if (!playSample('sfx_ult_charge', 1)) sfx.fever();
   haptic([20, 40, 20, 40, 60]);
-  later(500, () => { reaction(3, lvl >= 3 ? '그림자 거북 군단!!' : '그림자 거북 군단!'); playSample('sfx_ult_rise', 1); burstRays(G.p.x, G.p.y, '#8b5cff', 1.2, 22); });
-  later(1250, () => { flash = 0.45; flashColor = '#b48bff'; shake = 14; edgeFlash('#8b5cff', 0.8); if (lvl >= 3) { reaction(4, '황금 터틀이 강림!!!'); burstRays(W / 2, H / 2, '#ffd54a', 2.2, 28); playSample('sfx_hatch', 1); } });
-  later(1700, () => { playSample('sfx_ult_slash', 1); later(320, () => playSample('sfx_ult_slash', 0.9, 1.15)); });
+  const px = G.p.x, py = G.p.y, gold = lvl >= 3;
+  fxSpr('fx_shock', px, py, 180, { life: 0.5, from: 0.2, to: 1.6, vr: 1.5 }); // 모으는 소용돌이
+  later(500, () => {
+    reaction(3, gold ? '그림자 거북 군단!!' : '그림자 거북 군단!'); playSample('sfx_ult_rise', 1); burstRays(G.p.x, G.p.y, '#8b5cff', 1.2, 22);
+    fxSpr('fx_shock', px, py, 200, { life: 0.55, from: 0.3, to: 1.6, vr: -1 });
+    fxSpr('fx_burst', px, py, 160, { life: 0.45, from: 0.3, to: 1.4 });
+  });
+  later(1250, () => {
+    flash = 0.45; flashColor = '#b48bff'; shake = 14; edgeFlash('#8b5cff', 0.8);
+    if (gold) {
+      reaction(4, '황금 터틀이 강림!!!'); burstRays(W / 2, H / 2, '#ffd54a', 2.2, 28); playSample('sfx_hatch', 1);
+      fxSpr('fx_pillar', W / 2, H / 2, H * 1.25, { life: 1.9, from: 0.7, to: 1.05, sx: 1.6 }); // 하늘에서 내리는 황금 빛기둥
+      [-1, 1].forEach((d) => fxSpr('fx_pillar', W / 2 + d * W * 0.3, H / 2, H * 1.1, { life: 1.2, from: 0.5, to: 1, delay: 0.18, alpha: 0.75 }));
+      fxSpr('fx_shock', W / 2, H * 0.6, 260, { life: 0.6, from: 0.2, to: 2.2, vr: 0.8 });
+    }
+  });
+  later(1700, () => {
+    playSample('sfx_ult_slash', 1); later(320, () => playSample('sfx_ult_slash', 0.9, 1.15));
+    // 화면을 가르는 큰 칼빛 세 줄(왼→오, 오→왼, 가운데 X)
+    const sl = gold ? 'fx_slash_gold' : 'fx_slash';
+    fxSpr(sl, W * 0.5, H * 0.42, H * 1.15, { life: 0.42, from: 0.7, to: 1.15, rot: -0.5, vx: 260 });
+    fxSpr('fx_slash', W * 0.5, H * 0.58, H * 1.05, { life: 0.42, from: 0.7, to: 1.15, rot: 2.6, vx: -260, delay: 0.12 });
+    fxSpr(sl, W * 0.5, H * 0.5, H * 1.25, { life: 0.5, from: 0.8, to: 1.25, rot: 0.9, flip: true, delay: 0.26 });
+  });
   targets.forEach((tg, i) => later(1700 + i * 65, () => {
     const o = tg.o, rate = comboRate(i + 1) * (i >= 10 ? 2 : 1);
     snd('chain', 0.8, rate);
-    burst(tg.x, tg.y, '#c9a2ff', 18, 420); burst(tg.x, tg.y, '#ffffff', 8, 300); ring(tg.x, tg.y, '#b48bff', 90, 0.35, 6);
+    burst(tg.x, tg.y, '#c9a2ff', 12, 420); ring(tg.x, tg.y, '#b48bff', 90, 0.35, 6);
+    fxSpr(gold && i % 2 ? 'fx_slash_gold' : 'fx_slash', tg.x, tg.y, 150, { life: 0.3, from: 0.6, to: 1.3, rot: rand(-1.2, 1.2), flip: i % 2 === 1 });
+    fxSpr('fx_burst', tg.x, tg.y, 110, { life: 0.32, from: 0.3, to: 1.2, rot: rand(0, 6) });
     shake = Math.max(shake, 3 + Math.min(8, i * 0.5));
     if (tg.kind === 'e' && !o.dead) { if (ENEMIES[o.type] && ENEMIES[o.type].hp >= 999) o.dead = true; else killEnemy(o, 'ult'); }
     else if (tg.kind === 'p' && !o.dead) smashPillar(o);
@@ -326,6 +370,15 @@ function ultCine(lvl) {
   }));
   later(1700 + n * 65 + 260, () => {
     snd('ult_impact', 1);
+    // 마무리 한 방: 가운데 큰 폭발 + 충격파 두 겹 (+3단은 황금 X 칼빛과 빛기둥 줄)
+    fxSpr('fx_burst', W / 2, H / 2, 380, { life: 0.6, from: 0.3, to: 1.5, rot: rand(0, 6) });
+    fxSpr('fx_shock', W / 2, H / 2, 300, { life: 0.7, from: 0.2, to: 3.6, vr: 1.2 });
+    fxSpr('fx_shock', W / 2, H / 2, 300, { life: 0.9, from: 0.1, to: 2.4, vr: -0.8, delay: 0.1, alpha: 0.8 });
+    if (gold) {
+      fxSpr('fx_slash_gold', W / 2, H / 2, H * 1.1, { life: 0.55, from: 0.8, to: 1.2, rot: 0.75 });
+      fxSpr('fx_slash_gold', W / 2, H / 2, H * 1.1, { life: 0.55, from: 0.8, to: 1.2, rot: -0.75, flip: true });
+      for (let i = 0; i < 5; i++) fxSpr('fx_pillar', W * (0.1 + i * 0.2), H / 2, H * 1.15, { life: 0.8, from: 0.4, to: 1, delay: i * 0.06, alpha: 0.8 });
+    }
     flash = 0.45; flashColor = '#ffffff'; zoomTo(1.11); shake = 26; // 눈부시지 않게(0.95→0.45)
     fireworks(lvl >= 3 ? 8 : 4); confetti(lvl >= 3 ? 120 : 60);
     reaction(4, n ? `${n}마리 한 번에!!` : '바다가 조용해졌다!');
@@ -341,14 +394,14 @@ function drawUltCine() {
   const t = (performance.now() - cine.t0) / 1000, total = 1.7 + cine.n * 0.065 + 0.3;
   const dk = Math.min(1, t / 0.3) * (t > total - 0.3 ? Math.max(0, (total - t) / 0.3) : 1);
   ctx.fillStyle = `rgba(6,2,20,${0.78 * dk})`; ctx.fillRect(-60, -60, W + 120, H + 120);
-  // 시스템 창(나 혼자만 레벨업 느낌의 파란 유리)
-  if (t < 1.7) {
-    const k = Math.min(1, t / 0.16), msg = cine.lvl >= 3 ? '[ 시스템 ] 황금 터틀이가 깨어납니다' : '[ 시스템 ] 그림자 거북들이 일어납니다';
-    const sy = H - 150; // 큰 글자(위)와 안 겹치게 아래쪽
-    ctx.save(); ctx.globalAlpha = k; ctx.fillStyle = 'rgba(20,60,140,.55)'; rr(W / 2 - 230, sy, 460, 52, 12); ctx.fill();
-    ctx.strokeStyle = '#7cc8ff'; ctx.lineWidth = 2; rr(W / 2 - 230, sy, 460, 52, 12); ctx.stroke();
-    text(msg.slice(0, Math.floor(t / 0.022)), W / 2, sy + 26, 19, '#dff3ff', { stroke: false, body: true });
-    ctx.restore();
+  // 2단: 가운데에 큰 그림자 거북 대장이 솟아오름(3단은 황금 터틀이가 그 자리)
+  if (cine.lvl < 3 && t > 0.45 && t < 2.2) {
+    const k = clamp((t - 0.45) / 0.5, 0, 1), out = t > 1.85 ? (2.2 - t) / 0.35 : 1, e = 1 - Math.pow(1 - k, 3);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const gy = lerp(H + 120, H * 0.5, e), g = ctx.createRadialGradient(W / 2, gy, 10, W / 2, gy, 230);
+    g.addColorStop(0, `rgba(150,80,255,${0.5 * out})`); g.addColorStop(1, 'rgba(150,80,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2, gy, 230, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    drawImg(IMG.spr_fx_shadow, W / 2, gy, 320 + Math.sin(T * 6) * 6, 0, 0.92 * out * k);
   }
   // 그림자 거북: 바닥에서 대상 위로 솟음
   const sil = silhouette('x_m06', '#1b0b3a');
@@ -357,25 +410,27 @@ function drawUltCine() {
     const done = t > 1.7 + i * 0.065; if (done && t > 1.7 + i * 0.065 + 0.15) return;
     const e = 1 - Math.pow(1 - k, 3), x = tg.x - 34, y = lerp(GROUND + 30, tg.y - 40, e);
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 4, x, y, 50); g.addColorStop(0, 'rgba(160,90,255,.55)'); g.addColorStop(1, 'rgba(160,90,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 50, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    const rim = silhouette('x_m06', '#9b6bff');
-    if (rim) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawImg(rim, x, y, 72, 0, 0.75); ctx.restore(); } // 보라 테두리 빛(어둠 속에서도 보이게)
-    if (sil) drawImg(sil, x, y, 64);
-    ctx.fillStyle = '#7cf0ff'; ctx.beginPath(); ctx.arc(x + 6, y - 8, 3, 0, Math.PI * 2); ctx.arc(x + 16, y - 8, 3, 0, Math.PI * 2); ctx.fill();
-  });
-  // 칼선
-  if (t > 1.7 && t < 1.7 + 0.8) {
-    for (let i = 0; i < 6; i++) {
-      const k = clamp((t - 1.7 - i * 0.07) / 0.38, 0, 1); if (k <= 0 || k >= 1) continue;
-      const y0 = 90 + i * 60;
-      ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = 6 * (1 - k) + 1;
-      ctx.beginPath(); ctx.moveTo(-40 + k * 200, y0 + 80); ctx.quadraticCurveTo(W / 2, y0 - 60, W + 40 - (1 - k) * 200, y0 + 40); ctx.stroke();
+    if (!drawImg(IMG.spr_fx_shadow, x, y - 14, 128 + Math.sin(T * 14 + i) * 4)) { // 코덱스 그림: 보라 불꽃 두른 그림자 거북
+      const rim = silhouette('x_m06', '#9b6bff');
+      if (rim) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawImg(rim, x, y, 72, 0, 0.75); ctx.restore(); }
+      if (sil) drawImg(sil, x, y, 64);
     }
-  }
+  });
+  drawSprFx(); // 칼빛·폭발은 그림자 위, 시스템 글 아래
   // 황금 터틀이
   if (cine.lvl >= 3 && t > 1.25) {
     const k = clamp((t - 1.25) / 1.8, 0, 1), bob = Math.abs(Math.sin(k * Math.PI * 3)) * 40 * (1 - k);
     ctx.save(); ctx.globalAlpha = k < 0.12 ? k / 0.12 : k > 0.8 ? (1 - k) / 0.2 : 1;
     ctx.translate(W / 2, H * 0.6 - bob); ctx.rotate(Math.sin(T / 0.12) * 0.08); drawImg(IMG.x_m10, 0, 0, 210); ctx.restore();
+  }
+  // 시스템 창(나 혼자만 레벨업 느낌의 파란 유리)
+  if (t < 1.7) {
+    const k = Math.min(1, t / 0.16), msg = cine.lvl >= 3 ? '[ 시스템 ] 황금 터틀이가 깨어납니다' : '[ 시스템 ] 그림자 거북들이 일어납니다';
+    const sy = H - 150; // 큰 글자(위)와 안 겹치게 아래쪽
+    ctx.save(); ctx.globalAlpha = k; ctx.fillStyle = 'rgba(20,60,140,.55)'; rr(W / 2 - 230, sy, 460, 52, 12); ctx.fill();
+    ctx.strokeStyle = '#7cc8ff'; ctx.lineWidth = 2; rr(W / 2 - 230, sy, 460, 52, 12); ctx.stroke();
+    text(msg.slice(0, Math.floor(t / 0.022)), W / 2, sy + 26, 19, '#dff3ff', { stroke: false, body: true });
+    ctx.restore();
   }
 }
 
@@ -408,6 +463,7 @@ function tryOpenLevelUp() {
   G.bless = shuffle(pool).slice(0, 3).map((a) => ({ ...a, lv: true, star: abStar(a.k) }));
   G.blessKind = 'lv'; state = 'bless';
   if (!playSample('sfx_lvup', 0.8)) sfx.levelup();
+  say('levelup', true);
   haptic([20, 40, 20]);
   return true;
 }

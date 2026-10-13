@@ -205,6 +205,8 @@ function drawAch() {
 }
 // 판이 끝나면 누적 기록·패스 경험치
 function storeAfterRun() {
+  const st = save.streak;
+  if (st.lost && st.last === today()) { st.lostRuns = (st.lostRuns || 0) + 1; if (st.lostRuns >= 3) { st.day = st.lost + 1; st.lost = 0; toast(`연속 ${st.day}일 되찾았어요!`, C.yellow); } }
   const s = save.stat;
   s.kills = (s.kills || 0) + (G.kills || 0); s.stomps = (s.stomps || 0) + (G.stomps || 0); s.beats = (s.beats || 0) + (G.beats || 0); s.runs = (s.runs || 0) + 1;
   passGain(G.xpGain || 0);
