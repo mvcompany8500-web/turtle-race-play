@@ -236,7 +236,7 @@ function bossLand(b) {
   ring(b.x, GROUND, '#ffffff', 340, 0.5, 12); ring(b.x, GROUND, '#ff9ac0', 260, 0.45, 8);
   for (let i = 0; i < 40; i++) fx.push({ k: 'spark', x: b.x + rand(-120, 120), y: GROUND - rand(0, 10), vx: rand(-420, 420), vy: rand(-380, -60), life: rand(0.4, 0.8), max: 0.8, size: rand(3, 6), color: '#e9d9a8' });
   b.sq = 0.4;
-  sfx.roar(); snd('thud', 1); haptic([30, 40, 30, 40, 60]);
+  snd('thud', 1); snd('roar', 0.9, 1, 0, 0.32); haptic([30, 40, 30, 40, 60]); // 쿵 먼저 → 땅이 울린 뒤 포효(같이 내면 뭉개짐)
   edgeFlash('#ff3355', 0.5);
   later(450, () => bossTaunt(true));
 }

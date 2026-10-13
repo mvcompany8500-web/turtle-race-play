@@ -70,10 +70,11 @@ function doJump(first) {
   p.jumps = first ? 1 : Math.max(2, p.jumps + 1); // 발판에서 떨어진 뒤 공중 점프는 두 번째로 셈
   p.onG = false; p.coyote = 0; p.buf = 0; p.slide = false; p.bounced = false;
   if (first) {
-    sfx.jump(); haptic(8);
+    if (!snd('jump', 0.9, rand(0.97, 1.07))) sfx.jump(); haptic(8); // 같은 소리 반복이 기계 같지 않게 높낮이 살짝씩
     for (let i = 0; i < 6; i++) fx.push({ k: 'bub', x: p.x + rand(-20, 20), y: GROUND - 4, vx: rand(-120, 40), vy: rand(-80, -20), life: 0.5, max: 0.5, size: rand(2, 5) });
+    for (let i = 0; i < 9; i++) fx.push({ k: 'spark', x: p.x + rand(-14, 18), y: GROUND - 2, vx: rand(-260, -40), vy: rand(-150, -30), life: 0.32, max: 0.32, size: rand(2.5, 4.5), color: '#e9d9a8' }); // 발밑 모래가 뒤로 튐
   } else {
-    p.spin = 1; sfx.jump2(); haptic(12);
+    p.spin = 1; if (!snd('jump2', 0.9, rand(0.97, 1.05))) sfx.jump2(); haptic(12);
     ring(p.x, p.fy - 10, '#bff3ff', 60, 0.3, 5);
     for (let i = 0; i < 10; i++) { const a = Math.PI * (0.2 + i / 12); fx.push({ k: 'bub', x: p.x, y: p.fy - 6, vx: Math.cos(a) * 180, vy: Math.sin(a) * 120, life: 0.5, max: 0.5, size: rand(2, 5) }); }
   }
@@ -149,11 +150,11 @@ function stomp(e) {
     if (msg && !e.toldNo && G.p.inv <= 0) { e.toldNo = true; pop(e.x, e.y - 44, msg, '#ff9aa8', 22); }
     return false;
   }
-  G.stomps++; G.stompChain++;
+  G.stomps++; G.stompChain++; p.land = 0.12; // 발이 닿는 순간 찌그러졌다가 튀어오르며 길쭉
   p.vy = -(p.holdJ ? 860 : 640); p.jumps = Math.min(p.jumps, 1); p.bounced = true; p.onG = false;
   freeze = Math.max(freeze, 0.05); shake = Math.max(shake, 10);
   ring(e.x, e.y - 10, '#ffffff', 90, 0.3, 8);
-  sfx.stomp(); haptic([15, 10, 30]);
+  if (!snd('stomp', 1, comboRate(Math.min(G.stompChain, 5)))) sfx.stomp(); haptic([15, 10, 30]); // 연속 밟기마다 한 음씩 위로
   const c = G.stompChain;
   pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속!` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
   say(['one', 'two', 'three', 'wow'][Math.min(c, 4) - 1], true); // 하나! 둘! 셋! 대박!
@@ -345,7 +346,7 @@ function updateObs(dt, scroll) {
     if (o.k === 'pillar') {
       const cx = clamp(p.x, o.x, o.x + o.w), cy = clamp(p.y, CEIL, o.y1);
       if ((p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.r * p.scale) ** 2) { if (mighty) smashPillar(o); else hitPlayer({ type: 'rock' }); }
-      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide) { G.boost = Math.min(BMAX(), G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }
+      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide && T - (G.hurtAt || -9) > 1.2) { G.boost = Math.min(BMAX(), G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }  // 방금 맞았으면 칭찬 안 함
     } else if (o.k === 'qb') {
       // 넉넉한 판정: 몸(원)이 블록(48×48)에 14px 안으로 닿기만 하면 열림 — 밑에서·옆에서·위에서 모두
       if (!o.hit) {
@@ -494,6 +495,13 @@ function drawPoseAt(c, x, feetY, h, rot, alpha, ghost) {
   ctx.drawImage(c, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
+// 그림 모양 그대로 한 색으로 칠한 판(맞을 때 하얀 번쩍 → 빨강)
+const tintCache = new Map();
+function tinted(c, color) {
+  let m = tintCache.get(c); if (!m) { m = {}; tintCache.set(c, m); }
+  if (!m[color]) { const t = document.createElement('canvas'); t.width = c.width; t.height = c.height; const g = t.getContext('2d'); g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, t.width, t.height); m[color] = t; }
+  return m[color];
+}
 function drawRunHero(face, blink, alpha) {
   const p = G.p, cap = (SIDE_STYLE[save.skin] || {}).cap; let key = heroPose(), c = pose(key, cap);
   if (!c && key === 'hero_fall') { key = 'hero_jump'; c = pose(key, cap); } // 그림이 없으면 점프 그림으로
@@ -520,6 +528,8 @@ function drawRunHero(face, blink, alpha) {
   }
   ctx.save(); ctx.translate(x, feet); ctx.scale(sx, 1); ctx.translate(-x, -feet);
   drawPoseAt(c, x, feet, h * sy, rot, alpha);
+  const ha = T - (G.hurtAt || -9); // 맞은 뒤: 55ms 하얗게 → 200ms 빨갛게 사라짐(알 합치기 수치)
+  if (ha < 0.255 && !p.dead) drawPoseAt(tinted(c, ha < 0.055 ? '#ffffff' : '#ff3355'), x, feet, h * sy, rot, ha < 0.055 ? 0.9 : 0.6 * (1 - (ha - 0.055) / 0.2));
   const st = SIDE_STYLE[save.skin] || {}, hx = HAT_AT[key];
   if (hx != null && (st.crown || st.chef)) { // 모자 꼭대기(그림 폭의 hx 지점, 맨 위)
     const w = (h * sy * c.width) / c.height, cx = x + (hx - 0.5) * w * Math.cos(rot), cy = feet - h * sy + 4 + (hx - 0.5) * w * Math.sin(rot), u = h * 0.06;

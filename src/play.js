@@ -240,9 +240,9 @@ function killEnemy(e, cause = 'boost') {
   dexKill(e.type);
   if (cause === 'boost' || cause === 'whirl' || cause === 'giant') chainKill(e);
   if (e.elite) pop(e.x, e.y - 50, '정예 처치!', C.yellow, 28);
-  else pop(e.x, e.y - 40, pick(['펑!', '쾅!', '퍽!', '뿅!', '콰앙!']), C.yellow, 40);
+  else if (cause !== 'stomp') pop(e.x, e.y - 40, pick(['펑!', '쾅!', '퍽!', '뿅!', '콰앙!']), C.yellow, 40); // 밟기는 밟기 글자 하나만
   if (ENEMIES[e.type] && ENEMIES[e.type].weak === cause) weakHit(e, true);
-  sfx.smash(); haptic(25);
+  if (cause === 'stomp' ? !snd('smash', 0.6, 1.1, 0, 0.06) : !snd('smash', 1, rand(0.94, 1.06))) sfx.smash(); haptic(25); // 밟기: 쿵(밟기 소리) → 멈칫 뒤 조각 날 때 펑
   const drops = G.run ? (e.elite ? 2 : 1) : e.elite ? 4 : 2;
   for (let i = 0; i < drops; i++) G.eggsArr.push({ x: e.x, y: e.y, vx: rand(-80, 160), vy: rand(-160, 160), loose: true, gold: e.elite && i === 0, t: 0 });
 }
@@ -299,9 +299,10 @@ function hitPlayer(src) {
   }
   if (G.run && G.hp > 1) { // 점프 달리기는 하트: 한 번에 끝나지 않고 깜빡이며 버팀
     G.hp--; G.hurtAt = T; p.inv = 1.6; shake = 16; freeze = 0.08; flash = 0.3; flashColor = '#ff3355'; setFace('ouch', 0.8);
-    burst(p.x, p.y, '#ffb3c0', 16, 320); ring(p.x, p.y, '#ff5470', 90, 0.4, 7);
+    burst(p.x - 10, p.y, '#ffb3c0', 10, 300); ring(p.x, p.y, '#ff5470', 70, 0.3, 5); hitStar(p.x + 24, p.y - 10, false, false); // 몸을 가리지 않게 작게
     pop(p.x, p.y - 64, G.hp === 1 ? '하트 하나 남았어요!' : '아야!', '#ff9aa8', 26, G.hp === 1);
-    if (!p.onG) p.vy = Math.min(p.vy, -300);
+    // 맞은 몸짓: 뒤로 밀리며 살짝 튀어오름(알 합치기 넉백처럼) — 무적 1.6초라 다시 맞지 않음
+    p.x -= 46; if (p.onG) { p.vy = -330; p.onG = false; p.slide = false; } else p.vy = Math.min(p.vy, -300);
     sfx.hurt(); if (Math.random() < 0.5) say('ouch'); haptic([40, 30, 60]);
     if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 20);
     if (src && src.type && ENEMIES[src.type] && src.type !== 'urchin' && src.type !== 'whirlpool' && !src.run) src.dead = true;
@@ -517,7 +518,7 @@ function collectEgg(e) {
     G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.95;
     if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
-    snd('egg', 0.3, 1.35 + Math.min(G.combo, 14) * 0.04, 0.04);
+    snd('egg', 0.45, comboRate(Math.min(G.combo, 10)), 0.04); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     burst(e.x, e.y, '#dff6ff', 3, 120);
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
     if (CM[G.combo] != null) reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`);
@@ -747,6 +748,8 @@ function bossDamage(amount = 10) {
   pop(b.x - 40, b.y - 90, '크게 한 방!', C.yellow, 44, true);
   burstRays(b.x - 50, b.y, '#ffffff', 0.8, 18); edgeFlash('#ff5470', 0.5);
   sfx.bossHit(); haptic([60, 30, 100]);
+  // 보스 신음: 맞고 50ms 뒤 「윽!」 — 몸집·종류마다 높낮이(꽃게·해파리 높게, 상어왕 낮게)
+  if (b.hp > 0) snd('oof', 0.85, ({ crab: 1.25, jelly: 1.3, octopus: 1.05, angler: 0.95, shark: 0.9 }[b.def.kind] || 1) * (b.def.king ? 0.8 : 1) * rand(0.96, 1.04), 0.2, 0.05);
   if (amount) pop(b.x - 40, b.y - 50, `-${amount}`, '#ff4d6a', 34, true);
   if (b.hp <= 0) {
     b.dead = true; b.deadT = 2.2; b.koAt = T; timeScale = 0.12; freeze = 0.5; zoom = 1.3; G.zoomAt = { x: b.x - 40, y: b.y };
@@ -1415,7 +1418,7 @@ function drawWorld() {
   const face = p.dead ? 'dead' : G.boosting > 0 || E.giant > 0 ? 'boost' : p.faceT > 0 ? p.face : p.scared ? 'scared' : 'normal';
   const bob = p.dead ? 0 : Math.sin(p.ph * 0.5) * 2.5;
   if (E.giant > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 110); g.addColorStop(0, 'rgba(120,255,160,.35)'); g.addColorStop(1, 'rgba(120,255,160,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 110, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-  if (G.run) { drawRunShadow(); drawBeatRing(); drawRunHero(face, p.blinkT < 0, blink ? 0.35 : 1); }
+  if (G.run) { drawRunShadow(); drawBeatRing(); drawRunHero(face, p.blinkT < 0, blink && T - (G.hurtAt || -9) > 0.45 ? 0.5 : 1); } // 맞은 직후 0.45초는 또렷하게(맞은 몸짓이 보이게), 그다음 깜빡임
   else if (G.boosting > 0 && !REDUCE) { // 질주 중 빨강·파랑으로 갈라지는 잔상
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     drawHero(p.x - 6 * p.scale - 8, p.y + (4 + bob) * p.scale, HERO_H * p.scale, p.rot + p.flip, { ghost: '#ff3355', alpha: 0.5, ph: p.ph, boost: true });

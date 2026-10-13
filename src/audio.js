@@ -229,17 +229,18 @@ let sayAt = -9;
 function say(k, force = false) { if (!ac || save.sfxOff) return false; if (!force && ac.currentTime - sayAt < 1) return false; if (playSample('v_' + k, 0.9)) { sayAt = ac.currentTime; return true; } return false; }
 const sndLast = {};
 // 녹음 소리만(합성음 대신 안 함). cool: 같은 소리 최소 간격(초) — 촘촘히 겹쳐 지지직거리지 않게
-function snd(name, vol = 1, rate = 1, cool = 0) {
+// delay: 그림 동작의 박(떨어짐·부서짐 등)에 맞춰 몇 초 뒤에 (알 합치기와 같은 방식)
+function snd(name, vol = 1, rate = 1, cool = 0, delay = 0) {
   if (!ac) return false;
   if (cool && ac.currentTime - (sndLast[name] || -9) < cool) return false;
   sndLast[name] = ac.currentTime;
-  return playSample('sfx_' + name, vol, rate);
+  return playSample('sfx_' + name, vol, rate, delay);
 }
-function playSample(name, vol = 1, rate = 1) {
+function playSample(name, vol = 1, rate = 1, delay = 0) {
   const buf = SAMPLES[name]; if (!buf || !ac) return false;
   const s = ac.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
   const g = ac.createGain(); g.gain.value = vol * ((AUDIO_META[name] || {}).gain || 1);
-  s.connect(g); g.connect(sfxBus); s.start();
+  s.connect(g); g.connect(sfxBus); s.start(ac.currentTime + Math.max(0, delay));
   return true;
 }
 // 효과음: 파일이 있으면 파일로 바꿔 낀다
