@@ -126,6 +126,7 @@ function frame(now) {
   }
   update(dt); render();
   requestAnimationFrame(frame);
+if (new URLSearchParams(location.search).has('lab')) { const s = document.createElement('script'); s.src = 'tools/lab.js?' + Date.now(); document.body.append(s); } // 개발용 실험실
 }
 function update(dt) {
   if (state !== prevState) { prevState = state; stateT = 0; }

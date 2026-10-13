@@ -15,7 +15,7 @@ const STOMP_NO = { urchin: '가시가 있어요!', mine: '펑!', whirlpool: '' }
 const hasPerk = (k) => Object.keys(LV_PERKS).some((lv) => LV_PERKS[lv].k === k && save.lv >= +lv);
 const maxJumps = () => (hasPerk('triple') ? 3 : 2);
 const maxHearts = () => [4, 3, 2][save.diff] + ['heart', 'heart2', 'heart3'].filter(hasPerk).length;
-const xpNeed = (lv) => Math.round(50 + 40 * Math.pow(lv, 1.3));
+const xpNeed = (lv) => Math.round(60 + 55 * Math.pow(lv, 1.45)); // docs/balance.md: Lv5 ≈ 4번 바다, Lv10 ≈ 25번 바다, Lv20 = 끝까지 깨고도 더
 
 function runInit() {
   const p = G.p;
@@ -78,7 +78,7 @@ function doJump(first) {
 function land(vy) {
   const p = G.p;
   p.land = 0.14; p.jumps = 0; p.bounced = false;
-  if (G.stompChain >= 2) { const b = G.stompChain * 2; G.eggs += b; pop(p.x, p.y - 70, `밟기 ${G.stompChain}연속! 알 +${b}`, C.yellow, 26, true); sfx.mission(); }
+  if (G.stompChain >= 2) { const b = G.stompChain * 2; earn('stompChain', b); pop(p.x, p.y - 70, `밟기 ${G.stompChain}연속! 알 +${b}`, C.yellow, 26, true); sfx.mission(); }
   G.stompChain = 0;
   if (vy > 500) {
     shake = Math.max(shake, p.dive > 0 ? 8 : 3); sfx.land();
@@ -155,7 +155,7 @@ function stomp(e) {
   pop(e.x, e.y - 40, c >= 2 ? `밟기 ${c}연속!` : pick(['꾹!', '밟았다!', '뿌직!']), c >= 3 ? '#ff8a3c' : C.yellow, 28 + Math.min(c, 6) * 3, c >= 3);
   if (c === 3) reaction(1, '3단 밟기!');
   if (c === 5) reaction(3, '밟기 장인!!');
-  if (hasPerk('stompEgg')) G.eggs += 1;
+  if (hasPerk('stompEgg')) earn('perk', 1);
   if (e.type === 'jelly') { p.vy = -1000; pop(p.x, p.y - 60, '통통!', '#ff8fd0', 24); } // 해파리는 트램펄린
   killEnemy(e, 'stomp');
   if (hasPerk('shockStomp')) for (const o of G.enemies) if (!o.dead && o !== e && Math.hypot(o.x - e.x, o.y - e.y) < 150 && STOMP_NO[o.type] == null) killEnemy(o, 'stomp');
@@ -175,10 +175,18 @@ function stompBoss(b) {
 const runSpd = () => G.cfg.speed * G.slowMul;
 const jumpW = () => runSpd() * 0.74;            // 한 번 점프로 날아가는 가로 길이
 const GC = () => GROUND - STAND_R;               // 서 있을 때 몸 가운데 높이
+const REACT = () => runSpd() * 0.45;            // 한 동작이 끝나고 다음 위험까지 최소 거리(0.45초 = 착지 + 사람 반응)
+// 길잡이는 「물방울 구슬」(돈 아님: 연속·질주·알 소나기 게이지만), 진짜 알은 타이밍이 맞아야 닿는 곳(점프 꼭대기·위험한 길)에만
 function egg(x, y, gold = false) { G.eggsArr.push({ x, y, gold, t: rand(0, 6) }); G.eggsSpawned++; }
-function eggLine(x, n, y, gap = 46) { for (let i = 0; i < n; i++) egg(x + i * gap, y); return n * gap; }
-function eggArc(x, w, h = 140, n = 7, goldMid = false) { // 점프 길을 알로 그려 줌(어디서 뛸지 알려 주는 선)
-  for (let i = 0; i < n; i++) { const u = i / (n - 1); egg(x + u * w, GC() - 4 * h * u * (1 - u), goldMid && i === (n >> 1)); }
+const EGG_P = 0.5; // 점프 꼭대기·줄 끝에 진짜 알이 놓일 확률 (docs/balance.md 의 수입 목표에 맞춘 값)
+function pearl(x, y) { G.eggsArr.push({ x, y, pearl: true, t: rand(0, 6) }); }
+function eggLine(x, n, y, gap = 46, every = 0) { // every: k개마다 진짜 알(0이면 마지막 하나만)
+  for (let i = 0; i < n; i++) ((every ? i % every === every - 1 : i === n - 1 && Math.random() < EGG_P) ? egg : pearl)(x + i * gap, y);
+  return n * gap;
+}
+function eggArc(x, w, h = 140, n = 7, goldMid = false) { // 점프 길을 구슬로 그려 줌 — 꼭대기에만 알
+  const withEgg = goldMid || Math.random() < EGG_P;
+  for (let i = 0; i < n; i++) { const u = i / (n - 1), y = GC() - 4 * h * u * (1 - u); if (i === (n >> 1) && withEgg) egg(x + u * w, y, goldMid); else pearl(x + u * w, y); }
 }
 function spike(x, y = GROUND - 22) { return addEnemy({ type: 'urchin', x, y, baseY: y, r: 20, vx: 0, t: 0, ph: rand(0, 6), elite: false, run: true, noSp: true }); }
 function mon(type, x, y, extra = {}) {
@@ -190,7 +198,7 @@ function mon(type, x, y, extra = {}) {
 }
 function pillar(x, w = 64) { G.obs.push({ k: 'pillar', x, w, y1: GROUND - 46, t: 0 }); }
 function plat(x, w, y) { G.obs.push({ k: 'plat', x, w, y, t: 0 }); }
-function qblock(x, y = GROUND - 196) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
+function qblock(x, y = GROUND - 180) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
 function letter(x, y) {
   const i = G.letters.indexOf(0); if (i < 0) return;
   if (G.obs.some((o) => o.k === 'letter' && o.i === i)) return;
@@ -205,21 +213,21 @@ const PATS = [
   ['eggs', 1, 1, (x) => eggLine(x, 6, GC())],
   ['hop', 1, 4, (x) => { const w = jumpW(); spike(x + w * 0.5); eggArc(x, w); return w; }],
   ['hop2', 1, 3, (x) => { const w = jumpW(); spike(x + w * 0.5); spike(x + w * 1.55); eggArc(x, w); eggArc(x + w * 1.05, w); return w * 2.1; }],
-  ['wide', 1, 3, (x) => { const w = jumpW(); for (let i = 0; i < 3; i++) spike(x + w * 0.32 + i * 44); eggArc(x - 10, w * 1.05, 165, 8, true); return w * 1.1; }],
+  ['wide', 1, 3, (x) => { const w = jumpW(); for (let i = 0; i < 3; i++) spike(x + w * 0.38 + i * w * 0.1); eggArc(x - 10, w * 1.05, 165, 8, true); return w * 1.1; }], // 가시 간격은 빠르기에 맞춰(느린 바다에서도 한 번 점프로)
   ['duck', 1, 4, (x) => { pillar(x + 40, 70); eggLine(x, 5, GROUND - 16, 40); return 220; }],
   ['stomp', 1, 3, (x) => { mon('jelly', x + 140, GC() - 6, { amp: 6, vx: -30 }); eggArc(x - 60, jumpW(), 150, 5); return 260; }],
   ['stairs', 1, 3, (x) => {
     plat(x, 210, GROUND - 118); plat(x + 290, 230, GROUND - 228);
-    eggLine(x + 20, 4, GROUND - 118 - 30); eggLine(x + 310, 4, GROUND - 228 - 30); egg(x + 500, GROUND - 228 - 30, true);
+    eggLine(x + 20, 4, GROUND - 118 - 30, 46, 2); eggLine(x + 310, 4, GROUND - 228 - 30, 46, 2); egg(x + 500, GROUND - 228 - 30, true);
     spike(x + 120); spike(x + 330); spike(x + 380);
     return 560;
   }],
-  ['qblock', 2, 2, (x) => { qblock(x + 120); eggLine(x, 6, GC()); return 300; }],
-  ['jumpDuck', 3, 3, (x) => { const w = jumpW(); spike(x + w * 0.5); eggArc(x, w); pillar(x + w + 90, 70); eggLine(x + w + 60, 3, GROUND - 16, 40); return w + 220; }],
-  ['shortHop', 4, 2, (x) => { const w = jumpW() * 0.62; spike(x + w * 0.5); mon('mine', x + w * 0.5, GROUND - 190, { r: 16, noSp: true }); eggArc(x, w, 60, 5); return w + 60; }],
+  ['qblock', 2, 2, (x) => { const w = jumpW(); qblock(x + w * 0.5); for (let i = 0; i < 4; i++) pearl(x + w * 0.5 - 60 + i * 40, GC()); return w + 80; }], // 밑에서 박거나 위에서 밟으면 열림
+  ['jumpDuck', 3, 3, (x) => { const w = jumpW(), px = x + w + REACT(); spike(x + w * 0.5); eggArc(x, w); pillar(px, 70); eggLine(px - 30, 3, GROUND - 16, 40); return px - x + 120; }],
+  ['shortHop', 4, 2, (x) => { const w = jumpW() * 0.62; spike(x + w * 0.5); mon('mine', x + w * 0.5, GROUND - 212, { r: 16, noSp: true }); eggArc(x, w, 60, 5); return w + 60; }],
   ['duckLong', 5, 2, (x) => { pillar(x + 30, 260); eggLine(x + 10, 7, GROUND - 16, 44); return 340; }],
   ['highRoad', 4, 2, (x) => { // 위로 가면 황금알, 아래는 가시 — 고르기
-    plat(x, 520, GROUND - 150); eggLine(x + 30, 9, GROUND - 150 - 30, 52); egg(x + 480, GROUND - 180, true);
+    plat(x, 520, GROUND - 150); eggLine(x + 30, 9, GROUND - 150 - 30, 52, 3); egg(x + 480, GROUND - 180, true);
     for (let i = 0; i < 4; i++) spike(x + 80 + i * 120);
     return 560;
   }],
@@ -229,19 +237,25 @@ const PATS = [
   ['eel', 4, 3, (x) => { warnLane('eel', GROUND - 16, 1.0); eggArc(x + 60, jumpW(), 130, 6); return 230; }, 'eel'],
   ['octo', 7, 2, (x) => { mon('octopus', x + 220, GROUND - 170, { r: 22, inkT: 2.5 }); eggArc(x + 20, jumpW() * 1.2, 190, 7); return 360; }, 'octopus'],
   ['angler', 8, 2, (x) => { mon('angler', x + 260, GROUND - 30, { r: 22 }); return 320; }, 'angler'],
-  ['ray', 16, 3, (x) => { mon('ray', x + 200, GROUND - 120, { r: 22, amp: 70, vx: -160 }); eggLine(x, 4, GROUND - 16, 44); return 300; }, 'ray'],
-  ['crab', 21, 3, (x) => { mon('crab', x + 220, GROUND - 18, { r: 18, vx: -60, floor: GROUND - 18, top: false, jumped: false, vy: 0 }); eggArc(x + 120, jumpW(), 150, 6); return 320; }, 'crab'],
+  ['ray', 16, 3, (x) => { mon('ray', x + 200, HEAD_Y - 2, { r: 22, amp: 5, vx: -220, ph: 0 }); eggLine(x, 5, GROUND - 16, 44); return 300; }, 'ray'], // 가오리: 머리 높이로 빠르게 미끄러져 옴 → 숙이기
+  ['crab', 21, 3, (x) => { mon('crab', x + 220, GROUND - 18, { r: 18, vx: -90, floor: GROUND - 18, top: false, jumped: true, vy: 0 }); eggArc(x + 120, jumpW(), 150, 6); return 320; }, 'crab'],
   ['sword', 32, 3, (x) => { warnLane('sword', HEAD_Y + 2, 1.0); eggLine(x + 30, 5, GROUND - 16, 44); return 240; }, 'swordfish'],
   ['phantom', 42, 2, (x) => { mon('phantom', x + 220, HEAD_Y, { r: 20, amp: 6, vx: -40, vis: 1 }); eggLine(x, 5, GROUND - 16, 44); return 300; }, 'phantom'],
   ['rock', 2, 2, (x) => { rockAt(x + 150); eggArc(x + 20, jumpW() * 1.05, 175, 7); return 330; }],
   ['chest', 3, 1, (x) => { rockAt(x + 120, 'chest'); eggLine(x, 3, GC()); return 260; }],
-  ['jellyBridge', 10, 2, (x) => { // 긴 가시밭 — 해파리를 밟고 통통
-    for (let i = 0; i < 6; i++) spike(x + 120 + i * 56);
-    mon('jelly', x + 290, GROUND - 150, { amp: 10, vx: -10, noSp: true });
-    eggArc(x + 20, 300, 230, 7, true);
-    return 520;
+  ['jellyBridge', 10, 2, (x) => { // 한 번 점프로는 못 넘는 가시밭(점프 1.3배) — 해파리를 밟거나 이단 점프
+    // 한 번 점프로 넘는 가시 줄 ≈ 0.76w-100px, 이단 점프 ≈ 1.3w-100px (실험실 계산) → 0.7w = 이단 점프나 해파리 밟기가 꼭 필요, 여유 0.2초
+    const w = jumpW(), span = w * 0.7;
+    for (let i = 0; i < 6; i++) spike(x + w * 0.35 + i * span / 5.5);
+    mon('jelly', x + w * 0.35 + span * 0.45, GROUND - 150, { amp: 8, vx: 0, noSp: true, ph: 0 });
+    eggArc(x + 20, w * 1.4, 230, 7, true);
+    return w * 0.35 + span + REACT();
   }],
-  ['gauntlet', 14, 2, (x) => { const w = jumpW(); spike(x + w * 0.5); pillar(x + w + 70, 64); spike(x + w + 300); eggArc(x, w); eggLine(x + w + 50, 3, GROUND - 16, 40); eggArc(x + w + 300 - w * 0.5, w); return w * 1.5 + 330; }],
+  ['gauntlet', 14, 2, (x) => { // 점프 → 숙이기 → 점프, 사이마다 0.45초
+    const w = jumpW(), p1 = x + w + REACT(), s2 = p1 + 64 + REACT() + w * 0.35;
+    spike(x + w * 0.5); eggArc(x, w); pillar(p1, 64); eggLine(p1 - 30, 3, GROUND - 16, 40); spike(s2); eggArc(s2 - w * 0.5, w);
+    return s2 + w * 0.5 - x;
+  }],
   ['box', 1, 1, (x) => { G.boxes.push({ x: x + 140, y: GROUND - 150, t: 0 }); eggArc(x + 20, jumpW(), 150, 5); return 260; }],
 ];
 const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
@@ -272,7 +286,7 @@ function runCourse() {
     if (!cfg.endless && G.letterAt.length && G.dist + x >= G.letterAt[0]) { G.letterAt.shift(); letter(x + len * 0.5, GROUND - 230 - rand(0, 30)); }
     if (cfg.endless && Math.random() < 0.06) letter(x + len * 0.5, GROUND - 240);
     const n = cfg.endless ? Math.min(50, 8 + G.dist / 1500) : G.n;
-    const gapSec = clamp(0.6 - n * 0.006, 0.28, 0.6) * G.D.gap * (G.tut ? 2.2 : 1); // 쿠키런처럼 1초에 한 번쯤 할 일
+    const gapSec = clamp(0.75 - n * 0.006, 0.45, 0.75) * G.D.gap * (G.tut ? 2.2 : 1); // 패턴 사이도 최소 0.45초(착지+반응) — 실험실에서 잰 값
     G.courseAt += len + runSpd() * gapSec * rand(0.8, 1.25);
   }
 }
@@ -285,11 +299,11 @@ function smashPillar(o) {
 }
 function bumpBlock(o) {
   const p = G.p;
-  o.hit = true; o.bumpT = 0.25; p.vy = 160; G.bumps++;
+  o.hit = true; o.bumpT = 0.25; if (p.vy < 0) p.vy = 160; G.bumps++;
   sfx.bump(); haptic(20); shake = Math.max(shake, 6);
   ring(o.x, o.y, C.yellow, 80, 0.35, 6);
   if (Math.random() < 0.45 && !G.item) G.boxes.push({ x: o.x, y: o.y - 60, t: 0, pop: 0.4 });
-  else { for (let i = 0; i < 6; i++) G.eggsArr.push({ x: o.x, y: o.y - 20, vx: rand(-120, 200), vy: rand(-420, -200), loose: true, gold: i === 0, t: 0 }); pop(o.x, o.y - 50, '알이 우수수!', C.yellow, 24); }
+  else { for (let i = 0; i < 3; i++) G.eggsArr.push({ x: o.x, y: o.y - 20, vx: rand(-120, 200), vy: rand(-420, -200), loose: true, gold: i === 0 && Math.random() < 0.3, t: 0 }); pop(o.x, o.y - 50, '알이 우수수!', C.yellow, 24); }
 }
 function getLetter(o) {
   o.dead = true; G.letters[o.i] = 1;
@@ -315,8 +329,10 @@ function updateObs(dt, scroll) {
       if ((p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.r * p.scale) ** 2) { if (mighty) smashPillar(o); else hitPlayer({ type: 'rock' }); }
       else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide) { G.boost = Math.min(100, G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }
     } else if (o.k === 'qb') {
-      const head = p.fy - STAND_R * 2 * p.scale;
-      if (!o.hit && p.vy < 0 && Math.abs(p.x - o.x) < 40 && head < o.y + 24 && head > o.y - 10) bumpBlock(o);
+      const head = p.fy - STAND_R * 2 * p.scale, near = Math.abs(p.x - o.x) < 46;
+      if (!o.hit && near && p.vy < 0 && head < o.y + 26 && head > o.y - 70) bumpBlock(o); // 밑에서 박기
+      else if (!o.hit && near && p.vy > 0 && p.fy > o.y - 30 && p.fy < o.y + 10) { bumpBlock(o); p.vy = -(p.holdJ ? 760 : 560); p.bounced = true; } // 위에서 밟기
+      else if (!o.hit && mighty && Math.hypot(p.x - o.x, p.y - o.y) < 70) bumpBlock(o);
     } else if (o.k === 'letter') {
       if (magL && Math.hypot(p.x - o.x, p.y - o.y) < magL) { o.x = lerp(o.x, p.x, dt * 6); o.y = lerp(o.y, p.y, dt * 6); }
       if (Math.hypot(p.x - o.x, p.y - o.y) < p.r * p.scale + 26) getLetter(o);

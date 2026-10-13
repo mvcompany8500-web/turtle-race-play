@@ -193,7 +193,7 @@ function cheapestNext() {
   let m = Infinity;
   UPS.forEach((u) => { const c = upCost(u); if (c != null) m = Math.min(m, c); });
   SKINS.forEach((s) => { if (!save.skins.includes(s.k)) m = Math.min(m, s.cost); });
-  if (save.pets.length < PETS.length) m = Math.min(m, HATCH_COST);
+  if (save.pets.length < PETS.length) m = Math.min(m, hatchCost());
   return m;
 }
 

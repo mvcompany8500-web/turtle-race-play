@@ -63,9 +63,12 @@ function progress() {
   return Math.min(d * 0.8 + b * 0.2, 0.99);
 }
 const meters = () => Math.floor(G.dist / 40);
+// 알 장부: 어디서 몇 개 벌었나(실험실·밸런스용)
+function earn(k, v) { G.eggs += v; G.ledger = G.ledger || {}; G.ledger[k] = (G.ledger[k] || 0) + v; }
 function bank(cleared) {
   if (G.banked) return;
   G.banked = true;
+  if (cleared) { G.clearBonus = 8 + Math.floor((G.n === ENDLESS ? 0 : G.n) * 0.6); earn('clear', G.clearBonus); } // 도착 보너스: 뒤 바다일수록 조금 더
   G.diffBonus = Math.round(G.eggs * (G.D.eggs - 1));
   G.eggs = Math.max(0, G.eggs + G.diffBonus);
   save.eggs += G.eggs;
@@ -88,7 +91,7 @@ function bank(cleared) {
   }
   // 거북 레벨: 모은 알·물리친 적·밟기·성공·별·기록 돌파로 경험치
   const stars = cleared ? G.starGot.filter(Boolean).length : 0;
-  G.xpGain = Math.max(5, Math.round(G.eggsGot + G.kills * 3 + (G.stomps || 0) * 2 + (cleared ? 40 + stars * 15 + (G.cfg.boss ? 60 : 0) : progress() * 30) + (G.recordBroke ? 20 : 0)));
+  G.xpGain = Math.max(5, Math.round(G.eggsGot + (G.pearls || 0) * 0.2 + G.kills * 3 + (G.stomps || 0) * 2 + (cleared ? 40 + stars * 15 + (G.cfg.boss ? 60 : 0) : progress() * 30) + (G.recordBroke ? 20 : 0)));
   G.lvUps = [];
   save.xp += G.xpGain;
   while (save.xp >= xpNeed(save.lv)) { save.xp -= xpNeed(save.lv); save.lv++; G.lvUps.push(save.lv); }
@@ -141,7 +144,7 @@ function dexSee(type) { if (!save.dex[type]) save.dex[type] = { kills: 0, weak: 
 function dexKill(type) {
   dexSee(type);
   const d = save.dex[type];
-  if (d.kills++ === 0 && G) { G.eggs += 10; toast(`도감 등록! ${ENEMIES[type].name} · 알 +10`, C.ok); sfx.mission(); }
+  if (d.kills++ === 0 && G) { earn('dex', 10); toast(`도감 등록! ${ENEMIES[type].name} · 알 +10`, C.ok); sfx.mission(); }
 }
 
 // ───────── 적 ─────────
@@ -191,7 +194,7 @@ function enemyHits(e, x, y, r) {
 }
 const harmless = (e) => (e.frozen && ['shark', 'eel', 'ray', 'jelly', 'swordfish'].includes(e.type)) || (G.eff.lamp > 0 && ['octopus', 'angler', 'phantom'].includes(e.type));
 function weakHit(e, item) {
-  G.eggs += 3; G.weak++;
+  earn('weak', 3); G.weak++;
   pop(e.x, e.y - 50, '딱 맞았어요! +3', C.yellow, 24);
   sfx.weak(); haptic(20);
   dexSee(e.type); save.dex[e.type].weak = true;
@@ -214,7 +217,7 @@ function killEnemy(e, cause = 'boost') {
   else pop(e.x, e.y - 40, pick(['펑!', '쾅!', '퍽!', '뿅!', '콰앙!']), C.yellow, 40);
   if (ENEMIES[e.type] && ENEMIES[e.type].weak === cause) weakHit(e, true);
   sfx.smash(); haptic(25);
-  const drops = e.elite ? 4 : 2;
+  const drops = G.run ? (e.elite ? 2 : 1) : e.elite ? 4 : 2;
   for (let i = 0; i < drops; i++) G.eggsArr.push({ x: e.x, y: e.y, vx: rand(-80, 160), vy: rand(-160, 160), loose: true, gold: e.elite && i === 0, t: 0 });
 }
 // 카타르시스: 질주·회오리·커지기로 연달아 들이받으면 점점 커지는 연출, 5연속이면 화면을 휩쓴다
@@ -229,7 +232,7 @@ function chainKill(e) {
   if (c === 3) reaction(1, '3연속!');
   if (c === 5) sweepScreen('바다를 휩쓸었다!!');
   if (c === 8) reaction(3, '8연속 미쳤다!!');
-  if (c === 10) { G.eggs += 30; reaction(4, '전설의 거북이!!!'); pop(W / 2, H / 2 + 50, '알 +30', C.yellow, 40, true); sfx.fever(); }
+  if (c === 10) { earn('chain', 30); reaction(4, '전설의 거북이!!!'); pop(W / 2, H / 2 + 50, '알 +30', C.yellow, 40, true); sfx.fever(); }
 }
 function sweepScreen(label) {
   flash = 0.7; flashColor = '#ffffff'; shake = 30; freeze = 0.18; timeScale = 0.3; zoomTo(1.12);
@@ -403,7 +406,7 @@ function rollItem() {
 function pickupBox(b) {
   b.got = true;
   burst(b.x, b.y, '#ffffff', 14, 300); ring(b.x, b.y, C.blueD, 70, 0.4, 5);
-  if (G.item) { G.eggs += 5; pop(b.x, b.y - 30, '알 +5', C.yellow, 22); sfx.gold(); return; }
+  if (G.item) { earn('box', 5); pop(b.x, b.y - 30, '알 +5', C.yellow, 22); sfx.gold(); return; }
   G.item = rollItem(); G.itemPop = 0.6;
   pop(G.p.x, G.p.y - 70, `${ITEMS[G.item].name}!`, '#ffffff', 26);
   sfx.box(); haptic(15);
@@ -458,7 +461,7 @@ function spawnEggs() {
 function spawnEggRain() {
   if (G.run) { // 점프로 닿는 높이에 줄·무지개로
     const h = pick([0, 0, 90, 150]);
-    for (let i = 0; i < 9; i++) G.eggsArr.push({ x: W + 30 + i * 40, y: SEABED - 32 - h - Math.sin(i / 8 * Math.PI) * (h ? 40 : 0), gold: true, bonus: true, t: rand(0, 6) });
+    for (let i = 0; i < 9; i++) G.eggsArr.push({ x: W + 30 + i * 40, y: SEABED - 32 - h - Math.sin(i / 8 * Math.PI) * (h ? 40 : 0), gold: i === 4, bonus: i === 4, pearl: i !== 4, t: rand(0, 6) }); // 구슬 + 알 1개
     return;
   }
   const y0 = G.run ? rand(SEABED - 220, SEABED - 90) : rand(CEIL + 90, SEABED - 90), amp = G.run ? rand(30, 70) : rand(40, 90);
@@ -466,10 +469,21 @@ function spawnEggRain() {
 }
 function collectEgg(e) {
   e.got = true;
+  if (e.pearl) { // 물방울 구슬: 알은 아니고 연속·질주·소나기 게이지만
+    G.pearls = (G.pearls || 0) + 1;
+    G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.95;
+    if (G.boosting <= 0) G.boost = Math.min(100, G.boost + 1.2);
+    if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
+    if (ac && !playSample('sfx_egg', 0.35, 1.4 + Math.min(G.combo, 14) * 0.04)) bell(1568 * Math.pow(1.0595, Math.min(G.combo, 12)), now(), 0.05, 0.06, 0.2);
+    burst(e.x, e.y, '#dff6ff', 3, 120);
+    const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
+    if (CM[G.combo] != null) reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`);
+    return;
+  }
   setFace('happy', 0.35);
   const mult = (G.feverT > 0 ? 2 : 1) * (G.eff.double > 0 ? 2 : 1);
-  const v = Math.round((e.gold ? (e.bonus ? 1 : 5) : 1) * mult * (G.run && hasPerk('legend') ? 1.2 : 1)) || 1;
-  G.eggs += v;
+  const v = Math.round((e.gold ? (e.bonus ? 1 : G.run ? 3 : 5) : 1) * mult * (G.run && hasPerk('legend') ? 1.2 : 1)) || 1;
+  earn(e.loose ? 'drop' : e.bonus ? 'rain' : e.gold ? 'gold' : 'egg', v);
   if (G.feverT > 0) G.feverEggs += v;
   if (!e.loose && !e.bonus) G.eggsGot++;
   fx.push({ k: 'eggfly', sx: e.x, sy: e.y, life: 0.5, max: 0.5, gold: e.gold });
@@ -480,7 +494,7 @@ function collectEgg(e) {
   if (G.combo > 0 && G.combo % (G.run ? 15 : 6) === 0) { pop(G.p.x, G.p.y - 60, `${G.combo}개 연속!`, '#7cf0ff', 30); G.boost = Math.min(100, G.boost + 6); haptic(12); }
   const CM = G.run ? { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 } : { 12: 0, 24: 1, 36: 2, 54: 3, 80: 4 };
   if (CM[G.combo] != null) reaction(CM[G.combo], `알 ${G.combo}개 ${REACT_WORDS[CM[G.combo]][0]}`);
-  if (petIs('sprout') && ++G.sprout % 10 === 0) { G.eggs += petLv(); pop(G.p.x - 40, G.p.y - 40, `새싹이 +${petLv()}`, '#9dff7a', 20); }
+  if (petIs('sprout') && ++G.sprout % 10 === 0) { earn('pet', petLv()); pop(G.p.x - 40, G.p.y - 40, `새싹이 +${petLv()}`, '#9dff7a', 20); }
   if (G.feverT <= 0) {
     G.fever = Math.min(100, G.fever + (e.gold ? 14 : 5) * (G.run ? 0.35 : 1)); // 점프 달리기는 알이 많아서 천천히 참(글자 4개로도 부름)
     if (G.fever >= 100) startFever();
@@ -649,7 +663,7 @@ function bossDamage(amount = 10) {
     pop(clamp(b.x - 60, 260, W - 260), clamp(b.y - 120, 120, H - 160), '마무리!!', '#ffffff', 70, true);
     setTimeout(() => { if (G && state === 'play') { pop(W / 2, H / 2 - 20, b.def.flee ? '상어왕이 도망쳤어요! 쫓아가요!' : `${b.def.name}을(를) 이겼어요!`, C.yellow, b.def.flee ? 40 : 50, true); sfx.clear(); } }, 900);
     for (let k = 0; k < 5; k++) setTimeout(() => { if (G && G.boss) { boom(0.9); noise(0.5, 0.5, 3000); } }, 150 + k * 220);
-    for (let i = 0; i < 26; i++) G.eggsArr.push({ x: b.x, y: b.y, vx: rand(-420, 120), vy: rand(-300, 300), loose: true, gold: i % 9 === 0, t: 0 });
+    for (let i = 0; i < (G.run ? 16 : 26); i++) G.eggsArr.push({ x: b.x, y: b.y, vx: rand(-420, 120), vy: rand(-300, 300), loose: true, gold: i % 9 === 0, t: 0 });
     G.kills++; G.sweeps = []; G.inks.forEach((k) => { k.fade = true; });
     haptic([100, 50, 100, 50, 200]);
   }
@@ -670,7 +684,7 @@ function chooseBless(i) {
     case 'magnet': G.eff.magnet = 20; break;
     case 'item': G.item = rollItem(); break;
     case 'slow': G.slowMul *= 0.9; break;
-    case 'eggs': G.eggs += 25; fountain(W / 2, H / 2, 25); break;
+    case 'eggs': earn('bless', 25); fountain(W / 2, H / 2, 25); break;
     case 'revive': G.freeRevive = true; break;
     case 'double': G.eff.double = 15; break;
   }
@@ -680,7 +694,7 @@ function chooseBless(i) {
 }
 
 // ───────── 이어하기 ─────────
-const reviveCost = () => (G.freeRevive ? 0 : Math.round(25 * Math.pow(2, G.revives) * G.D.revive * (hasPerk('reviveCheap') ? 0.5 : 1)));
+const reviveCost = () => (G.freeRevive ? 0 : Math.round(40 * Math.pow(2, G.revives) * G.D.revive * (hasPerk('reviveCheap') ? 0.5 : 1)));
 const canRevive = () => G.revives < 3 && (G.freeRevive || save.eggs + G.eggs >= reviveCost());
 function doRevive() {
   if (!canRevive()) { sfx.no(); return; }
@@ -732,7 +746,7 @@ function updatePlay(dt) {
   if (G.chainT > 0) {
     G.chainT -= dt;
     if (G.chainT <= 0) {
-      if (G.chain >= 3) { const bonus = G.chain * 2; G.eggs += bonus; pop(W / 2, H / 2 + 30, `${G.chain}연속 처치! 알 +${bonus}`, C.yellow, 34, true); sfx.mission(); }
+      if (G.chain >= 3) { const bonus = G.chain * 2; earn('chain', bonus); pop(W / 2, H / 2 + 30, `${G.chain}연속 처치! 알 +${bonus}`, C.yellow, 34, true); sfx.mission(); }
       G.chain = 0;
     }
   }
@@ -908,7 +922,7 @@ function updatePlay(dt) {
     switch (e.type) {
       case 'jelly': e.y = e.baseY + Math.sin(e.t * 2.2 + e.ph) * e.amp; break;
       case 'shark': if (!e.run && e.x > p.x + 140) e.y += clamp(p.y - e.y, -1, 1) * Math.min(80, Math.abs(p.y - e.y) * 1.4) * edt; break;
-      case 'puffer': { const d = Math.hypot(e.x - p.x, e.y - p.y); e.r = lerp(e.r, d < 175 ? 36 : 15, Math.min(1, edt * 6)); e.y += Math.sin(e.t * 1.6 + e.ph) * 22 * edt; break; }
+      case 'puffer': { const d = Math.hypot(e.x - p.x, e.y - p.y); e.r = lerp(e.r, d < 175 ? 36 : 15, Math.min(1, edt * 6)); if (!e.run) e.y += Math.sin(e.t * 1.6 + e.ph) * 22 * edt; else e.y = GROUND - e.r * 1.1; break; } // 점프 달리기: 바닥에 붙어서 부풂(항상 같은 타이밍)
       case 'octopus':
         e.y = e.baseY + Math.sin(e.t * 1.8 + e.ph) * 26;
         e.inkT -= edt;
@@ -921,7 +935,7 @@ function updatePlay(dt) {
       case 'ray': e.y = e.baseY + Math.sin(e.t * 2.5 + e.ph) * e.amp; break;
       case 'phantom': {
         const cyc = (e.t + e.ph) % 2.4, show = cyc < 1.3;
-        if (!show && e.vis > 0.5) e.baseY = e.run ? pick([HEAD_Y, GROUND - 22, GROUND - 150]) : clamp(e.baseY + rand(-90, 90), CEIL + 60, SEABED - 60); // 사라질 때 자리 옮김
+        if (!show && e.vis > 0.5 && !e.run) e.baseY = clamp(e.baseY + rand(-90, 90), CEIL + 60, SEABED - 60); // 사라질 때 자리 옮김
         e.vis = lerp(e.vis, show || E.lamp > 0 ? 1 : 0.08, Math.min(1, edt * 8));
         e.y = e.baseY + Math.sin(e.t * 2 + e.ph) * e.amp * 0.5;
         break;
@@ -1094,6 +1108,13 @@ function drawGoal(gx) {
   drawFish(gx + 70, SEABED - 60 + Math.sin(T * 3) * 6, 0.8);
 }
 function drawEgg(e) {
+  if (e.pearl) {
+    const y = e.y + Math.sin(e.t * 4) * 2;
+    ctx.fillStyle = 'rgba(190,240,255,.85)'; ctx.beginPath(); ctx.arc(e.x, y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(e.x - 3, y - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
   const bob = Math.sin(e.t * 4) * 3, h = e.gold && !e.bonus ? 34 : 28;
   if (e.gold && !e.bonus) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -1647,7 +1668,7 @@ function smashBreak(o, byRam) {
   for (let i = 0; i < 14; i++) { const a = Math.random() * Math.PI * 2, sp = rand(200, 620); fx.push({ k: 'chunk', x: o.x, y: o.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160, life: 0.9, max: 0.9, size: rand(8, 18), color: i % 3 ? d.col : '#ffffff', rot: rand(0, 6), vr: rand(-16, 16) }); }
   burst(o.x, o.y, d.col, 30, 520); ring(o.x, o.y, '#ffffff', 140, 0.4, 12);
   pop(o.x, o.y - 50, o.k === 'chest' ? '보물이다!' : pick(['와장창!', '콰직!', '깨부숴!']), o.k === 'chest' ? C.yellow : '#ffffff', 36, true);
-  for (let i = 0; i < d.eggs; i++) G.eggsArr.push({ x: o.x, y: o.y, vx: rand(-260, 260), vy: rand(-300, 200), loose: true, gold: o.k === 'chest' && i < 2, t: 0 });
+  for (let i = 0; i < (G.run ? Math.ceil(d.eggs * 0.4) : d.eggs); i++) G.eggsArr.push({ x: o.x, y: o.y, vx: rand(-260, 260), vy: rand(-300, 200), loose: true, gold: o.k === 'chest' && i < 2, t: 0 });
   if (o.k === 'chest' && Math.random() < 0.4) G.boxes.push({ x: o.x + 30, y: o.y, t: 0 });
   if (ac) { nz({ d: 0.45, vol: 0.5, f: o.k === 'ice' ? 6000 : 2200, f2: 120 }); boom(0.6); if (o.k === 'ice') sfx.freeze(); if (o.k === 'chest') sfx.gold(); }
   haptic([30, 20, 50]);

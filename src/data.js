@@ -124,13 +124,13 @@ const DIFFS = [
 // ───────── 옷 · 펫 · 실력 ─────────
 const SKINS = [
   { k: 'basic', name: '기본 터틀이', cost: 0 },
-  { k: 'raincoat', name: '노란 우비', cost: 60 },
-  { k: 'chef', name: '요리사', cost: 120 },
-  { k: 'barista', name: '바리스타', cost: 120 },
-  { k: 'delivery', name: '택배 기사', cost: 180 },
-  { k: 'cape14', name: '히어로 망토', cost: 260 },
-  { k: 'suit', name: '사장님 정장', cost: 360 },
-  { k: 'crown7', name: '황금 왕관', cost: 600 },
+  { k: 'raincoat', name: '노란 우비', cost: 120 },
+  { k: 'chef', name: '요리사', cost: 220 },
+  { k: 'barista', name: '바리스타', cost: 220 },
+  { k: 'delivery', name: '택배 기사', cost: 350 },
+  { k: 'cape14', name: '히어로 망토', cost: 550 },
+  { k: 'suit', name: '사장님 정장', cost: 800 },
+  { k: 'crown7', name: '황금 왕관', cost: 1300 },
 ];
 const PETS = [
   { k: 'chick', name: '삐약이', perk: (lv) => `알을 ${40 + lv * 20} 거리에서 끌어와요` },
@@ -143,14 +143,17 @@ const PETS = [
   { k: 'puppy', name: '멍멍이', perk: (lv) => `황금알·? 상자가 ${lv * 15}% 더 자주` },
   { k: 'rabbit', name: '토순이', perk: (lv) => `${lv * 5}% 더 빨리 헤엄쳐요` },
 ];
-const HATCH_COST = 150, PET_LV_COST = [60, 120, 240, 480];
+// 값은 docs/balance.md (실험실에서 잰 판당 수입으로 계산) — 바꾸면 node scripts/balance.mjs 로 다시 확인
+const HATCH_BASE = 200, HATCH_STEP = 100, PET_LV_COST = [100, 220, 450, 900];
+const hatchCost = () => HATCH_BASE + HATCH_STEP * save.pets.length;
 const UPS = [
-  { k: 'slow', name: '느긋한 등껍질', desc: '물살이 7% 느려져요', max: 5, cost: [15, 35, 70, 120, 200] },
-  { k: 'boost', name: '질주 엔진', desc: '질주가 30% 빨리 차요', max: 5, cost: [20, 45, 90, 150, 240] },
-  { k: 'shield', name: '거품 방패', desc: '판마다 한 번 막아 줘요', max: 3, cost: [40, 130, 280] },
-  { k: 'magnet', name: '알 자석', desc: '가까운 알을 끌어와요', max: 3, cost: [25, 80, 180] },
-  { k: 'fire', name: '물방울 연사', desc: '물방울을 더 빨리 쏴요', max: 5, cost: [20, 50, 100, 170, 260] },
-  { k: 'power', name: '물방울 위력', desc: '물방울이 더 세져요', max: 5, cost: [30, 70, 130, 210, 320] },
+  // 값 = 기본값 × 1.8~2.4^단계 — docs/balance.md(실험실 수입으로 계산): 1판 = 1단계, 전부 = 47번 바다 무렵
+  { k: 'slow', name: '느긋한 등껍질', desc: '물살이 7% 느려져요', max: 5, cost: [85, 160, 295, 550, 1015] },
+  { k: 'boost', name: '질주 엔진', desc: '질주가 30% 빨리 차요', max: 5, cost: [85, 160, 295, 550, 1015] },
+  { k: 'shield', name: '거품 방패', desc: '판마다 한 번 막아 줘요', max: 3, cost: [175, 420, 1000] },
+  { k: 'magnet', name: '알 자석', desc: '가까운 알을 끌어와요', max: 3, cost: [100, 225, 495] },
+  { k: 'fire', name: '물방울 연사', desc: '큰 적 공격이 빨라져요', max: 5, cost: [70, 140, 245, 455, 850] },
+  { k: 'power', name: '물방울 위력', desc: '큰 적 공격이 세져요', max: 5, cost: [100, 190, 350, 645, 1190] },
 ];
 // Codex 로 만든 그림 (assets/sprites/*.webp) — 없으면 코드 그림으로
 const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler', 'ray', 'crab', 'mine', 'swordfish', 'phantom',

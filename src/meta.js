@@ -4,7 +4,7 @@
 
 // ───────── 오늘의 도전 ─────────
 const MISSION_TYPES = [
-  { type: 'eggsRun', goals: [30, 50, 80], text: (n) => `한 판에 알 ${n}개 모으기` },
+  { type: 'eggsRun', goals: [25, 40, 60], text: (n) => `한 판에 알 ${n}개 모으기` },
   { type: 'near', goals: [5, 10, 20], text: (n) => `아슬아슬 회피 ${n}번` },
   { type: 'boostKill', goals: [5, 10, 20], text: (n) => `질주로 ${n}마리 물리치기` },
   { type: 'clear', goals: [1, 2, 3], text: (n) => `바다 ${n}곳 성공하기` },
@@ -662,9 +662,10 @@ function buySkin(s) {
 function hatchPet() {
   const left = PETS.filter((p) => !save.pets.includes(p.k));
   if (!left.length) { shopSay('펫을 다 모았어요!'); return; }
-  if (save.eggs < HATCH_COST) { sfx.no(); shopSay(`거북알이 ${HATCH_COST - save.eggs}개 부족해요`); return; }
+  const cost = hatchCost();
+  if (save.eggs < cost) { sfx.no(); shopSay(`거북알이 ${cost - save.eggs}개 부족해요`); return; }
   const p = pick(left);
-  save.eggs -= HATCH_COST; save.pets.push(p.k); save.pet = p.k; save.petLv[p.k] = 1; persist();
+  save.eggs -= cost; save.pets.push(p.k); save.pet = p.k; save.petLv[p.k] = 1; persist();
   shop.hatch = { t: 0, pet: p, cracked: false };
   sfx.click(); haptic(20);
 }
@@ -743,7 +744,7 @@ function drawShop() {
     text('알 부화', 175, 336, 22, C.text, { stroke: false });
     text('어떤 펫이 나올까요?', 175, 364, 14, C.sub, { body: true, stroke: false });
     const all = save.pets.length >= PETS.length;
-    button(64, 396, 222, 52, all ? '다 모았어요!' : `알 ${HATCH_COST}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < HATCH_COST });
+    button(64, 396, 222, 52, all ? '다 모았어요!' : `알 ${hatchCost()}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < hatchCost() });
     PETS.forEach((p, i) => withRise(i, () => {
       const x = 326 + (i % 3) * 206, y = 118 + Math.floor(i / 3) * 118, w = 198, h = 110, own = save.pets.includes(p.k), on = save.pet === p.k, lv = petLv(p.k);
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined, r: 16 });
