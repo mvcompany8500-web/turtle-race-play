@@ -306,7 +306,7 @@ const PATS = [
     for (let i = 0; i < tiers; i++) {
       let y = GROUND - 92 - lv * dy; if (y < TOP) { dir = -1; lv -= 2; y = GROUND - 92 - lv * dy; }
       plat(cx, pw, y, k > 0.35 ? lerp(8, 30, (k - 0.35) / 0.65) * (i % 2 ? 1 : -1) : 0); G.obs[G.obs.length - 1].climb = i === 0; lv += dir; // 첫 발판 표시(첫 안내용) // 뒤 판: 오르내리는 발판(번갈아 반대로)
-      eggLine(cx + 18, Math.max(2, Math.floor(pw / 48)), y - 30, 44); if (i === tiers - 1) egg(cx + pw - 16, y - 36, true); // 꼭대기엔 황금 진주
+      eggLine(cx + 18, Math.max(2, Math.floor(pw / 48)), y - 30, 44); if (i === tiers - 1) { egg(cx + pw - 16, y - 36, true); G.eggsArr[G.eggsArr.length - 1].climbTop = true; } // 꼭대기엔 황금 진주
       cx += pw + gap;
     }
     for (let sx = x + 60 + pw * 0.55; sx < cx - gap - 10; sx += 46) spike(sx); // 첫 발판 밑부터 마지막 발판 끝까지 가시
@@ -467,7 +467,7 @@ function smashWall(o, soft) {
   shake = Math.max(shake, soft ? 10 : 18); freeze = Math.max(freeze, soft ? 0.03 : 0.08); zoomTo(1.05);
   for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, sp = rand(220, 720); fx.push({ k: 'chunk', x: o.x + o.w / 2, y: rand(CEIL + 40, GROUND - 20), vx: Math.cos(a) * sp + 200, vy: Math.sin(a) * sp - 200, life: 1, max: 1, size: rand(10, 22), color: i % 3 ? '#ff9a76' : '#ffd1b8', rot: rand(0, 6), vr: rand(-8, 8) }); }
   snd('break', 1, 0.8); haptic([40, 30, 90]);
-  if (!soft) { pop(o.x, GROUND - 200, '벽 돌파!!', C.yellow, 44, true); addScore(500); if (typeof reaction === 'function') reaction(2, '와장창!!'); }
+  if (!soft) { track('wall'); pop(o.x, GROUND - 200, '벽 돌파!!', C.yellow, 44, true); addScore(500); if (typeof reaction === 'function') reaction(2, '와장창!!'); }
   else pop(o.x, GROUND - 180, '아야… 그래도 뚫었다!', '#ffffff', 26, true);
   if (G.chaser) G.chaser.flee = 1; // 상어는 무너진 벽에 막혀 도망
 }

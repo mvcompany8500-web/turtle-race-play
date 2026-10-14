@@ -242,7 +242,7 @@ function bossLand(b) {
   snd('thud', 1); snd('roar', 0.9, 1, 0, 0.32); haptic([30, 40, 30, 40, 60]); // 쿵 먼저 → 땅이 울린 뒤 포효(같이 내면 뭉개짐)
   edgeFlash('#ff3355', 0.5);
   later(450, () => bossTaunt(true));
-  later(1700, () => G && G.boss && coachOnce('boss', { text: `${b.def.name}이 나타났어요!`, sub: '머리를 밟거나 질주로 들이받아요 · 공격 전 띠 글자(↑ 뛰어요 / ↓ 숙여요)를 봐요', spot: { x: b.x - 20, y: b.y, r: 120 }, state: 'play' }));
+  later(1700, () => G && G.boss && coachOnce('boss', { text: `${b.def.name}이 나타났어요!`, sub: '머리를 밟거나 필살기로 들이받아요 · 공격 전 띠 글자(↑ 뛰어요 / ↓ 숙여요)를 봐요', spot: { x: b.x - 20, y: b.y, r: 120 }, state: 'play' }));
 }
 
 // ───────── ④ 박자 ─────────
@@ -503,7 +503,7 @@ function openReady(n) {
 }
 // 이 바다의 특징(대표 패턴을 쉬운 말로) — 준비창 목표 칸 오른쪽
 const FEAT = { ultWall: ['벽 판', '필살기로 벽을 부숴요'], climb: ['오르기 판', '발판을 밟고 위로!'], jarRow: ['항아리 판', '숙여서 와르르 깨요'], slideTunnel: ['낮은 굴', '숙인 채 끝까지'], kelpSteps: ['해초 계단', '세 칸 올라가요'], spikeRhythm: ['박자 가시', '하나 둘 셋 넷!'], lowCeil: ['낮은 천장', '톡 짧게 뛰어요'], duckJump: ['숙이고 뛰고', '번갈아 피해요'], jellyField: ['해파리 가시밭', '이단 점프 또는 밟기'], zigzag: ['지그재그 발판', '높게 낮게'], treasure: ['보물 판', '? 조개와 상자'], pearlWave: ['진주 물결', '신나게 줍기'], rockRow: ['바위 판', '밟아 부수기'], highRoad: ['높은 길', '위로 가면 황금 진주'], stairs: ['계단 발판', '위로 올라가요'], gauntlet: ['연속 피하기', '점프·숙이기·점프'], shortHop: ['기뢰 밭', '톡 짧게'], duckLong: ['긴 굴', '꾹 숙이기'], stomp: ['해파리 밟기', '위에서 쿵!'], chest: ['보물 상자', '부딪혀 열기'] };
-function stageFeat(n) { const st = STAGE_STYLE[n]; if (!st) return null; if (st.wall) return FEAT.ultWall; const top = Object.entries(st.sig || {}).sort((a, b) => b[1] - a[1]).find(([k]) => FEAT[k]); return top ? FEAT[top[0]] : null; }
+function stageFeat(n) { const st = STAGE_STYLE[n]; if (!st) return null; if (st.wall) return FEAT.ultWall; if ((st.sig || {}).climb >= 2) return FEAT.climb; const top = Object.entries(st.sig || {}).sort((a, b) => b[1] - a[1]).find(([k]) => FEAT[k]); return top ? FEAT[top[0]] : null; }
 function drawReady() {
   const n = ready_.n, st = STAGES[n], endless = n === ENDLESS;
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);

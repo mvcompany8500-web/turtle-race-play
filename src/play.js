@@ -361,7 +361,7 @@ function tryBoost() {
   fxSpr('fx_shock', G.p.x, G.p.y, 200, { life: 0.55, from: 0.2, to: 2.2, vr: 2, add: false }); // 출발 충격파
   fxSpr('fx_burst', G.p.x + 30, G.p.y, 150, { life: 0.35, from: 0.3, to: 1.3, add: false });
   fxSpr('fx_slash', G.p.x + 120, G.p.y, 220, { life: 0.35, from: 0.6, to: 1.3, rot: 0.2, vx: 500, add: false });
-  startCutin('boost', '질주!!', '앞을 막는 건 다 들이받아!', 0.7);
+  startCutin('boost', '필살 질주!!', '앞을 막는 건 다 들이받아!', 0.7);
   burstRays(G.p.x, G.p.y, '#b48bff', 1.2, 24); edgeFlash('#8b5cff', 0.9);
   sfx.boost(); haptic([30, 30, 70]);
   track('boost');
@@ -559,6 +559,7 @@ function collectEgg(e) {
   e.got = true;
   if (e.clock && G.bonus) { G.bonus.t += 2; pop(e.x, e.y - 30, '+2초!', '#7cf0ff', 26, true); snd('ready', 0.8); return; }
   if (e.clock) return;
+  if (e.climbTop) track('climbTop');
   if (e.ult) { // 필살 조개: 필살 게이지를 1단까지 꽉(벽 앞 — 못 쓰는 상황이 없게)
     G.boost = Math.max(G.boost, 100); pop(e.x, e.y - 40, isTouch ? '필살 충전! 오른쪽 단추!' : '필살 충전! Shift!', '#d9c6ff', 28, true);
     snd('react', 0.8); haptic([20, 30, 20]); burst(e.x, e.y, '#b48bff', 20, 320); ring(G.p.x, G.p.y, '#b48bff', 90, 0.4, 6); return;
@@ -898,11 +899,11 @@ function updatePlay(dt) {
   if (G.boosting > 0) {
     G.boosting -= dt;
     if (Math.random() < dt * 60) fx.push({ k: 'flame', x: p.x - 22 + rand(-10, 10), y: p.y + rand(-26, 26), vx: rand(-320, -160), vy: rand(-40, 20), life: 0.42, max: 0.42, size: rand(6, 12), color: pick(['#7c4dff', '#4fc3ff', '#b388ff', '#e0d4ff']) });
-    if (G.boosting <= 0) { p.inv = Math.max(p.inv, 0.9); pop(p.x, p.y - 56, '질주 끝', '#cfd8ff', 18); }
+    if (G.boosting <= 0) { p.inv = Math.max(p.inv, 0.9); pop(p.x, p.y - 56, '필살 끝', '#cfd8ff', 18); }
   } else if (!p.dead) {
     const before = G.boost;
     addBoost((cfg.boostRate + (bossFight ? 12 : 0)) * dt * (1 + abStar('ult') * 0.25));
-    if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '질주 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); } // 게이지가 찰 때는 소리 없음(대표: 거슬림) — 글자·진동·단추 빛만
+    if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '필살 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); } // 게이지가 찰 때는 소리 없음(대표: 거슬림) — 글자·진동·단추 빛만
   }
   if (G.comboT > 0) G.comboT -= dt;
   if (G.chainT > 0) {
@@ -1704,7 +1705,7 @@ function drawHUD() {
   const top = isTouch || G.run; // 점프 달리기는 바닥이 길이라 게이지를 위로
   const gx = L, gy = top ? (G.run ? 74 : 104) : H - 46, gw = top ? 190 : 270, gh = top ? 14 : 20;
   icon('e_rocket', gx + 10, gy - 16, 24);
-  text('질주', gx + 28, gy - 16, 16, C.text, { align: 'left', body: true });
+  text('필살', gx + 28, gy - 16, 16, C.text, { align: 'left', body: true });
   ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(gx, gy, gw, gh, 10); ctx.fill();
   const v = G.boosting > 0 ? G.boosting / boostDur() : G.run ? (G.boost % 100) / 100 : G.boost / 100;
   const gg = ctx.createLinearGradient(gx, 0, gx + gw, 0); gg.addColorStop(0, C.blueD); gg.addColorStop(1, C.deep);
@@ -1776,7 +1777,7 @@ function drawHUD() {
       text(lv ? `필살 ${lv}단` : `${Math.floor(G.boost % 100)}%`, bb.x, bb.y + bb.r * 0.62, 15, lv >= 2 ? C.yellow : '#fff', { lw: 4 });
     } else {
       icon('e_rocket', bb.x, bb.y - 10, 44);
-      text('질주', bb.x, bb.y + 28, 17, '#fff');
+      text('필살', bb.x, bb.y + 28, 17, '#fff');
     }
     buttons.push({ x: bb.x - bb.r, y: bb.y - bb.r, w: bb.r * 2, h: bb.r * 2, on: tryBoost });
   }
@@ -1803,7 +1804,7 @@ function drawHUD() {
     wrapText(STAGES[n].tip, 760, 20).forEach((l, i) => text(l, W / 2, H / 2 + i * 30, 20, C.text, { body: true }));
     const fresh = n !== ENDLESS && STAGES[n].fresh;
     if (fresh) { const it = ENEMIES[fresh].weak; drawItemIcon(it, W / 2 - 150, H / 2 + 70, 30); text(`새 몬스터 ${ENEMIES[fresh].name} · 약점 ${ITEMS[it].name}`, W / 2 + 10, H / 2 + 70, 17, C.yellow, { body: true }); }
-    else if (n === 1 && save.runs <= 2) text(G.run ? (isTouch ? '왼쪽 톡 = 점프 · 오른쪽 꾹 = 숙이기 · 위에서 밟으면 처치!' : '스페이스·↑ 점프 · ↓ 숙이기 · Shift 질주 · E 아이템') : isTouch ? '손가락으로 끌어서 움직이고, 질주 버튼을 눌러요!' : '방향키로 움직이고, 스페이스로 질주! E로 아이템!', W / 2, H / 2 + 70, 18, C.yellow, { body: true });
+    else if (n === 1 && save.runs <= 2) text(G.run ? (isTouch ? '왼쪽 톡 = 점프 · 오른쪽 꾹 = 숙이기 · 위에서 밟으면 처치!' : '스페이스·↑ 점프 · ↓ 숙이기 · Shift 필살기 · E 아이템') : isTouch ? '손가락으로 끌어서 움직이고, 필살 단추를 눌러요!' : '방향키로 움직이고, 스페이스로 필살기! E로 아이템!', W / 2, H / 2 + 70, 18, C.yellow, { body: true });
     ctx.restore();
   }
 }
@@ -2045,7 +2046,7 @@ function updateShooting(dt, scroll) {
     if (o.dead || p.dead) continue;
     if (circ(o.x, o.y, o.r, p.x, p.y, p.r * p.scale)) {
       if (o.k === 'jar') { // 숙이기(등껍질 굴리기)로 들이받으면 쨍그랑 — 숙이기를 피하기 말고도 쓰게
-        if (p.slide || G.boosting > 0 || G.eff.giant > 0 || (p.vy > 60 && !p.onG && p.y < o.y - 6)) { smashBreak(o, false); G.jarCombo = (G.jarCombo || 0) + 1; if (G.jarCombo >= 3) { pop(o.x, o.y - 90, `항아리 ${G.jarCombo}개 와르르!`, C.yellow, 28, true); addScore(150); } }
+        if (p.slide || G.boosting > 0 || G.eff.giant > 0 || (p.vy > 60 && !p.onG && p.y < o.y - 6)) { smashBreak(o, false); track('jar'); G.jarCombo = (G.jarCombo || 0) + 1; if (G.jarCombo >= 3) { pop(o.x, o.y - 90, `항아리 ${G.jarCombo}개 와르르!`, C.yellow, 28, true); addScore(150); } }
         else if (!o.bumped) { o.bumped = true; o.hitT = 0.15; snd('boing', 0.5, 1.3); pop(o.x, o.y - 50, '숙여서 깨요!', '#ffe08a', 20); } // 그냥 닿으면: 거북이는 안 튕기고(리듬 안 깨짐) 항아리만 흔들
         continue;
       }

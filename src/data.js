@@ -18,8 +18,8 @@ const STAGES = [null,
   { name: '흔들흔들 해초 숲', tip: '빨간 ! 뒤에 상어가 돌진해요. 꽁꽁 눈꽃이면 얼어붙어요', fresh: 'shark' },
   { name: '난파선 골짜기', tip: '복어는 가까이 가면 부풀어요. 번개 한 방이면 바람이 빠져요', fresh: 'puffer' },
   { name: '해파리 동굴', tip: '빨간 줄 = 곰치 돌진! 거품 방패가 있으면 해파리는 안 아파요', fresh: 'eel' },
-  { name: '상어 대장의 바위성', tip: '큰 상어는 질주로 들이받아야 아파해요!', boss: 'shark' },
-  { name: '무지개 산호밭', tip: '스치듯 피하면 완벽 회피! 질주가 확 차요' },
+  { name: '상어 대장의 바위성', tip: '큰 상어는 필살기로 들이받아야 아파해요!', boss: 'shark' },
+  { name: '무지개 산호밭', tip: '스치듯 피하면 완벽 회피! 필살 게이지가 확 차요' },
   { name: '먹물 골목', tip: '문어가 먹물로 앞을 가려요. 등불을 켜면 걷혀요', fresh: 'octopus' },
   { name: '빛 없는 바다', tip: '깜깜해요! 반짝이는 황금 진주이 다 진짜는 아니에요...', fresh: 'angler', dark: true },
   { name: '심해 갈림길', tip: '진주를 끊기지 않게 먹으면 바다 축제가 열려요', dark: true },
@@ -34,7 +34,7 @@ const STAGES = [null,
   { name: '침몰선 무덤', tip: '산호 쉼터에서 고른 카드가 판을 바꿔요' },
   { name: '거꾸로 해류', tip: '소용돌이와 가오리가 같이 와요' },
   { name: '깜깜 미로', tip: '어둠 속 소용돌이를 조심!', dark: true },
-  { name: '상어 대장의 복수', tip: '더 빨라진 상어 대장! 질주를 아껴 두세요', boss: 'shark2' },
+  { name: '상어 대장의 복수', tip: '더 빨라진 상어 대장! 필살기를 아껴 두세요', boss: 'shark2' },
   // 3. 얼음 불꽃 바다
   { name: '얼음 산호숲', tip: '게는 단단해서 번개가 안 들어요. 커지는 물약으로 밟아요', fresh: 'crab' },
   { name: '눈송이 해류', tip: '물살은 느려도 적은 많아요. 침착하게!' },
@@ -107,7 +107,7 @@ const ITEM_KEYS = Object.keys(ITEMS);
 
 // ───────── 산호 쉼터 축복 카드 (3장 중 1장) ─────────
 const BLESSINGS = [
-  { k: 'boost', name: '질주 가득', desc: '질주 게이지를 꽉 채워요', icon: 'e_rocket' },
+  { k: 'boost', name: '필살 가득', desc: '필살 게이지를 꽉 채워요', icon: 'e_rocket' },
   { k: 'shield', name: '방패 하나 더', desc: '한 번 더 막아 줘요', icon: 'e_shield' },
   { k: 'magnet', name: '자석 20초', desc: '진주가 알아서 와요', icon: 'magnet' },
   { k: 'item', name: '아이템 받기', desc: '빈 칸에 아이템을 넣어 줘요', icon: 'e_gift' },
@@ -143,7 +143,7 @@ const SKINS = [
 ];
 // 보물(인기 게임 보물 방식): 사서 2개까지 끼우면 판마다 힘이 붙음
 const TREASURES = [
-  { k: 'compass', name: '바다 나침반', desc: '질주 30으로 출발', cost: 900 },
+  { k: 'compass', name: '바다 나침반', desc: '필살 게이지 30으로 출발', cost: 900 },
   { k: 'charm', name: '거품 부적', desc: '판마다 방패 +1', cost: 1400 },
   { k: 'bottle', name: '물약 유리병', desc: '물약 회복 1.5배', cost: 1100 },
   { k: 'flute', name: '고래 피리', desc: '부딪힘 기운 -18', cost: 1800 },
@@ -154,12 +154,12 @@ const TREASURES = [
 ];
 const PETS = [
   { k: 'chick', name: '삐약이', perk: (lv) => `진주를 ${40 + lv * 20} 거리에서 끌어와요` },
-  { k: 'cat', name: '냥이', perk: (lv) => `질주가 ${lv * 5}% 빨리 차요` },
+  { k: 'cat', name: '냥이', perk: (lv) => `필살 게이지가 ${lv * 5}% 빨리 차요` },
   { k: 'snail', name: '달팽이', perk: (lv) => `물살이 ${lv * 2}% 느려져요` },
   { k: 'sprout', name: '새싹이', perk: (lv) => `진주 10개마다 +${lv}` },
   { k: 'whale', name: '고래', perk: (lv) => `판마다 방패 +${lv >= 4 ? 2 : 1}` },
   { k: 'robot', name: '로봇', perk: (lv) => `${9 - lv}초마다 빛으로 적을 물리쳐요` },
-  { k: 'penguin', name: '펭펭이', perk: (lv) => `질주가 ${(lv * 0.3).toFixed(1)}초 더 가요` },
+  { k: 'penguin', name: '펭펭이', perk: (lv) => `필살기가 ${(lv * 0.3).toFixed(1)}초 더 가요` },
   { k: 'puppy', name: '멍멍이', perk: (lv) => `황금 진주·? 상자가 ${lv * 15}% 더 자주` },
   { k: 'rabbit', name: '토순이', perk: (lv) => `${lv * 5}% 더 빨리 헤엄쳐요` },
 ];
@@ -169,7 +169,7 @@ const hatchCost = () => (save.freeEgg ? 0 : HATCH_BASE + HATCH_STEP * save.pets.
 const UPS = [
   // 값 = 기본값 × 1.8~2.4^단계 — docs/balance.md(실험실 수입으로 계산): 1판 = 1단계, 전부 = 47번 바다 무렵
   { k: 'slow', name: '느긋한 등껍질', desc: '물살이 느려져요', max: 5, cost: [85, 160, 295, 550, 1015], eff: (l) => (l ? `-${l * 7}%` : '0%') },
-  { k: 'boost', name: '질주 엔진', desc: '질주가 빨리 차요', max: 5, cost: [85, 160, 295, 550, 1015], eff: (l) => (l ? `+${l * 30}%` : '0%') },
+  { k: 'boost', name: '필살 엔진', desc: '필살 게이지가 빨리 차요', max: 5, cost: [85, 160, 295, 550, 1015], eff: (l) => (l ? `+${l * 30}%` : '0%') },
   { k: 'shield', name: '거품 방패', desc: '부딪혀도 막아 줘요', max: 3, cost: [175, 420, 1000], eff: (l) => (l ? `${l}번 막기` : '없음') },
   { k: 'magnet', name: '진주 자석', desc: '진주를 끌어와요', max: 3, cost: [100, 225, 495], eff: (l) => ['없음', '가까이', '보통', '멀리'][l] },
   { k: 'fire', name: '물방울 연사', desc: '보스 공격이 빨라요', max: 5, cost: [70, 140, 245, 455, 850], eff: (l) => (l ? `+${l * 12}%` : '0%') },
@@ -189,7 +189,7 @@ const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler
 const LV_PERKS = {
   2: { k: 'heart', name: '기운 +25', desc: '최대 기운이 25 늘어요', icon: 'heart' },
   3: { k: 'stompEgg', name: '밟기 보너스', desc: '밟을 때마다 진주 +1', icon: 'egg' },
-  4: { k: 'boostStart', name: '질주 예열', desc: '질주 게이지 25로 시작', icon: 'e_rocket' },
+  4: { k: 'boostStart', name: '필살 예열', desc: '필살 게이지 25로 시작', icon: 'e_rocket' },
   5: { k: 'triple', name: '삼단 점프', desc: '공중에서 한 번 더 뛰어요', icon: 'e_sparkles' },
   6: { k: 'magnet', name: '진주 끌어오기', desc: '가까운 진주가 붙어 와요', icon: 'magnet' },
   7: { k: 'heart2', name: '기운 +25', desc: '최대 기운이 또 25 늘어요', icon: 'heart' },

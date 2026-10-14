@@ -6,16 +6,19 @@
 const MISSION_TYPES = [
   { type: 'eggsRun', goals: [25, 40, 60], text: (n) => `한 판에 진주 ${n}개 모으기` },
   { type: 'near', goals: [5, 10, 20], text: (n) => `아슬아슬 회피 ${n}번` },
-  { type: 'boostKill', goals: [5, 10, 20], text: (n) => `질주로 ${n}마리 물리치기` },
+  { type: 'boostKill', goals: [5, 10, 20], text: (n) => `필살기로 ${n}마리 물리치기` },
   { type: 'clear', goals: [1, 2, 3], text: (n) => `바다 ${n}곳 성공하기` },
   { type: 'fever', goals: [1, 2, 3], text: (n) => `바다 축제 ${n}번 부르기` },
   { type: 'gold', goals: [3, 6, 10], text: (n) => `황금 진주 ${n}개 먹기` },
   { type: 'runs', goals: [3, 5, 8], text: (n) => `${n}판 도전하기` },
-  { type: 'boost', goals: [3, 6, 10], text: (n) => `질주 ${n}번 쓰기` },
+  { type: 'boost', goals: [3, 6, 10], text: (n) => `필살기 ${n}번 쓰기` },
   { type: 'stomp', goals: [5, 10, 20], text: (n) => `몬스터 ${n}마리 밟기` },
+  { type: 'jar', goals: [3, 6, 10], text: (n) => `숙여서 항아리 ${n}개 깨기`, from: 4 }, // 새 장치 미션: 그 장치가 나오는 바다까지 간 사람에게만
+  { type: 'wall', goals: [1, 2, 3], text: (n) => `필살기로 벽 ${n}번 부수기`, from: 7 },
+  { type: 'climbTop', goals: [1, 2, 3], text: (n) => `오르기 꼭대기 황금 진주 ${n}개`, from: 11 },
 ];
 function newMission(exclude) {
-  const m = pick(MISSION_TYPES.filter((t) => !exclude.includes(t.type)));
+  const m = pick(MISSION_TYPES.filter((t) => !exclude.includes(t.type) && (save.unlocked || 1) >= (t.from || 0)));
   const gi = (Math.random() * 3) | 0;
   return { type: m.type, goal: m.goals[gi], prog: 0, reward: [25, 45, 70][gi], done: false };
 }
@@ -255,6 +258,8 @@ function drawNode(s, x, y, scale = 1) {
     else drawImg(IMG.spr_ui_lock, x, y + r * 0.15, r * 1.2);
     if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 16), y + Math.sin(a) * (r + 16) - 4, 9, k < stars); }
     if (save.crown[s]) icon('e_crown', x + r * 0.95, y - r * 0.95, 24);
+    const ftN = !boss && open && typeof stageFeat === 'function' && STAGE_STYLE[s] && (STAGE_STYLE[s].wall || (STAGE_STYLE[s].sig || {}).climb >= 2) ? stageFeat(s) : null; // 벽·오르기 바다는 칸 아래 이름표
+    if (ftN) { ctx.font = `700 ${fs(13)}px ${FONT}`; const w3 = ctx.measureText(ftN[0]).width + 18; if (x - w3 / 2 > 0 && x + w3 / 2 < W) { ctx.fillStyle = 'rgba(255,111,174,.92)'; rr(x - w3 / 2, y + r + 12, w3, 24, 12); ctx.fill(); text(ftN[0], x, y + r + 24, 13, '#fff', { stroke: false, weight: 700 }); } }
     if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; if (x - w2 / 2 > 0 && x + w2 / 2 < W) { ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 12, w2, 24, 12); ctx.fill(); text(nm, x, y + r + 24, 13, '#fff', { stroke: false }); } }
     return;
   }
@@ -1341,7 +1346,7 @@ function bottomButtons(primaryLabel, primaryFn, secondary) {
   secondary.forEach(([label, fn], i) => button(RL + i * (bw + gap), RC.y + RC.h - 54, bw, 40, label, fn, { size: 14, kind: 'soft' }));
 }
 const restToday = () => { toast('오늘도 잘했어요! 내일 또 만나요 🐢', C.ok); enterMap(); }; // 「오늘은 여기까지」(조사: 같은 크기로 보이게)
-const HIT_TIPS = { tired: '분홍 기운 물약을 먹으면 기운이 차요 · 질주 중엔 기운이 안 줄어요', urchin: '가시는 점프로 넘어요 · 짧게 톡 = 낮게', shark: '빨간 ! 뒤 상어: 땅 줄이면 점프, 머리 줄이면 숙이기', eel: '빨간 줄은 곰치 돌진 — 바로 점프!', swordfish: '청새치는 머리 높이 — 오른쪽 꾹 숙이기', rock: '보라 기둥은 숙이기, 바위는 점프(위에서 밟으면 부서져요)', mine: '기뢰 아래 가시는 짧게 톡!', boss: '큰 적 띠 글자를 봐요: ↑ 뛰어요 / ↓ 숙여요', jelly: '해파리는 위에서 밟으면 통통!', puffer: '부푼 복어는 못 밟아요 — 일찍 높게', crab: '게는 위에서 밟으면 끝!', ray: '가오리는 머리 높이 — 숙이기', phantom: '유령 해파리는 숙여서 지나가요', angler: '아귀가 덥석 오면 점프!' };
+const HIT_TIPS = { tired: '분홍 기운 물약을 먹으면 기운이 차요 · 필살기 중엔 기운이 안 줄어요', urchin: '가시는 점프로 넘어요 · 짧게 톡 = 낮게', shark: '빨간 ! 뒤 상어: 땅 줄이면 점프, 머리 줄이면 숙이기', eel: '빨간 줄은 곰치 돌진 — 바로 점프!', swordfish: '청새치는 머리 높이 — 오른쪽 꾹 숙이기', rock: '보라 기둥은 숙이기, 바위는 점프(위에서 밟으면 부서져요)', mine: '기뢰 아래 가시는 짧게 톡!', boss: '큰 적 띠 글자를 봐요: ↑ 뛰어요 / ↓ 숙여요', jelly: '해파리는 위에서 밟으면 통통!', puffer: '부푼 복어는 못 밟아요 — 일찍 높게', crab: '게는 위에서 밟으면 끝!', ray: '가오리는 머리 높이 — 숙이기', phantom: '유령 해파리는 숙여서 지나가요', angler: '아귀가 덥석 오면 점프!' };
 function drawDead() {
   const a = Math.min(1, G.deadT / 0.25), endless = G.cfg.endless;
   ctx.fillStyle = `rgba(16,16,18,${0.66 * a})`; ctx.fillRect(-OX(), 0, W, H);
