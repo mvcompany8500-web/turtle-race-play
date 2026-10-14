@@ -212,8 +212,13 @@ function drawNode(s, x, y, scale = 1) {
   if (shell && ready(shell)) { // 시안: 알록달록 조개 단추(코덱스), 지금 칸은 금빛, 잠긴 칸은 흐리게 + 자물쇠
     const sz = r * 2.9 * (cur ? 1.1 + Math.sin(T * 4) * 0.03 : 1);
     if (cur) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 2.4); g.addColorStop(0, `rgba(255,213,74,${0.45 + 0.2 * Math.sin(T * 5)})`); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-    drawImg(shell, x, y, sz, 0, open ? 1 : 0.6);
-    if (open) text(String(s), x, y - r * 0.08, boss ? 24 : 22, '#ffffff', { stroke: 'rgba(40,20,60,.7)', lw: 5 });
+    // 칸이 배경에서 떠 보이게(캔디크러시 지도처럼): 아래 진한 그림자 + 둘레 남색 후광
+    const hg = ctx.createRadialGradient(x, y + r * 0.2, r * 0.6, x, y + r * 0.2, r * 1.75); hg.addColorStop(0, 'rgba(4,22,58,.55)'); hg.addColorStop(1, 'rgba(4,22,58,0)');
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(x, y + r * 0.2, r * 1.75, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(2,14,40,.5)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.95, r * 1.05, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    if (open) drawImg(shell, x, y, sz);
+    else { ctx.save(); ctx.filter = 'grayscale(0.85) brightness(0.62)'; drawImg(shell, x, y, sz * 0.92); ctx.restore(); } // 잠긴 칸: 회색·어둡게·조금 작게
+    if (open && x > 16 && x < W - 16) text(String(s), x, y - r * 0.08, boss ? 24 : 22, '#ffffff', { stroke: 'rgba(40,20,60,.7)', lw: 5 }); // 화면 끝에 걸린 칸은 번호 숨김
     else drawImg(IMG.spr_ui_lock, x, y + r * 0.15, r * 1.2);
     if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 16), y + Math.sin(a) * (r + 16) - 4, 9, k < stars); }
     if (save.crown[s]) icon('e_crown', x + r * 0.95, y - r * 0.95, 24);
@@ -277,20 +282,25 @@ function drawMap() {
       const A = v2 ? A2 : IMG['spr_map' + w + 'a'], B = v2 ? (ready(B2) ? B2 : A2) : IMG['spr_map' + w + 'b'];
       if (!ready(A)) continue;
       const ph = H, pw = ph * A.naturalWidth / A.naturalHeight;
-      ctx.save(); ctx.beginPath(); ctx.rect(zs - cam, 0, ze - zs, H); ctx.clip();
-      const ov = pw * 0.14; // 이음새: 다음 그림의 왼쪽 끝을 투명하게 풀어 앞 그림 위에 겹침(띠 없이 자연스럽게)
-      for (let i = 0, x = zs; x < ze; x += pw - ov, i++) {
+      const ov = pw * 0.14; // 이음새: 다음 그림의 왼쪽 끝을 투명하게 풀어 앞 그림 위에 겹침(띠 없이 자연스럽게) — 세계 경계도 같은 방법(세로 선 없음)
+      const zc = w > 1 ? zs - ov : zs;
+      ctx.save(); ctx.beginPath(); ctx.rect(zc - cam, 0, ze - zc, H); ctx.clip();
+      for (let i = 0, x = zc; x < ze; x += pw - ov, i++) {
         if (x + pw - cam < 0 || x - cam > W) continue;
-        const im0 = i % 2 && ready(B) ? B : A, flip = Math.floor(i / 2) % 2, im = i > 0 ? featherL(im0, flip) : im0;
+        const im0 = i % 2 && ready(B) ? B : A, flip = Math.floor(i / 2) % 2, im = i > 0 || w > 1 ? featherL(im0, flip) : im0;
         ctx.save(); ctx.translate(x - cam + pw / 2, H / 2); if (flip && i === 0) ctx.scale(-1, 1); ctx.drawImage(im, -pw / 2, -ph / 2, pw + 1, ph); ctx.restore();
       }
       ctx.restore();
     }
     for (let w = 2; w <= 5; w++) { // 세계 경계: 물안개로 부드럽게
       const x0 = zoneStart(w) - cam; if (x0 < -200 || x0 > W + 200) continue;
-      const g = ctx.createLinearGradient(x0 - 140, 0, x0 + 140, 0); g.addColorStop(0, 'rgba(220,240,255,0)'); g.addColorStop(0.5, 'rgba(220,240,255,.45)'); g.addColorStop(1, 'rgba(220,240,255,0)');
+      const g = ctx.createLinearGradient(x0 - 140, 0, x0 + 140, 0); g.addColorStop(0, 'rgba(220,240,255,0)'); g.addColorStop(0.5, 'rgba(220,240,255,.22)'); g.addColorStop(1, 'rgba(220,240,255,0)');
       ctx.fillStyle = g; ctx.fillRect(x0 - 140, 0, 280, H);
     }
+    // A: 배경은 한 톤 눌러서(밝은 물 위 밝은 조개가 묻히지 않게) + 위·아래는 더 어둡게(메뉴·아래 판 글자 자리)
+    ctx.fillStyle = 'rgba(6,36,84,.24)'; ctx.fillRect(0, 0, W, H);
+    const vg = ctx.createLinearGradient(0, 0, 0, H); vg.addColorStop(0, 'rgba(4,24,60,.38)'); vg.addColorStop(0.2, 'rgba(4,24,60,0)'); vg.addColorStop(0.78, 'rgba(4,24,60,0)'); vg.addColorStop(1, 'rgba(4,24,60,.45)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   }
   // 세계 경계는 앞 세계 색이 서서히 사라지게
   for (let w = 2; w <= 5 && !painted; w++) {
@@ -445,19 +455,22 @@ function drawMap() {
     if (i === 3 && missionsReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(missionsReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
   });
   // 아래: 바다 정보 · 난이도 · 출발
-  if (NEWUI) { ctx.fillStyle = 'rgba(8,40,80,.28)'; rr(L + 10, 456, R - L - 20, 72, 36); ctx.fill(); slice3(ready(IMG.spr_ui_glass_b) ? IMG.spr_ui_glass_b : IMG.spr_ui_bottom_bar, L, 444, R - L, 96); } else panel(L, 452, R - L, 80); // 시안: 코덱스 유리 판(속이 비치게) — 아래에 아주 옅은 남색을 깔아 흰 글자가 읽히게
+  if (NEWUI) { ctx.fillStyle = 'rgba(8,40,80,.42)'; rr(L + 10, 448, R - L - 20, 68, 34); ctx.fill(); slice3(ready(IMG.spr_ui_glass_b) ? IMG.spr_ui_glass_b : IMG.spr_ui_bottom_bar, L, 436, R - L, 92); } // 판 아래 12 띄움, 가운데 줄 y=482 else panel(L, 452, R - L, 80); // 시안: 코덱스 유리 판(속이 비치게) — 아래에 아주 옅은 남색을 깔아 흰 글자가 읽히게
   const s = map.cur;
+  const TL = L + 46, TW = R - 532 - TL; // 글자는 판의 둥근 끝 안쪽부터, 난이도 단추 앞 16에서 끊음
+  const fit = (str, sz, min) => { while (sz > min) { ctx.font = `800 ${fs(sz)}px ${FONT}`; if (ctx.measureText(str).width <= TW) break; sz--; } return sz; };
   if (s === 0) {
-    text('끝없는 바다', L + 24, 480, 22, '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 });
-    text(`최고 ${save.endlessBest}미터 · 갈수록 붐벼요`, L + 24, 510, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
+    text('끝없는 바다', TL, 468, 21, '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 });
+    text(`최고 ${save.endlessBest}미터 · 갈수록 붐벼요`, TL, 498, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
   } else {
-    text(`${s}번 바다 · ${STAGES[s].name}`, L + 24, 478, 20, '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 }); // 유리 판 위에서도 또렷하게
-    for (let k = 0; k < 3; k++) drawStar(L + 34 + k * 24, 510, 9, k < (save.stars[s] || 0));
-    text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', L + 114, 510, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
+    const t1 = `${s}번 바다 · ${STAGES[s].name}`;
+    text(t1, TL, 468, fit(t1, 20, 14), '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 }); // 유리 판 위에서도 또렷하게
+    for (let k = 0; k < 3; k++) drawStar(TL + 9 + k * 23, 498, 9, k < (save.stars[s] || 0));
+    text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', TL + 80, 498, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
   }
-  DIFFS.forEach((d, i) => button(R - 486 + i * 84, 470, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
+  DIFFS.forEach((d, i) => button(R - 516 + i * 84, 459, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
   // 인기 게임 「플레이」 단추처럼: 노랑→주황, 두꺼운 아래 그림자, 1.2초 맥박, 3초마다 빛줄이 지나감
-  const bounce = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, bx0 = R - 226, by0 = 458, bw0 = 216, bh0 = 64;
+  const bounce = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, bx0 = R - 250, by0 = 450, bw0 = 216, bh0 = 64; // 그림 오른쪽 끝이 판 둥근 끝 안쪽(R-17)에
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(bounce, bounce); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
   const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
   if (NEWUI) { // 시안의 노란 재생 단추(코덱스) — 왼쪽 ▶ 그림, 오른쪽에 글자
