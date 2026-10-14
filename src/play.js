@@ -364,7 +364,7 @@ function tryBoost() {
   if (!G || G.p.dead || G.boosting > 0 || G.won || G.enterT > 0) return;
   if (G.boost < 100) { if (G.boost < 99) sfx.no(); return; }
   const lvl = G.run ? Math.min(3, Math.floor(G.boost / 100)) : 1;
-  G.boost = G.run ? G.boost - lvl * 100 : 0; G.boosting = boostDur();
+  G.boost = G.run ? G.boost - lvl * 100 : 0; G.boosting = boostDur(); G.boostAt = T;
   if (lvl >= 2) { G.boosting = 0; G.p.inv = Math.max(G.p.inv, 3); ultCine(lvl); return; } // 2·3단은 연출 → 마무리 뒤 질주 // 2단·3단: 세계를 멈추고 그림자 군단이 화면의 적을 하나씩
   freeze = 0.05; flash = 0.35; flashColor = '#b48bff'; shake = 14; timeScale = 0.75; zoomTo(1.06);
   ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12);
@@ -639,7 +639,7 @@ const BOSS_DEF = {
   king: { name: '상어왕', hp: 11, kind: 'shark', c1: '#8a6bd6', c2: '#3f2a7a', s: 3.1, spd: 1.35, king: true },
 };
 function spawnBoss() {
-  const d = BOSS_DEF[G.cfg.boss];
+  const d = BOSS_DEF[G.cfg.boss]; G.obs = G.obs.filter((o) => o.k !== 'pit');
   // 그림자 → 떨어짐(0.23초) → 쿵 (경고 2.4초 동안 그림자가 커지고 땅이 울렸음)
   const land = G.run ? Math.min(SEABED - 60, GROUND - 58 * (d.s / 2.5) + 4) : H / 2;
   G.boss = { def: d, kind: d.kind, x: BOSS_HOME(), y: -300, landY: land, hp: d.hp * 10, maxHp: d.hp * 10, hpShow: d.hp * 10, st: 'fall', t: 0, cd: 2.4, shoot: 1.4, hurt: 0, ihit: 0, stun: 0, dead: false, deadT: 0, cycle: 0, s: d.s };
@@ -807,6 +807,7 @@ function bossChip(dmg, x, y) { // 물방울로 조금씩
   if (b.hp <= 0) { b.hp = 0; bossDamage(0); }
 }
 function bossDamage(amount = 10) {
+  G.ramAt = T; // 박치기 동작
   const b = G.boss, p = G.p;
   b.hp -= amount; b.ihit = 0.7; addScore(amount * 300 + (b.hp <= 0 ? 30000 : 0)); if (b.hp > 0) { b.st = 'knock'; b.t = 0; b.x += 70; }
   if (amount) { hitNum(b.x - 40, b.y - 70, amount, true); hitStar(b.x - 50, b.y, true, true); bossHitFx(b, amount, true); hitStop('crit'); }
@@ -1052,7 +1053,7 @@ function updatePlay(dt) {
     G.boxT -= dt * (petIs('puppy') ? 1 + petLv() * 0.15 : 1) * (bossFight ? 1.6 : 1);
     if (G.boxT <= 0 && !finishing && !G.run) { G.boxT = rand(9, 13); G.boxes.push({ x: W + 40, y: G.run ? GROUND - rand(60, 200) : rand(CEIL + 70, SEABED - 70), t: 0 }); }
     if (finishing && cfg.boss && !G.boss && !G.bossDone) {
-      if (G.bossWarnT == null) { G.bossWarnT = 2.4; sfx.siren(); haptic([60, 60, 60, 60, 60]); }
+      if (G.bossWarnT == null) { G.bossWarnT = 2.4; sfx.siren(); haptic([60, 60, 60, 60, 60]); G.obs = G.obs.filter((o) => o.k !== 'pit' || o.x + o.w < p.x - 40); } // 보스 앞에선 구멍 없음(멈춘 싸움터에 억울한 낙사 방지)
       else { G.bossWarnT -= dt; if (G.bossWarnT <= 0) spawnBoss(); }
     } else if (finishing && G.bossDone && !G.goal) { G.goal = { x: W + 140 }; G.goalClearT = 0; }
   }
@@ -1930,9 +1931,9 @@ function drawScreenFxBack() {
     const p = G.p;
     if (G.boosting > 0 && !REDUCE) {
       ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.3)';
-      for (let i = 0; i < 40; i++) {
-        const a = rand(0, Math.PI * 2), r0 = rand(420, 560), r1 = 1100;
-        ctx.lineWidth = rand(1, 4.5); ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * r0, p.y + Math.sin(a) * r0); ctx.lineTo(p.x + Math.cos(a) * r1, p.y + Math.sin(a) * r1); ctx.stroke();
+      for (let i = 0; i < 26; i++) { // 가로 속도선(방사형 집중선은 쓰지 않음)
+        const y = rand(30, H - 30), x = rand(-100, W), len = rand(160, 480);
+        ctx.lineWidth = rand(1.5, 4); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + len, y); ctx.stroke();
       }
       ctx.restore();
     }

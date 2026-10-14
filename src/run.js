@@ -248,7 +248,7 @@ function jar(x) { const d = BREAK.jar; G.breaks.push({ k: 'jar', x, y: GROUND - 
 function pillar(x, w = 64) { G.obs.push({ k: 'pillar', x, w, y1: GROUND - 46, t: 0 }); }
 // 구멍(러너 히트작 공통 긴장감): 바닥이 없는 곳 — 빠지면 바로 끝. 필살 질주 중엔 그냥 건너감
 function pit(x, w) { G.obs.push({ k: 'pit', x, w, t: 0 }); }
-const overPit = (x) => G.obs.some((o) => o.k === 'pit' && x > o.x + 14 && x < o.x + o.w - 14);
+const overPit = (x) => !(window.LAB && window.LAB_NOPIT) && G.obs.some((o) => o.k === 'pit' && x > o.x + 14 && x < o.x + o.w - 14);
 function plat(x, w, y, amp = 0) { G.obs.push({ k: 'plat', x, w, y, y0: y, amp, ph: Math.random() * 6, t: 0 }); } // amp: 위아래로 오르내리는 발판(판 레벨 높을 때)
 function qblock(x, y = GROUND - 180) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
 function letter(x, y) {
@@ -791,7 +791,7 @@ function drawRunShadow() {
 }
 // ───────── 주인공 동작 그림: Codex 가 같은 캐릭터로 그린 7장(달리기 2·점프·떨어짐·등껍질 미끄럼·등껍질 공·맞음) ─────────
 const POSE_KEYS = ['hero_run1', 'hero_run2', 'hero_jump', 'hero_fall', 'hero_shell', 'hero_ball', 'hero_hurt'];
-['hero_dash', 'hero_win'].forEach((k) => load('pose_' + k, `assets/sprites/${k}.webp`)); // 기본 터틀이만 있는 동작(옷·변신 땐 원래 동작)
+['hero_dash', 'hero_win', 'hero_run3', 'hero_run4', 'hero_shoot', 'hero_shoot2', 'hero_stomp', 'hero_cast', 'hero_headbutt'].forEach((k) => load('pose_' + k, `assets/sprites/${k}.webp`)); // 기본 터틀이만 있는 동작(옷·변신 땐 원래 동작)
 POSE_KEYS.forEach((k) => load('pose_' + k, `assets/sprites/${k}.webp`));
 const poseCache = {};
 // 투명 여백을 잘라 둔 그림(발끝 = 그림 아래 끝) + 옷의 모자 색
@@ -828,15 +828,20 @@ function pose(key, cap) {
 }
 // 동작별 키(서 있는 키 = 1): 등껍질에 쏙 들어가면 낮고 납작하게
 // 모자 꼭대기의 가로 자리(잘라 둔 그림 폭 기준 0~1) — 등껍질 공·미끄럼은 숨김
-const HAT_AT = { hero_run1: 0.6, hero_run2: 0.62, hero_jump: 0.5, hero_fall: 0.5, hero_hurt: 0.35 };
-const POSE_H = { hero_run1: 0.98, hero_run2: 0.98, hero_jump: 1.02, hero_fall: 1.02, hero_shell: 0.43, hero_ball: 0.66, hero_hurt: 0.98, hero_dash: 0.78, hero_win: 1.05 };
+const HAT_AT = { hero_run1: 0.6, hero_run2: 0.62, hero_jump: 0.5, hero_fall: 0.5, hero_hurt: 0.35, hero_run3: 0.6, hero_run4: 0.62, hero_shoot: 0.55, hero_shoot2: 0.55, hero_stomp: 0.5, hero_cast: 0.5 };
+const POSE_H = { hero_run1: 0.98, hero_run2: 0.98, hero_jump: 1.02, hero_fall: 1.02, hero_shell: 0.43, hero_ball: 0.66, hero_hurt: 0.98, hero_dash: 0.78, hero_win: 1.05, hero_run3: 1.0, hero_run4: 0.96, hero_shoot: 0.98, hero_shoot2: 0.98, hero_stomp: 1.04, hero_cast: 1.0, hero_headbutt: 0.72 };
 function heroPose() {
-  const p = G.p;
+  const p = G.p, plain = (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')), has = (k) => plain && ready(IMG['pose_' + k]); // 새 동작 그림은 기본 터틀이용(옷·변신이면 원래 동작)
   if (p.dead || T - (G.hurtAt || -9) < 0.45) return 'hero_hurt';
   if (p.slide) return 'hero_shell';
+  if (G.boosting > 0 && !p.dead) { if (T - (G.boostAt || -9) < 0.35 && has('hero_cast')) return 'hero_cast'; if (T - (G.ramAt || -9) < 0.35 && has('hero_headbutt')) return 'hero_headbutt'; return 'hero_ball'; } // 필살: 기 모으기 → 등딱지 뱅글뱅글(보스를 들이받는 순간은 박치기)
   if (G.bonus || G.eff.rocket > 0) return 'hero_jump';
-  if (G.boosting > 0 && !p.dead) return 'hero_ball'; // 필살 질주: 등딱지에 쏙 들어가 뱅글뱅글(옷·변신 모두 있는 동작)
-  if (!p.onG) { if (p.spin > 0) return 'hero_ball'; return p.vy > 160 ? 'hero_fall' : 'hero_jump'; }
+  if (!p.onG) {
+    if (p.vy > 120 && has('hero_stomp') && G.enemies.some((e) => !e.dead && Math.abs(e.x - p.x) < 80 && e.y > p.y && e.y - p.y < 150)) return 'hero_stomp'; // 적 바로 위로 떨어질 땐 쿵 내리찍기
+    if (p.spin > 0) return 'hero_ball'; return p.vy > 160 ? 'hero_fall' : 'hero_jump';
+  }
+  if (G.run && G.boss && !G.boss.dead && G.boss.st !== 'fall' && has('hero_shoot')) return Math.floor(T * 7) % 2 && has('hero_shoot2') ? 'hero_shoot2' : 'hero_shoot'; // 보스전: 달리며 물대포 쏘기
+  if (has('hero_run3') && has('hero_run4')) return ['hero_run1', 'hero_run3', 'hero_run2', 'hero_run4'][Math.floor(G.dist / (G.boosting > 0 ? 36 : 28)) % 4]; // 달리기 4장 돌림(더 부드럽게)
   return Math.floor(G.dist / (G.boosting > 0 ? 70 : 52)) % 2 ? 'hero_run2' : 'hero_run1';
 }
 function drawPoseAt(c, x, feetY, h, rot, alpha, ghost) {
@@ -895,6 +900,7 @@ function drawRunHero(face, blink, alpha) {
     for (let k = 0; k < 3; k++) { const a2 = -T * 7 + k * 2.09; drawImg(IMG.spr_fx_spark, x + Math.cos(a2) * R0 * 1.15, cy0 + Math.sin(a2) * R0 * 0.75, 30 + Math.sin(T * 14 + k) * 6, a2); }
   }
   if (G.eff.rocket > 0) drawImg(IMG.spr_it_rocket, x - 4, feet + 6, 64, -Math.PI / 2 + 0.25 + Math.sin(T * 30) * 0.04); // 로켓 타고
+  if (key === 'hero_cast') drawAura(x, feet - h * 0.5, h * 1.1, '#b48bff', 1.4); // 필살 기 모으기: 보라 기운
   const aura = gearLook('aura'); if (aura && !p.dead) drawAura(x, feet - h * 0.5, h * 0.95, aura, alpha == null ? 1 : alpha); // 유물·전설 장비: 몸 둘레 빛
   ctx.save(); ctx.translate(x, feet); ctx.scale(sx, 1); ctx.translate(-x, -feet);
   drawPoseAt(c, x, feet, h * sy, rot, alpha);

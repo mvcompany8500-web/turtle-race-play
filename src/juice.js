@@ -230,9 +230,15 @@ function drawHazardBands(title, sub) {
     for (let x = -120 + off; x < W + 120; x += 56) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 28, 0); ctx.lineTo(x + 6, 40); ctx.lineTo(x - 22, 40); ctx.fill(); }
     ctx.restore();
   }
-  const s = 1 + Math.sin(T * 14) * 0.04;
-  ctx.save(); ctx.translate(W / 2, H / 2 - 30); ctx.scale(s, s); text(title, 0, 0, 50, '#ff3b4e', { stroke: '#ffffff', lw: 9 }); ctx.restore();
-  if (sub) text(sub, W / 2, H / 2 + 24, 24, '#ffffff', { lw: 6 });
+  // 보스 소개 카드(인기 게임 보스 등장처럼): 오른쪽에서 미끄러져 들어오는 둥근 초상 + 빨간 리본 이름 + 한 줄
+  const k = G && G.bossWarnT != null ? clamp((2.4 - G.bossWarnT) / 0.45, 0, 1) : 1, e2 = easeOutBack(k), bk = G && G.cfg && G.cfg.boss, sprK = bk && typeof BOSS_SPR !== 'undefined' ? BOSS_SPR[bk] : null;
+  ctx.fillStyle = `rgba(40,0,10,${0.28 * k})`; ctx.fillRect(0, 190, W, H - 380);
+  const px = W / 2 + 230 + (1 - e2) * 500, py = H / 2 - 6;
+  ctx.save(); ctx.fillStyle = '#2a0610'; ctx.beginPath(); ctx.arc(px, py, 86, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = '#ffd23d'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(px, py, 80, 0, Math.PI * 2); ctx.clip(); if (sprK) drawImg(IMG['spr_' + sprK], px - 10, py + 18, 190, Math.sin(T * 6) * 0.04, 1, false); ctx.restore();
+  const tx = W / 2 - 70 - (1 - e2) * 500, s = 1 + Math.sin(T * 14) * 0.03;
+  ctx.save(); ctx.translate(tx, py - 22); ctx.scale(s, s); if (!ribbon(0, 0, 420, sub ? sub.replace(/이\(가\) 떨어져요!|이\(가\) 와요!/, '') : title, 28, true)) text(title, 0, 0, 50, '#ff3b4e', { stroke: '#ffffff', lw: 9 }); ctx.restore();
+  text('⚠ 보스 등장! 필살기를 아껴 두세요', tx, py + 40, 18, '#ffffff', { lw: 5 });
 }
 function bossLand(b) {
   freeze = Math.max(freeze, 0.12); shake = Math.max(shake, b.def.king ? 26 : 22); zoomTo(1.07);
