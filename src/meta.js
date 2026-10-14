@@ -1107,8 +1107,9 @@ function drawHatch() {
     ctx.restore();
     drawImg(IMG['pet_' + h.pet.k], 480, H / 2 + 10, 220 * easeOutBack(k));
     text(`${h.pet.name} 탄생!`, 480, 80, 44, C.yellow, { lw: 8 });
-    text(h.pet.perk(1), 480, 470, 20, '#ffffff', { body: true });
-    if (h.t > 1.9) text('눌러서 계속', 480, 506, 15, C.sub, { body: true, stroke: false });
+    const pk = h.pet.perk(1); ctx.font = `800 ${fs(19)}px ${FONT}`; const pw = ctx.measureText(pk).width + 44; // 능력은 노란 띠로 강조
+    ctx.globalAlpha = k; ctx.fillStyle = C.yellow; rr(480 - pw / 2, 446, pw, 40, 20); ctx.fill(); text(pk, 480, 466, 19, '#5a3000', { stroke: false, weight: 800 }); ctx.globalAlpha = 1;
+    if (h.t > 1.9) text('눌러서 계속', 480, 510, 15, C.sub, { body: true, stroke: false });
   }
   buttons.push({ x: 0, y: 0, w: W, h: H, on: () => { if (h.t > 1.9) shop.hatch = null; } });
 }
