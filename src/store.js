@@ -280,14 +280,15 @@ function applyBoosters() {
   save.eggs = Math.max(0, save.eggs - cost); persist(); boostPick = {};
 }
 function drawBoosterRow(x, y) {
-  BOOSTERS.forEach((b, i) => { // 시작 아이템(누르면 켜짐 · 출발할 때 진주 차감)
-    const bx = x + i * 168, on = !!boostPick[b.k], w = 160;
-    ctx.fillStyle = on ? 'rgba(76,130,255,.35)' : C.soft; rr(bx, y - 20, w, 40, 12); ctx.fill();
-    if (on) { ctx.strokeStyle = C.blueD; ctx.lineWidth = 2; rr(bx, y - 20, w, 40, 12); ctx.stroke(); }
-    drawItemIcon(b.icon, bx + 22, y, 24);
-    text(on ? `✓ ${b.name}` : b.name, bx + 42, y - 7, 13, C.text, { align: 'left', stroke: false });
-    text(`진주 ${b.cost}`, bx + 42, y + 10, 12, on ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
-    buttons.push({ x: bx + OX(), y: y - 20, w, h: 40, on: () => toggleBooster(b) });
+  BOOSTERS.forEach((b, i) => { // 시작 아이템(누르면 켜짐 · 출발할 때 진주 차감) — 유리 칸, 고르면 노란 테두리 + 오른쪽 위 ✓
+    const w = 160, bx = x + i * 168, on = !!boostPick[b.k];
+    ctx.fillStyle = on ? 'rgba(255,213,74,.16)' : 'rgba(255,255,255,.08)'; rr(bx, y - 22, w, 44, 14); ctx.fill();
+    ctx.strokeStyle = on ? C.yellow : 'rgba(255,255,255,.16)'; ctx.lineWidth = on ? 2.5 : 1.5; rr(bx, y - 22, w, 44, 14); ctx.stroke();
+    drawItemIcon(b.icon, bx + 24, y, 28);
+    text(b.name, bx + 46, y - 8, 14, C.text, { align: 'left', stroke: false });
+    drawPearl(bx + 52, y + 11, 12); text(String(b.cost), bx + 62, y + 11, 13, on ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
+    if (on) { ctx.fillStyle = C.ok; ctx.beginPath(); ctx.arc(bx + w - 6, y - 20, 10, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); text('✓', bx + w - 6, y - 19, 12, '#fff', { stroke: false }); }
+    buttons.push({ x: bx + OX(), y: y - 22, w, h: 44, on: () => toggleBooster(b) });
   });
 }
 

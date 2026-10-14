@@ -505,13 +505,13 @@ function drawReady() {
   const n = ready_.n, st = STAGES[n], endless = n === ENDLESS;
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
   withRise(0, () => {
-    panel(200, 40, 560, 456, { fill: C.gray });
+    panel(200, 40, 560, 460, { fill: C.gray }); // 세로: 리본·이름·목표·별·기록·시작 아이템·출발(판 아래 30 여백)
     if (!ribbon(480, 50, 380, endless ? '끝없는 바다' : `${n}번 바다`, 26, true)) text(endless ? '끝없는 바다' : `${n}번 바다`, 480, 82, 30, C.yellow, { stroke: false }); // 시안: 빨간 리본
     text(st.name, 480, 116, 18, C.text, { stroke: false, body: true });
   });
   withRise(1, () => {
-    const by = 146;
-    ctx.fillStyle = C.soft; rr(232, by, 496, 96, 16); ctx.fill();
+    const by = 128;
+    ctx.fillStyle = 'rgba(255,255,255,.08)'; rr(232, by, 496, 90, 16); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.5; rr(232, by, 496, 90, 16); ctx.stroke(); // 유리 판 안 밝은 칸
     if (!endless && st.boss) {
       drawImg(IMG['spr_' + BOSS_SPR[st.boss]], 300, by + 50, 88);
       text('목표', 360, by + 26, 14, C.sub, { align: 'left', body: true, stroke: false });
@@ -530,16 +530,16 @@ function drawReady() {
   });
   withRise(2, () => {
     const lab = ['도착', '진주 70%', '안 맞기'], got = save.stars[n] || 0;
-    for (let i = 0; i < 3; i++) { const x = 330 + i * 150; drawStar(x, 284, 20, i < got); text(lab[i], x, 314, 14, i < got ? C.yellow : C.sub, { body: true, stroke: false }); }
+    for (let i = 0; i < 3; i++) { const x = 330 + i * 150; drawStar(x, 252, 20, i < got); text(lab[i], x, 290, 14, i < got ? C.yellow : C.sub, { body: true, stroke: false }); } // 별과 글자 사이 띄움
   });
   withRise(3, () => {
     const best = endless ? `최고 ${save.endlessBest}미터` : save.best[n] ? `최고 기록 ${save.best[n]}%` : '처음 도전!';
-    text(`${best} · 기운 ${maxEnergy()} · 거북 Lv ${save.lv}`, 480, 348, 15, C.text, { body: true, stroke: false });
+    text(`${best} · 기운 ${maxEnergy()} · 거북 Lv ${save.lv}`, 480, 322, 15, C.text, { body: true, stroke: false });
   });
   withRise(4, () => {
-    drawBoosterRow(228, 388);
-    button(300, 428, 360, 60, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); applyBoosters(); }, { size: 26, kind: 'yellow' }); // 시안: 큰 노란 출발 + 오른쪽 동그란 ✕
-    roundBtn('close', 708, 458, 30, () => { ready_ = null; boostPick = {}; enterMap(); }, '지도로');
+    drawBoosterRow(232, 370);
+    button(300, 412, 360, 58, '출발!', () => { const k = ready_.n; ready_ = null; startLevel(k); applyBoosters(); }, { size: 26, kind: 'yellow' }); // 시안: 큰 노란 출발 + 오른쪽 동그란 ✕
+    roundBtn('close', 708, 441, 30, () => { ready_ = null; boostPick = {}; enterMap(); }, '지도로');
   });
 }
 
