@@ -698,7 +698,7 @@ function drawSettings() {
   text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', X + Wd / 2, 318, 14, C.sub, { body: true, stroke: false });
   const grid = [
     [['꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }], ['확률 정보', () => { probOpen = true; sfx.click(); }], ['기록 지우기', askWipe]],
-    [['저장하기', exportSave], ['불러오기', importSave]],
+    [['저장하기', exportSave], ['불러오기', importSave], ['처음 화면', () => { map.overlay = null; state = 'title'; sfx.click(); }]], // 지도 → 처음 화면(게임 끄기도 거기)
   ];
   grid.forEach((row, r) => { const w2 = (R0 - L0 - 8 * (row.length - 1)) / row.length; row.forEach((c, k) => button(L0 + k * (w2 + 8), 340 + r * 50, w2, 42, c[0], c[1], { size: 14, kind: 'soft' })); }); // 줄마다 판 폭을 꽉 채워 나눔
   [['이용약관', 'terms'], ['개인정보', 'privacy'], ['만든 사람', 'credits']].forEach(([lb, f], k) => button(L0 + k * (cw + 8), 448, cw, 34, lb, () => withGate(() => window.open(`legal/${f}.html`, '_blank')), { size: 13, kind: 'soft' })); // 판 아래 끝과 28 띄움
@@ -865,6 +865,37 @@ function drawLoadBar() {
   ctx.fillStyle = C.blueD; rr(330, 500, Math.max(14, 300 * k), 14, 7); ctx.fill();
   text(`바다 준비 중 ${Math.round(k * 100)}%`, 480, 484, 14, C.text, { body: true });
 }
+// ───────── 게임 끄기 ─────────
+// 안드로이드·앱: 저장 → 소리 끔 → 앱/창 닫기. 아이폰·웹: 스스로 못 닫으니(애플은 강제 종료 단추를 막음) 저장·소리 끔 뒤 「또 만나요」 화면
+let quitAsk = false, byeAt = 0;
+function drawQuitAsk() {
+  buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
+  ctx.fillStyle = 'rgba(6,14,34,.72)'; ctx.fillRect(-OX(), 0, W, H);
+  // 판 400×230 을 화면 가운데에: x = 480 − 200, y = 270 − 115
+  panel(280, 155, 400, 230);
+  if (!ribbon(480, 160, 260, '게임 끄기', 22)) text('게임 끄기', 480, 190, 24, C.text, { stroke: false });
+  text('게임을 끌까요?', 480, 228, 22, '#ffffff', { stroke: false });
+  text('기록은 그대로 저장돼요', 480, 262, 15, C.sub, { body: true, stroke: false });
+  // 두 단추 같은 크기: (400 − 32×2 − 12) / 2 = 162
+  button(312, 302, 162, 54, '끄기', doQuit, { size: 19, kind: 'danger' });
+  button(486, 302, 162, 54, '더 놀래요', () => { quitAsk = false; sfx.click(); }, { size: 17, kind: 'yellow' });
+}
+function doQuit() {
+  quitAsk = false; persist();
+  try { if (ac && ac.state === 'running') ac.suspend(); } catch (e) { /* 무시 */ }
+  state = 'bye'; byeAt = T;
+  try { if (window.TurtleApp && window.TurtleApp.exit) { window.TurtleApp.exit(); return; } } catch (e) { /* 앱 다리 없음 */ } // 앱(맥미니 쪽)에서 닫기
+  if (!IS_IOS) { try { history.go(-Math.max(1, history.length - 1)); } catch (e) { /* 무시 */ } try { window.close(); } catch (e) { /* 무시 */ } } // 안드로이드·브라우저: 페이지를 떠남
+}
+function drawBye() { // 못 닫는 기기: 저장됐다는 인사 화면
+  buttons.length = 0;
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0e2a5a'); g.addColorStop(1, '#06132e'); ctx.fillStyle = g; ctx.fillRect(-OX(), 0, W, H);
+  const b = Math.sin(T * 3) * 6;
+  drawImg(IMG.hello, 400, 250 + b, 190); drawImg(ready(IMG.spr_amelia) ? IMG.spr_amelia : IMG.princess, 560, 252 - b, 180, 0, 1, true);
+  text('또 만나요!', 480, 92, 44, C.yellow, { lw: 8 });
+  text('기록은 저장됐어요 · 이제 앱을 닫아도 돼요', 480, 400, 17, '#ffffff', { body: true, stroke: false });
+  button(380, 438, 200, 50, '다시 하기', () => { state = 'title'; try { if (ac) ac.resume(); } catch (e) { /* 무시 */ } sfx.click(); }, { size: 19, kind: 'yellow' });
+}
 function drawTitle() {
   drawLoadBar();
   // 인기 게임식 첫 화면: 화면 가득 키 아트(코덱스) + 로고 그림 + 크게 빛나는 시작 단추
@@ -906,11 +937,16 @@ function drawTitle() {
   text('시작하기', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 7 : 2), 32, '#ffffff', { stroke: '#b4560a', lw: 6 });
   ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 7, '시작하기', startGame, { size: 26 }); ctx.restore();
   ctx.restore();
-  let yb = 458;
-  if (save.introSeen) { button(530, yb, 116, 40, '첫 이야기', startIntro, { size: 14, kind: 'soft' }); }
-  if (isTouch && !STANDALONE) button(save.introSeen ? 654 : 590, yb, 116, 40, '꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }, { size: 14, kind: 'soft' });
+  // 아래 줄 단추: 시작 단추 가운데(650)를 기준으로 좌우 대칭 — 폭 116, 사이 8: 전체 = n×116 + (n−1)×8, 시작 x = 650 − 전체/2
+  const row = [];
+  if (save.introSeen) row.push(['첫 이야기', startIntro]);
+  if (isTouch && !STANDALONE) row.push(['꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }]);
+  row.push(['게임 끄기', () => { quitAsk = true; sfx.click(); }]);
+  const bwR = 116, gapR = 8, totR = row.length * bwR + (row.length - 1) * gapR, x0R = 650 - totR / 2;
+  row.forEach(([lb, fn], i) => button(x0R + i * (bwR + gapR), 458, bwR, 40, lb, fn, { size: 14, kind: 'soft' }));
   if (iosGuide) drawIosGuide();
   eggBadge(36 - OX() + SAFE, 32, save.eggs, 30);
+  if (quitAsk) drawQuitAsk();
   text(isTouch ? '눌러서 시작 · 폰은 가로로' : '스페이스로 시작', 480, H - 12, 14, 'rgba(255,255,255,.85)', { body: true });
 }
 

@@ -41,9 +41,11 @@ addEventListener('popstate', () => {
   if (state === 'pause') { state = 'play'; return stay(); }
   if (['shop', 'ready', 'clear', 'dead', 'story', 'intro'].includes(state)) { enterMap(); return stay(); }
   if (state === 'map' || state === 'ending') { state = 'title'; return stay(); }
+  if (state === 'bye') { state = 'title'; return stay(); }
   if (state !== 'title') return stay(); // 이어하기·쉼터 같은 고르는 화면은 그대로(실수로 판을 잃지 않게)
-  // 처음 화면에서만: 그대로 한 번 더 뒤로 → 앱/브라우저가 닫음
-  history.back();
+  // 처음 화면: 바로 꺼지지 않게 먼저 묻기 → 「끄기」를 누르면 doQuit 이 정말 나감
+  if (quitAsk) { quitAsk = false; return stay(); }
+  quitAsk = true; return stay();
 });
 
 function onKey(c) {
@@ -51,7 +53,8 @@ function onKey(c) {
   if (c === 'KeyM') { toggleMute(); return; }
   if (resultOverlay()) { if (go || c === 'Escape') closeResultOverlay(); return; }
   switch (state) {
-    case 'title': if (go) startGame(); break;
+    case 'title': if (quitAsk) { if (c === 'Escape') quitAsk = false; else if (go) doQuit(); } else if (c === 'Escape') quitAsk = true; else if (go) startGame(); break; // Esc = 끄기 묻기
+    case 'bye': if (go) state = 'title'; break;
     case 'intro': if (c === 'Escape') endIntro(); else if (go || c === 'ArrowRight') introAdvance(); break;
     case 'map':
       if (map.overlay) { if (c === 'Escape' || go) map.overlay = null; break; }
@@ -271,6 +274,7 @@ function render() {
   else if (state === 'dead') drawDead();
   else if (state === 'clear') drawClear();
   else if (state === 'ending') drawEnding();
+  else if (state === 'bye') drawBye();
   ctx.restore();
   if (state === 'map' || state === 'shop') drawConfetti();
   if (!inRun) drawScreenFxBack();
