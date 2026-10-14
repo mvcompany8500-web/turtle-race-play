@@ -444,7 +444,7 @@ function drawMap() {
     { // 셋째 줄: 거북 파워 + 등급(성장형) — 오르면 「+N」이 튀어오름
       const pw = turtlePower(), pt = `파워 ${pw.toLocaleString()} · ${powerRank(pw)}`; ctx.font = `600 ${fs(14)}px ${FONT}`; const pwW = ctx.measureText(pt).width + 54;
       if (save.powerSeen == null) save.powerSeen = pw;
-      if (pw > save.powerSeen && !map.powerPop) { map.powerPop = { d: pw - save.powerSeen, t: T }; save.powerSeen = pw; persist(); snd('levelup', 0.6, 1.2); }
+      if (pw > save.powerSeen && !map.powerPop) { const up = powerRank(pw) !== powerRank(save.powerSeen); map.powerPop = { d: pw - save.powerSeen, t: T }; save.powerSeen = pw; persist(); snd('levelup', 0.6, 1.2); if (up) { toast(`등급 업! 이제 「${powerRank(pw)}」`, C.yellow); confettiBurst(L + 120, 124, 40); haptic([20, 30, 60]); } } // 등급이 오르면 축하
       chip(L, 106, pwW); icon('e_rocket', L + 20, 124, 20); text(pt, L + 38, 124, 14, '#ffd27a', { align: 'left', body: true, stroke: false });
       const pp = map.powerPop; if (pp) { const a = T - pp.t; if (a > 1.6) map.powerPop = null; else { ctx.globalAlpha = Math.min(1, 2 - a); text(`+${pp.d}`, L + pwW + 22, 124 - a * 18, 20, '#7dffb0', { lw: 4 }); ctx.globalAlpha = 1; } }
       if (save.cleared) { const nc = Object.keys(save.crown || {}).length, ct = `왕관 ${nc}/50`; const cx2 = L + pwW + 8; ctx.font = `600 ${fs(14)}px ${FONT}`; chip(cx2, 106, ctx.measureText(ct).width + 54); icon('e_crown', cx2 + 20, 124, 22); text(ct, cx2 + 38, 124, 14, C.yellow, { align: 'left', body: true, stroke: false }); }

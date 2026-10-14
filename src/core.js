@@ -178,7 +178,9 @@ function drawImg(im, x, y, h, rot = 0, alpha = 1, flip = false) {
 }
 
 // ───────── 저장 ─────────
-const SAVE_KEY = 'turtle-race-v1';
+const LAB_FRESH = /[?&]lab\b/.test(location.search) && /[?&]fresh\b/.test(location.search); // 실험실 전용: 빈 기록으로(진짜 기록은 안 건드림)
+const SAVE_KEY = LAB_FRESH ? 'turtle-race-labfresh' : 'turtle-race-v1';
+if (LAB_FRESH) try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
 const save = (() => {
   const d = {
     eggs: 0, unlocked: 1, best: {}, stars: {}, crown: {}, up: { slow: 0, boost: 0, shield: 0, magnet: 0, fire: 0, power: 0 },
@@ -206,7 +208,8 @@ function turtlePower() {
   v += Object.values(save.petLv || {}).reduce((a, b) => a + b * 8, 0) + (save.trs || []).length * 20 + (save.trEq || []).length * 10;
   return v;
 }
-const POWER_RANKS = [[0, '바다 새싹'], [250, '파도 견습생'], [450, '산호 기사'], [700, '바다 용사'], [1000, '심해 영웅'], [1300, '전설의 터틀']];
+// 등급 간격(실험실 새 사람 따라가기: 중반 파워 +13/판) → 6~8판마다 한 번 오르게 9단계
+const POWER_RANKS = [[0, '바다 새싹'], [200, '아기 거북'], [280, '파도 견습생'], [370, '물살 탐험가'], [470, '산호 기사'], [600, '바다 용사'], [780, '바다 대장'], [1000, '심해 영웅'], [1300, '전설의 터틀']];
 const powerRank = (v = turtlePower()) => POWER_RANKS.filter(([t]) => v >= t).pop()[1];
 function cheapestNext() {
   let m = Infinity;
