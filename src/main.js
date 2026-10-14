@@ -23,7 +23,7 @@ const autoPause = () => { for (const k in keys) keys[k] = false; drag = null; re
 addEventListener('blur', autoPause);
 document.addEventListener('visibilitychange', () => { // 백그라운드로 가면 소리 엔진도 멈춤(배터리·백그라운드 소리 금지), 돌아오면 다시
   if (document.hidden) { autoPause(); try { if (ac && ac.state === 'running') ac.suspend(); } catch (e) { /* 무시 */ } }
-  else { try { if (ac && ac.state === 'suspended' && userActed) ac.resume(); } catch (e) { /* 무시 */ } }
+  else { try { if (ac && ac.state === 'suspended' && (userActed || audioOn)) ac.resume(); } catch (e) { /* 무시 */ } } // 켜져 있던 소리는 돌아오면 다시
 });
 // 안드로이드 「뒤로」 단추: 페이지를 떠나지 않고 게임 안에서 한 단계 뒤로(구글 플레이 품질 기준)
 // 창 닫기 → 판 중이면 멈춤 → 멈춤이면 계속 → 상점·판 전·결과 → 지도 → 지도에서 처음 화면 → 처음 화면에서만 진짜 뒤로

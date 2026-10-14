@@ -276,5 +276,19 @@ function bgmTick() {
   }
 }
 setInterval(bgmTick, 100);
-// 페이지가 열리자마자 소리 장치를 만들어 파일을 풀어 둠(아직 「켜지」 않음 — 첫 터치에 켜짐)
-try { initAudio(true); } catch (e) { /* 나중에 첫 터치 때 */ }
+// 앱을 켜는 순간 첫 화면 음악(대표: 켜자마자 배경음악):
+// ① 소리 장치를 만들고 첫 화면 음악을 가장 먼저 받아 풂 ② 바로 켜 봄(앱 감싸기에서 자동재생을 허용하면 여기서 바로 나옴)
+// ③ 브라우저가 막으면 화면 어디든(게임 판 밖 여백 포함) 처음 닿는 순간 켬 — 시작 단추를 안 눌러도
+let audioOn = false;
+function unlockAudio() {
+  if (!ac) return;
+  if (ac.state === 'running') { audioOn = true; return; }
+  const p = ac.resume(); if (p && p.then) p.then(() => { audioOn = ac.state === 'running'; }).catch(() => {});
+  try { const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0); } catch (e) { /* 무시 */ } // 아이폰: 빈 소리 한 번으로 풀림
+}
+try {
+  initAudio(true);
+  if (typeof setMusic === 'function' && !trackName) setMusic('title'); // 첫 화면 음악을 1순위로 받기
+  unlockAudio();
+} catch (e) { /* 나중에 첫 터치 때 */ }
+['pointerdown', 'touchstart', 'touchend', 'mousedown', 'keydown', 'click'].forEach((ev) => addEventListener(ev, () => { if (!audioOn) { userActed = true; initAudio(); unlockAudio(); } }, { capture: true, passive: true }));

@@ -1201,10 +1201,11 @@ function measureW(s, size) { ctx.font = `600 ${fs(size)}px ${FONT}`; return ctx.
 function sayBubble(x, y, w, line, color = '#ffffff') { // 왼쪽 캐릭터 아래 말풍선
   let lines = wrapText(line, w - 32, 14);
   if (lines.length > 1 && line.includes(', ')) { const parts = line.split(', ').map((p, i, a) => (i < a.length - 1 ? p + ',' : p)); if (parts.every((p) => measureW(p, 14) <= w - 32)) lines = parts; } // 끊을 땐 쉼표에서(「…하지 / 마세요」처럼 어색하게 안 끊기게)
-  lines = lines.slice(0, 2); const h = 22 + lines.length * fs(14) * 1.35;
-  ctx.fillStyle = 'rgba(27,28,31,.9)'; ctx.beginPath(); ctx.moveTo(x - 10, y + 2); ctx.lineTo(x, y - 10); ctx.lineTo(x + 10, y + 2); ctx.fill();
+  lines = lines.slice(0, 2);
+  const lh = fs(14) * 1.4, pad = 16, h = pad * 2 + lines.length * lh; // 위아래 여백 같게
   panel(x - w / 2, y, w, h, { r: 16 }); // 말풍선도 코덱스 판
-  lines.forEach((l, i) => text(l, x, y + 18 + i * fs(14) * 1.35, 14, color, { body: true, stroke: false }));
+  ctx.fillStyle = 'rgba(12,40,92,.92)'; ctx.beginPath(); ctx.moveTo(x - 9, y + 9); ctx.lineTo(x, y - 6); ctx.lineTo(x + 9, y + 9); ctx.closePath(); ctx.fill(); // 꼬리: 판 속과 같은 남색(예전 검은 삼각형 X)
+  lines.forEach((l, i) => text(l, x, y + pad + lh * (i + 0.5), 14, color, { body: true, stroke: false })); // 줄마다 가운데
 }
 function bottomButtons(primaryLabel, primaryFn, secondary) {
   roundBtn('home', RL + 28, RC.y + RC.h - 90, 28, () => enterMap(), '지도'); // 시안: 왼쪽 동그란 집 + 큰 노란 단추
