@@ -190,6 +190,15 @@ const petIs = (k) => save.pet === k;
 const petLv = (k = save.pet) => (k ? save.petLv[k] || 1 : 0);
 const upCost = (u) => (save.up[u.k] >= u.max ? null : u.cost[save.up[u.k]]);
 const totalStars = () => Object.values(save.stars).reduce((a, b) => a + b, 0);
+// 거북 파워(성장형 동기: 키울 때마다 오르는 한 숫자) + 등급 칭호 — 실력 26단계·레벨·펫·보물이 다 반영
+function turtlePower() {
+  let v = 100 + save.lv * 20;
+  if (typeof UPS !== 'undefined') UPS.forEach((u) => { v += (save.up[u.k] || 0) * 15; });
+  v += Object.values(save.petLv || {}).reduce((a, b) => a + b * 8, 0) + (save.trs || []).length * 20 + (save.trEq || []).length * 10;
+  return v;
+}
+const POWER_RANKS = [[0, '바다 새싹'], [250, '파도 견습생'], [450, '산호 기사'], [700, '바다 용사'], [1000, '심해 영웅'], [1300, '전설의 터틀']];
+const powerRank = (v = turtlePower()) => POWER_RANKS.filter(([t]) => v >= t).pop()[1];
 function cheapestNext() {
   let m = Infinity;
   UPS.forEach((u) => { const c = upCost(u); if (c != null) m = Math.min(m, c); });

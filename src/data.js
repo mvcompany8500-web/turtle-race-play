@@ -165,7 +165,7 @@ const PETS = [
 ];
 // 값은 docs/balance.md (실험실에서 잰 판당 수입으로 계산) — 바꾸면 node scripts/balance.mjs 로 다시 확인
 const HATCH_BASE = 200, HATCH_STEP = 100, PET_LV_COST = [100, 220, 450, 900];
-const hatchCost = () => HATCH_BASE + HATCH_STEP * save.pets.length;
+const hatchCost = () => (save.freeEgg ? 0 : HATCH_BASE + HATCH_STEP * save.pets.length);
 const UPS = [
   // 값 = 기본값 × 1.8~2.4^단계 — docs/balance.md(실험실 수입으로 계산): 1판 = 1단계, 전부 = 47번 바다 무렵
   { k: 'slow', name: '느긋한 등껍질', desc: '물살이 느려져요', max: 5, cost: [85, 160, 295, 550, 1015], eff: (l) => (l ? `-${l * 7}%` : '0%') },
@@ -221,3 +221,11 @@ const ENDING_TALK = [
   { who: 'princess', text: '알아. 편지 쓸 때마다 네가 어디쯤 왔을지 생각했어. 고마워, 터틀.' },
   { who: 'hero', text: '이제 같이 집에 가요. 천천히, 노을 바다도 보면서요!' },
 ];
+
+// 첫 10분 몰입(조사: 처음에 유료 재화·꾸밈을 무료로 맛보게 → 가치를 안 뒤에 결제): 처음 깬 바다마다 상자 선물
+const FIRST_GIFTS = {
+  1: { box: 'gold', label: '첫 성공 선물', gems: 50, say: '보석 50개! 보석으로 꼬리 효과·특별한 옷을 살 수 있어요' },
+  2: { box: 'silver', label: '펫 친구 선물', egg: true, say: '공짜 펫 알! 상점 「펫」에서 깨 봐요' },
+  4: { box: 'wood', label: '옷장 선물', skin: 'raincoat', say: '노란 우비! 옷장에서 갈아입어요' },
+  5: { box: 'gold', label: '첫 보스 기념', pearls: 300, say: '진주 300개! 실력을 키워 봐요' },
+};

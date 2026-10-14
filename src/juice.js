@@ -270,7 +270,7 @@ function beatJudge() {
     ring(p.x, p.y, '#ffe36b', 70, 0.3, 5);
     const rate = comboRate(c);
     snd('beat', 0.25, rate, 0.2); // 박자 딱: 아주 작게(잦은 소리)
-    G.boost = Math.min(BMAX(), G.boost + 4 * (1 + abStar('ult') * 0.25));
+    addBoost(4 * (1 + abStar('ult') * 0.25));
     if (G.feverT <= 0) G.fever = Math.min(100, G.fever + 3);
     runXp(2);
     if (c % 5 === 0) { earn('beat', 1 + abStar('beat')); pop(p.x, p.y - 120, `박자 ${c}연속! 진주 +${1 + abStar('beat')}`, C.yellow, 24, true); }
@@ -278,7 +278,7 @@ function beatJudge() {
     if (R[c] != null) reaction(R[c], `박자 ${c}연속 ${REACT_WORDS[R[c]][0]}`);
     return 'perfect';
   }
-  if (err <= BEAT_GOOD) { G.beatCombo = G.beatCombo || 0; G.boost = Math.min(BMAX(), G.boost + 1.5); return 'good'; } // 좋아: 연속은 유지
+  if (err <= BEAT_GOOD) { G.beatCombo = G.beatCombo || 0; addBoost(1.5); return 'good'; } // 좋아: 연속은 유지
   G.beatCombo = 0;
   return 'miss';
 }
@@ -474,7 +474,7 @@ function tryOpenLevelUp() {
 function applyAbility(a) {
   G.ab = G.ab || {}; G.ab[a.k] = (G.ab[a.k] || 0) + 1;
   switch (a.k) {
-    case 'ult': G.boost = Math.min(BMAX(), G.boost + 30); break;
+    case 'ult': addBoost(30); break;
     case 'slow': G.slowMul *= 0.96; break;
     case 'heart': if (G.en >= G.maxEn - 1) G.maxEn += HIT_E; G.en = Math.min(G.maxEn, G.en + HIT_E); G.enHealT = 0.6; break;
     case 'shield': G.shield++; break;
@@ -501,6 +501,9 @@ function openReady(n) {
   ready_ = { n, t: 0 }; state = 'ready'; sfx.click();
   warmStage(n); // 준비창이 떠 있는 동안 그 판 그림을 미리 풀어 둠(처음 그릴 때 버벅임 없애기)
 }
+// 이 바다의 특징(대표 패턴을 쉬운 말로) — 준비창 목표 칸 오른쪽
+const FEAT = { ultWall: ['벽 판', '필살기로 벽을 부숴요'], climb: ['오르기 판', '발판을 밟고 위로!'], jarRow: ['항아리 판', '숙여서 와르르 깨요'], slideTunnel: ['낮은 굴', '숙인 채 끝까지'], kelpSteps: ['해초 계단', '세 칸 올라가요'], spikeRhythm: ['박자 가시', '하나 둘 셋 넷!'], lowCeil: ['낮은 천장', '톡 짧게 뛰어요'], duckJump: ['숙이고 뛰고', '번갈아 피해요'], jellyField: ['해파리 가시밭', '이단 점프 또는 밟기'], zigzag: ['지그재그 발판', '높게 낮게'], treasure: ['보물 판', '? 조개와 상자'], pearlWave: ['진주 물결', '신나게 줍기'], rockRow: ['바위 판', '밟아 부수기'], highRoad: ['높은 길', '위로 가면 황금 진주'], stairs: ['계단 발판', '위로 올라가요'], gauntlet: ['연속 피하기', '점프·숙이기·점프'], shortHop: ['기뢰 밭', '톡 짧게'], duckLong: ['긴 굴', '꾹 숙이기'], stomp: ['해파리 밟기', '위에서 쿵!'], chest: ['보물 상자', '부딪혀 열기'] };
+function stageFeat(n) { const st = STAGE_STYLE[n]; if (!st) return null; if (st.wall) return FEAT.ultWall; const top = Object.entries(st.sig || {}).sort((a, b) => b[1] - a[1]).find(([k]) => FEAT[k]); return top ? FEAT[top[0]] : null; }
 function drawReady() {
   const n = ready_.n, st = STAGES[n], endless = n === ENDLESS;
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
@@ -528,6 +531,8 @@ function drawReady() {
       text(endless ? '얼마나 멀리 갈 수 있을까?' : '끝까지 도착하기', 360, by + 58, 22, '#ffffff', { align: 'left', stroke: false });
     }
   });
+  const ft = !endless && stageFeat(n); // 이 바다의 특징
+  if (ft) withRise(1, () => { const by = 128; ctx.font = `800 ${fs(13)}px ${FONT}`; const fw = Math.max(ctx.measureText(ft[0]).width, ctx.measureText(ft[1]).width * 0.92) + 26; ctx.fillStyle = 'rgba(255,111,174,.2)'; rr(728 - 12 - fw, by + 14, fw, 62, 12); ctx.fill(); text(ft[0], 728 - 12 - fw / 2, by + 32, 13, '#ff9ccd', { stroke: false, weight: 800 }); text(ft[1], 728 - 12 - fw / 2, by + 56, 13, '#ffffff', { body: true, stroke: false }); });
   withRise(2, () => {
     const lab = ['도착', '진주 70%', '안 맞기'], got = save.stars[n] || 0;
     for (let i = 0; i < 3; i++) { const x = 330 + i * 150; drawStar(x, 252, 20, i < got); text(lab[i], x, 290, 14, i < got ? C.yellow : C.sub, { body: true, stroke: false }); } // 별과 글자 사이 띄움

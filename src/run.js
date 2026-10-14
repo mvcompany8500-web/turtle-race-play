@@ -580,7 +580,7 @@ function updateObs(dt, scroll) {
     if (o.k === 'pillar') {
       const cx = clamp(p.x, o.x, o.x + o.w), cy = clamp(p.y, CEIL, o.y1);
       if ((p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.r * p.scale) ** 2) { if (mighty) smashPillar(o); else hitPlayer({ type: 'rock' }); }
-      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide && T - (G.hurtAt || -9) > 1.2) { G.boost = Math.min(BMAX(), G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }  // 방금 맞았으면 칭찬 안 함
+      else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide && T - (G.hurtAt || -9) > 1.2) { addBoost(6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }  // 방금 맞았으면 칭찬 안 함
     } else if (o.k === 'wall') { // 앞을 꽉 막은 산호 벽: 필살기로만 부서짐, 아니면 막혀 멈추고 뒤에서 상어
       if (!o.seen && o.x < W - 60) { o.seen = true; G.chaser = { x: -160, flee: 0 }; sfx.warn(); pop(W / 2, 150, '앞은 벽! 뒤에선 상어가 와요!', '#ff9aa8', 30, true); }
       const pr = p.r * p.scale;

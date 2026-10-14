@@ -99,7 +99,7 @@ function bank(cleared) {
     G.starGot = [true, G.eggsGot >= Math.ceil(G.eggsSpawned * 0.7), G.hits === 0];
     save.stars[G.n] = Math.max(save.stars[G.n] || 0, G.starGot.filter(Boolean).length);
     if (save.diff === 2) save.crown[G.n] = true;
-    if (G.n < LAST && save.unlocked < G.n + 1) { save.unlocked = G.n + 1; G.newUnlock = true; }
+    if (G.n < LAST && save.unlocked < G.n + 1) { save.unlocked = G.n + 1; G.newUnlock = true; if (FIRST_GIFTS[G.n]) (save.giftQ = save.giftQ || []).push(G.n); } // 처음 깬 바다 선물(지도에서 상자로)
     track('clear');
   }
   // 거북 레벨: 모은 알·물리친 적·밟기·성공·별·기록 돌파로 경험치
@@ -316,7 +316,7 @@ function hitPlayer(src) {
     ring(p.x, p.y, '#9ff3ff', 110, 0.5, 8); burst(p.x, p.y, '#bff8ff', 18);
     pop(p.x, p.y - 56, '방패가 막았어요!', '#9ff3ff', 24);
     sfx.shield(); haptic(60);
-    if (G.boosting <= 0) { G.boost = Math.min(BMAX(), G.boost + 30); pop(p.x, p.y - 84, '분노 충전! 질주 +30', '#ff9aa8', 20); }
+    if (G.boosting <= 0) { addBoost(30); pop(p.x, p.y - 84, '분노 충전! 필살 게이지 UP', '#ff9aa8', 20); }
     if (src && src.type === 'mine') weakHit(src, false);
     if (src && src.type && ENEMIES[src.type] && src.type !== 'urchin' && src.type !== 'whirlpool') src.dead = true;
     return;
@@ -329,7 +329,7 @@ function hitPlayer(src) {
     // 맞은 몸짓: 뒤로 밀리며 살짝 튀어오름(알 합치기 넉백처럼) — 무적 1.6초라 다시 맞지 않음
     p.x -= 46; if (p.onG) { p.vy = -330; p.onG = false; p.slide = false; } else p.vy = Math.min(p.vy, -300);
     sfx.hurt(); if (Math.random() < 0.5) say('ouch'); haptic([40, 30, 60]);
-    if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 20);
+    if (G.boosting <= 0) addBoost(20);
     if (src && src.type && ENEMIES[src.type] && src.type !== 'urchin' && src.type !== 'whirlpool' && !src.run) src.dead = true;
     return;
   }
@@ -574,7 +574,7 @@ function collectEgg(e) {
   if (e.pearl) { // 물방울 구슬: 알은 아니고 연속·질주·소나기 게이지만
     G.pearls = (G.pearls || 0) + 1; runXp(1); addScore(100 + Math.min(G.combo, 20) * 10);
     G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
-    if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + 1.2);
+    if (G.boosting <= 0) addBoost(1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
     snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     burst(e.x, e.y, '#dff6ff', 3, 120);
@@ -590,10 +590,10 @@ function collectEgg(e) {
   if (!e.loose && !e.bonus) G.eggsGot++;
   fx.push({ k: 'eggfly', sx: e.x, sy: e.y, life: 0.5, max: 0.5, gold: e.gold });
   G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
-  if (G.boosting <= 0) G.boost = Math.min(BMAX(), G.boost + (e.gold && !e.bonus ? 10 : 2.5));
+  if (G.boosting <= 0) addBoost((e.gold && !e.bonus ? 10 : 2.5));
   if (e.gold && !e.bonus) { sfx.gold(); pop(e.x, e.y - 24, `황금 진주 +${v}`, C.yellow, 26); burst(e.x, e.y, '#ffe36b', 16); track('gold'); }
   else { sfx.egg(G.combo); burst(e.x, e.y, '#eafff2', 5, 160); }
-  if (G.combo > 0 && G.combo % (G.run ? 15 : 6) === 0) { pop(G.p.x, G.p.y - 60, `${G.combo}개 연속!`, '#7cf0ff', 30); G.boost = Math.min(BMAX(), G.boost + 6); haptic(12); }
+  if (G.combo > 0 && G.combo % (G.run ? 15 : 6) === 0) { pop(G.p.x, G.p.y - 60, `${G.combo}개 연속!`, '#7cf0ff', 30); addBoost(6); haptic(12); }
   const CM = G.run ? { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 } : { 12: 0, 24: 1, 36: 2, 54: 3, 80: 4 };
   if (CM[G.combo] != null) reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`);
   if (petIs('sprout') && ++G.sprout % 10 === 0) { earn('pet', petLv()); pop(G.p.x - 40, G.p.y - 40, `새싹이 +${petLv()}`, '#9dff7a', 20); }
@@ -875,6 +875,9 @@ function doRevive() {
 function giveUp() { bank(false); state = 'dead'; G.deadT = 0; }
 
 // ───────── 한 판 진행 ─────────
+// 필살 게이지 채우기(한 곳): 달리기에선 절반 속도 — 조사(인기 게임 스킬 10~20초·서브웨이 아이템 20~30초)·실험실: 7초 → 약 14초에 1단. 질주 엔진 업그레이드는 그대로 곱해짐
+const RUN_BOOST = 0.65; // 약 11초에 1단(예전 7초) — 보스전은 그대로(보스는 필살기로 들이받아야 아파서)
+function addBoost(v) { G.boost = Math.min(BMAX(), G.boost + v * (G.run && !(G.boss && !G.boss.dead) ? RUN_BOOST : 1)); }
 function updatePlay(dt) {
   const p = G.p, cfg = G.cfg, E = G.eff;
   G.t += dt;
@@ -898,7 +901,7 @@ function updatePlay(dt) {
     if (G.boosting <= 0) { p.inv = Math.max(p.inv, 0.9); pop(p.x, p.y - 56, '질주 끝', '#cfd8ff', 18); }
   } else if (!p.dead) {
     const before = G.boost;
-    G.boost = Math.min(BMAX(), G.boost + (cfg.boostRate + (bossFight ? 12 : 0)) * dt * (1 + abStar('ult') * 0.25));
+    addBoost((cfg.boostRate + (bossFight ? 12 : 0)) * dt * (1 + abStar('ult') * 0.25));
     if (Math.floor(before / 100) < Math.floor(G.boost / 100)) { const lv = Math.floor(G.boost / 100); pop(p.x, p.y - 60, G.run ? (lv >= 3 ? '필살 3단!! 황금 터틀이' : lv === 2 ? '필살 2단! 그림자 군단' : '필살 1단 준비!') : '질주 준비!', lv >= 2 ? '#ffd54a' : '#d9c6ff', 26); haptic(15); } // 게이지가 찰 때는 소리 없음(대표: 거슬림) — 글자·진동·단추 빛만
   }
   if (G.comboT > 0) G.comboT -= dt;
@@ -1171,10 +1174,10 @@ function updatePlay(dt) {
       if (p.inv <= 0) {
         G.near++; track('near');
         if (e.wasClose) {
-          G.perfect++; G.boost = Math.min(BMAX(), G.boost + 14); timeScale = 0.7; zoomTo(1.03);
+          G.perfect++; addBoost(14); timeScale = 0.7; zoomTo(1.03);
           pop(p.x, p.y - 52, G.run ? (p.onG ? (p.slide ? '완벽 숙이기!' : '완벽 회피!') : '완벽 점프!') : '완벽 회피!', C.yellow, 34); sfx.perfect(); haptic(20); edgeFlash('#ffffff', 0.4);
         } else {
-          G.boost = Math.min(BMAX(), G.boost + 7);
+          addBoost(7);
           if (!G.run) { pop(p.x, p.y - 48, pick(['아슬아슬!', '휴~ 살았다!', '나이스 회피!']), '#7cf0ff', 22); sfx.near(); }
         }
       }

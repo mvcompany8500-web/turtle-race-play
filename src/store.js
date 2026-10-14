@@ -188,6 +188,7 @@ function passReward(tier, prem) {
 const rewardText = (r) => (r.trail ? `${TRAILS.find((t) => t.k === r.trail).name}${r.gems ? ` + 보석 ${r.gems}` : ''}` : r.gems ? `보석 ${r.gems}` : `진주 ${r.pearls}`);
 const passTier = () => Math.min(PASS_TIERS, Math.floor(save.pass.xp / PASS_XP));
 function passGain(xp) { passSeason(); const before = passTier(); save.pass.xp += xp; const after = passTier(); if (after > before) toast(`바다 패스 ${after}단계!`, '#7cd8ff'); }
+function passReady() { passSeason(); const t = passTier(); let n = 0; for (let i = 1; i <= t; i++) { if (!save.pass.cf.includes(i)) n++; if (save.pass.prem && !save.pass.cp.includes(i)) n++; } return n; } // 받을 패스 보상 수(지도 배지)
 function claimPass(tier, prem) {
   const list = prem ? save.pass.cp : save.pass.cf;
   if (list.includes(tier) || tier > passTier() || (prem && !save.pass.prem)) return;
