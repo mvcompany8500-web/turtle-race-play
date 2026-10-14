@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 점프 달리기 (인기 게임·인기 게임식 타이밍)
+// 터틀런 — 점프 달리기 (인기 게임·인기 게임식 타이밍)
 // 왼쪽 톡 = 점프(꾹 = 높이, 공중에서 한 번 더 = 이단 점프) · 오른쪽 꾹 = 숙이기(공중이면 급강하)
 // 위에서 밟으면 처치(가시 달린 건 빼고) · 발판 · ? 조개 · 「바·다·축·제」 글자 · 코스 패턴 · 첫 판 연습
 
@@ -16,7 +16,7 @@ const LETTERS = ['바', '다', '축', '제'];
 const STOMP_NO = { urchin: '가시가 있어요!', mine: '펑!', whirlpool: '' };
 
 const hasPerk = (k) => Object.keys(LV_PERKS).some((lv) => LV_PERKS[lv].k === k && save.lv >= +lv);
-const maxJumps = () => (hasPerk('triple') ? 3 : 2) + (typeof abStar === 'function' ? abStar('triple') : 0);
+const maxJumps = () => (hasPerk('triple') ? 3 : 2) + (typeof abStar === 'function' ? abStar('triple') : 0) + (typeof gearSum === 'function' ? gearSum('jump') : 0);
 const maxHearts = () => [4, 3, 2][save.diff] + ['heart', 'heart2', 'heart3'].filter(hasPerk).length;
 // 기운(인기 게임 에너지 방식): 하트 1개 = 기운 25. 시간이 지나면 조금씩 줄고, 부딪히면 25, 기운 물약으로 채움
 const HIT_E = 25;
@@ -30,6 +30,7 @@ function runInit() {
   G.en = G.maxEn = G.enShow = maxEnergy();
   if (hasTr('compass')) G.boost = Math.max(G.boost, 30);
   if (hasTr('charm')) G.shield++; G.enHealT = 0; G.potionT = 9;
+  G.shield += gearSum('shield'); if (gearSum('startBoost')) G.boost = Math.max(G.boost, gearSum('startBoost')); // 장비(변신·유물)
   // 한 판을 끝까지 달리면 기운 30%가 줄어드는 빠르기(물약을 안 먹어도 시간만으로는 안 쓰러짐 — 조사: 시간 압박 금지)
   G.drain = G.cfg.endless ? 0.9 : (maxEnergy() * 0.3) / Math.max(25, G.cfg.length / G.cfg.speed);
   G.obs = []; G.letters = [0, 0, 0, 0]; G.stomps = 0; G.stompChain = 0; G.bumps = 0;
@@ -194,7 +195,7 @@ function stomp(e) {
   runXp(6); hitStar(e.x, e.y - 10, false, true); hitStop('big');
   if (e.type === 'jelly') { p.vy = -1000; pop(p.x, p.y - 60, '통통!', '#ff8fd0', 24); } // 해파리는 트램펄린
   killEnemy(e, 'stomp');
-  if (hasPerk('shockStomp') || abStar('stomp') >= 2) for (const o of G.enemies) if (!o.dead && o !== e && Math.hypot(o.x - e.x, o.y - e.y) < 150 && STOMP_NO[o.type] == null) killEnemy(o, 'stomp');
+  if (hasPerk('shockStomp') || abStar('stomp') >= 2 || gearSum('stomp')) for (const o of G.enemies) if (!o.dead && o !== e && Math.hypot(o.x - e.x, o.y - e.y) < 150 && STOMP_NO[o.type] == null) killEnemy(o, 'stomp');
   track('stomp');
   return true;
 }
@@ -767,6 +768,8 @@ const outfitMiss = new Set(); // 그림 파일이 없는 동작(404) — 기본 
 // 높은 모자·투구가 있는 옷은 그림 키에 모자가 들어가 몸이 작아 보임 → 그만큼 키움(몸 크기를 기본 터틀이와 맞춤)
 const OUTFIT_H = { chef: 1.16, wizard: 1.3, pirate: 1.12, firefighter: 1.1, astronaut: 1.07, diver: 1.08, crown7: 1.08, raincoat: 1.04, hanbok: 1.04 };
 function outfitPose(key) {
+  const fm = typeof gearEq === 'function' && gearEq('form'); // 변신이면 그 동물의 달리기 그림(없으면 옷 그림으로)
+  if (fm) { const n = `f_${fm.k}_${key}`; if (!outfitMiss.has(n)) { if (!IMG['pose_' + n]) { const im = load('pose_' + n, `assets/sprites/${n}.webp`); im.onerror = () => outfitMiss.add(n); } if (ready(IMG['pose_' + n])) return n; } }
   const sk = save.skin; if (!sk || sk === 'basic' || !OUTFIT_POSES.includes(sk)) return null;
   const n = `o_${sk}_${key}`; if (outfitMiss.has(n)) return null;
   if (!IMG['pose_' + n]) { const im = load('pose_' + n, `assets/sprites/${n}.webp`); im.onerror = () => outfitMiss.add(n); }
@@ -830,7 +833,7 @@ function drawRunHero(face, blink, alpha) {
   const p = G.p, cap = (SIDE_STYLE[save.skin] || {}).cap; let key = heroPose(), c = pose(key, cap);
   if (!c && key === 'hero_fall') { key = 'hero_jump'; c = pose(key, cap); } // 그림이 없으면 점프 그림으로
   if (!c) return drawRunHeroOld(face, blink, alpha);
-  const base = HERO_H * 0.96 * p.scale; let h = base * POSE_H[key] * (outfitPose(key) ? OUTFIT_H[save.skin] || 1 : 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
+  const base = HERO_H * 0.96 * p.scale; let h = base * POSE_H[key] * (outfitPose(key) && !gearEq('form') ? OUTFIT_H[save.skin] || 1 : 1) * (gearLook('giant') || 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
   if (key === 'hero_ball') { rot = Math.PI * 2 * easeInOutCubic(1 - p.spin); feet = p.fy - base * 0.12; }
   else if (key === 'hero_shell') { rot = Math.sin(T * 30) * 0.03; x += Math.sin(T * 20) * 1.5; }
   else if (key === 'hero_hurt') { rot = -0.18 + Math.sin(T * 25) * 0.05; if (p.dead) { feet = p.y + base * 0.5; rot = p.rot; } }
@@ -851,6 +854,7 @@ function drawRunHero(face, blink, alpha) {
     for (let i = 1; i <= 3; i++) drawPoseAt(c, x - i * 26, feet, h * sy, rot, 1 - i * 0.25, true);
   }
   if (G.eff.rocket > 0) drawImg(IMG.spr_it_rocket, x - 4, feet + 6, 64, -Math.PI / 2 + 0.25 + Math.sin(T * 30) * 0.04); // 로켓 타고
+  const aura = gearLook('aura'); if (aura && !p.dead) drawAura(x, feet - h * 0.5, h * 0.95, aura, alpha == null ? 1 : alpha); // 유물·전설 장비: 몸 둘레 빛
   ctx.save(); ctx.translate(x, feet); ctx.scale(sx, 1); ctx.translate(-x, -feet);
   drawPoseAt(c, x, feet, h * sy, rot, alpha);
   const ha = T - (G.hurtAt || -9); // 맞은 뒤: 55ms 하얗게 → 200ms 빨갛게 사라짐(알 합치기 수치)
@@ -863,6 +867,7 @@ function drawRunHero(face, blink, alpha) {
     else { ctx.fillStyle = '#ffffff'; ctx.fillRect(-1.6 * u, -1.2 * u, 3.2 * u, 1.2 * u); [[-1.1, -2], [0, -2.5], [1.1, -2]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(dx * u, dy * u, u * 0.95, 0, Math.PI * 2); ctx.fill(); }); }
     ctx.restore();
   }
+  if (!p.dead) drawGearOnHero(key, c, x, feet, h * sy, rot, alpha);
   ctx.restore();
 }
 function drawRunHeroOld(face, blink, alpha) {

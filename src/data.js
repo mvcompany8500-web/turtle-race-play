@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 게임 데이터: 세계·바다(판)·몬스터·아이템·펫·축복 카드·난이도·옷·실력
+// 터틀런 — 게임 데이터: 세계·바다(판)·몬스터·아이템·펫·축복 카드·난이도·옷·실력
 // 벤치마킹 근거: docs/benchmark.md
 
 // ───────── 세계 3곳 × 바다 10칸 = 30판 ─────────
@@ -183,7 +183,7 @@ const SPRITES = ['jelly', 'urchin', 'shark', 'puffer', 'eel', 'octopus', 'angler
   'tr_compass', 'tr_wallet', 'tr_charm', 'tr_bottle', 'tr_hook', 'tr_clock', 'tr_flute', 'tr_scale', 'it_rain', 'it_rocket', 'it_transform', 'hand_point',
   'ui_btn_blue', 'ui_btn_yellow', 'ui_btn_soft', 'ui_btn_red', 'ui_btn_green', 'ui_panel', 'ui_round', 'palace', 'bubble_cage', 'endless_portal', 'title_bg', 'title_logo', 'ui_ic_ach', 'ui_ic_pass', 'ui_ic_gift', 'ui_ic_mission', 'ui_ic_dex', 'ui_ic_shop', 'ui_ic_set', 'ui_cur_pill', 'ui_plus', 'node_shell_gold', 'node_shell_pink', 'node_shell_purple', 'node_shell_blue', 'node_shell_green', 'ui_lock', 'ui_bottom_bar', 'ui_glass_b', 'ui_play_btn',
   'mapv2_1a', 'mapv2_1b', 'mapv2_2a', 'mapv2_2b', 'mapv2_3a', 'mapv2_3b', 'mapv2_4a', 'mapv2_4b', 'mapv2_5a', 'mapv2_5b',
-  'ui_glass_card', 'ui_ribbon_blue', 'ui_ribbon_red', 'ui_pad_jump', 'ui_pad_slide', 'ui_pause', 'ui_ic_home', 'ui_ic_back', 'ui_ic_close', 'ui_star_big', 'ui_star_empty', 'ui_slot', 'tab_up', 'tab_skin', 'tab_pet', 'tab_tr', 'tab_fx', 'tab_gem', 'up_slow', 'up_boost', 'up_shield', 'up_magnet', 'up_fire', 'up_power', 'box_wood_c', 'box_wood_o', 'box_silver_c', 'box_silver_o', 'box_gold_c', 'box_gold_o', 'coral_wall', 'jar', 'amelia', 'amelia_scared', 'amelia_cheer', 'title_bg2'];
+  'ui_glass_card', 'ui_ribbon_blue', 'ui_ribbon_red', 'ui_pad_jump', 'ui_pad_slide', 'ui_pause', 'ui_ic_home', 'ui_ic_back', 'ui_ic_close', 'ui_star_big', 'ui_star_empty', 'ui_slot', 'tab_up', 'tab_skin', 'tab_pet', 'tab_tr', 'tab_fx', 'tab_gem', 'up_slow', 'up_boost', 'up_shield', 'up_magnet', 'up_fire', 'up_power', 'box_wood_c', 'box_wood_o', 'box_silver_c', 'box_silver_o', 'box_gold_c', 'box_gold_o', 'coral_wall', 'jar', 'amelia', 'amelia_scared', 'amelia_cheer', 'title_bg2', 'title_logo_run'];
 
 // ───────── 거북 레벨 (판마다 경험치 → 레벨 업 → 새 능력) ─────────
 const LV_PERKS = {

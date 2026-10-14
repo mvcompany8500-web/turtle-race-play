@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 입력·상태 흐름·그리기 순서·루프
+// 터틀런 — 입력·상태 흐름·그리기 순서·루프
 
 const keys = {};
 let drag = null;
@@ -34,6 +34,7 @@ addEventListener('popstate', () => {
   if (probOpen) { probOpen = false; return stay(); }
   if (buying) { buying = null; return stay(); }
   if (spending) { spending = null; return stay(); } // 뒤로 = 보석 쓰기 취소
+  if (gacha.rv) { gacha.rv = null; return stay(); } // 뒤로 = 여는 연출 넘기기(받은 건 이미 저장)
   if (boxShow) { boxShow = null; fountain(W / 2, H / 2, 0); return stay(); } // 뒤로 = 상자 연출 닫기(진주는 이미 받음)
   if (coach && coach.pass) { coach = null; return stay(); }
   if (state === 'map' && map.overlay) { map.overlay = null; return stay(); }
@@ -42,6 +43,7 @@ addEventListener('popstate', () => {
   if (['shop', 'ready', 'clear', 'dead', 'story', 'intro'].includes(state)) { enterMap(); return stay(); }
   if (state === 'map' || state === 'ending') { state = 'title'; return stay(); }
   if (state === 'bye') { state = 'title'; return stay(); }
+  if (state === 'age') { if (ageBack === 'map') { ageBack = null; enterMap(); } else state = 'title'; return stay(); }
   if (state !== 'title') return stay(); // 이어하기·쉼터 같은 고르는 화면은 그대로(실수로 판을 잃지 않게)
   // 처음 화면: 바로 꺼지지 않게 먼저 묻기 → 「끄기」를 누르면 doQuit 이 정말 나감
   if (quitAsk) { quitAsk = false; return stay(); }
@@ -201,9 +203,10 @@ function update(dt) {
   updateCutin(dt); updateScreenFx(dt); juiceRealtime(dt);
   // 과몰입 예방(게임산업법 이용 시간 안내): 판을 1시간 할 때마다 다음 지도·결과 화면에서 한 번 쉬어 가기 안내
   if (state === 'play') playSec += dt;
+  if (kidMode() && restAt === 3600) restAt = 1800; // 어린이는 30분마다
   if (playSec >= restAt && !coach && ['map', 'clear', 'dead'].includes(state) && stateT > 1) {
-    const hrs = Math.floor(playSec / 3600); restAt = (hrs + 1) * 3600;
-    coach = { id: 'rest' + hrs, t: 0, wait: 'tap', pass: true, state, text: `${hrs}시간째 달리고 있어요`, sub: '눈과 손가락을 잠깐 쉬어 주세요 · 오늘 판은 그대로 남아요', spot: null }; snd('ready', 0.6);
+    const step = kidMode() ? 1800 : 3600, n = Math.floor(playSec / step), mins = Math.round(n * step / 60); restAt = (n + 1) * step;
+    coach = { id: 'rest' + n, t: 0, wait: 'tap', pass: true, state, text: mins >= 60 && mins % 60 === 0 ? `${mins / 60}시간째 달리고 있어요` : `${mins}분째 달리고 있어요`, sub: '눈과 손가락을 잠깐 쉬어 주세요 · 오늘 판은 그대로 남아요', spot: null }; snd('ready', 0.6);
   }
   if (updateCoach(dt)) return; // 안내 중엔 세계 멈춤
   if (state === 'play') coachRunTriggers();
@@ -275,6 +278,7 @@ function render() {
   else if (state === 'clear') drawClear();
   else if (state === 'ending') drawEnding();
   else if (state === 'bye') drawBye();
+  else if (state === 'age') drawAge();
   ctx.restore();
   if (state === 'map' || state === 'shop') drawConfetti();
   if (!inRun) drawScreenFxBack();
@@ -282,6 +286,7 @@ function render() {
   drawEggFly();
   drawToasts();
   drawCoach(); // 초보 안내
+  drawGachaReveal(); // 신비한 조개·보스 유물 여는 연출
   drawProbInfo(); // 확률 정보
   if (!buying) drawGate(); // 보호자 확인(링크 열기 등)
   drawBuyConfirm(); // 결제 확인 창은 맨 위

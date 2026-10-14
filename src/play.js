@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 한 판: 바다·적·보스·알·피버·아이템·상성·펫·산호 쉼터·이어하기·별
+// 터틀런 — 한 판: 바다·적·보스·알·피버·아이템·상성·펫·산호 쉼터·이어하기·별
 
 const HERO_H = 112, ES = 1.2; // 큼직하게: 주인공 키, 적 크기 배율
 let cutin = null; // 화면을 가로지르는 컷인(질주·큰 적 등장·마무리)
@@ -67,7 +67,7 @@ function progress() {
 const meters = () => Math.floor(G.dist / 40);
 // 알 장부: 어디서 몇 개 벌었나(실험실·밸런스용)
 const hasTr = (k) => (save.trEq || []).includes(k); // 끼운 보물
-function earn(k, v) { if (G.run && ['egg', 'gold', 'drop', 'rain'].includes(k)) v = Math.round(v * (1 + abStar('gold') * 0.15) * (hasTr('wallet') ? 1.1 : 1)); G.eggs += v; G.ledger = G.ledger || {}; G.ledger[k] = (G.ledger[k] || 0) + v; }
+function earn(k, v) { if (G.run && ['egg', 'gold', 'drop', 'rain'].includes(k)) v = Math.round(v * (1 + abStar('gold') * 0.15) * (hasTr('wallet') ? 1.1 : 1) * (1 + gearSum('pearl'))); G.eggs += v; G.ledger = G.ledger || {}; G.ledger[k] = (G.ledger[k] || 0) + v; }
 function bank(cleared) {
   if (G.banked) return;
   G.banked = true;
@@ -321,7 +321,7 @@ function hitPlayer(src) {
     if (src && src.type && ENEMIES[src.type] && src.type !== 'urchin' && src.type !== 'whirlpool') src.dead = true;
     return;
   }
-  const hitE = hasTr('flute') ? 18 : HIT_E;
+  const hitE = Math.max(10, (hasTr('flute') ? 18 : HIT_E) - gearSum('guard'));
   if (G.run && G.en - hitE > 0.5) { // 점프 달리기는 기운: 부딪히면 25 줄고 깜빡이며 버팀
     G.en -= hitE; G.enLagT = 0.4; G.hurtAt = T; p.inv = 1.6; shake = 16; freeze = 0.08; flash = 0.3; flashColor = '#ff3355'; setFace('ouch', 0.8);
     burst(p.x - 10, p.y, '#ffb3c0', 10, 300); ring(p.x, p.y, '#ff5470', 70, 0.3, 5); hitStar(p.x + 24, p.y - 10, false, false); // 몸을 가리지 않게 작게
@@ -565,7 +565,7 @@ function collectEgg(e) {
     snd('react', 0.8); haptic([20, 30, 20]); burst(e.x, e.y, '#b48bff', 20, 320); ring(G.p.x, G.p.y, '#b48bff', 90, 0.4, 6); return;
   }
   if (e.potion) { // 기운 물약: 작은 +10 · 큰 +30, 처음 기운보다 넘치지 않음
-    const v = (e.potion === 'b' ? 30 : 10) * (hasTr('bottle') ? 1.5 : 1), before = G.en;
+    const v = (e.potion === 'b' ? 30 : 10) * (hasTr('bottle') ? 1.5 : 1) * (1 + gearSum('potion')), before = G.en;
     G.en = Math.min(G.maxEn, G.en + v); G.enHealT = 0.7; G.enHealFrom = before;
     if (!snd('potion', 0.9)) sfx.revive(); haptic([10, 20]);
     burst(e.x, e.y, '#ff9ac0', 14, 260); ring(G.p.x, G.p.y, '#ff9ac0', 70, 0.35, 5);
@@ -821,6 +821,7 @@ function bossDamage(amount = 10) {
     for (let k = 0; k < 4; k++) setTimeout(() => { if (G && G.boss) snd('mineBoom', 0.6, 0.9 + k * 0.08); }, 150 + k * 260);
     for (let i = 0; i < (G.run ? 16 : 26); i++) G.eggsArr.push({ x: b.x, y: b.y, vx: rand(-420, 120), vy: rand(-300, 300), loose: true, gold: i % 9 === 0, t: 0 });
     G.kills++; G.sweeps = []; G.inks.forEach((k) => { k.fade = true; });
+    relicRoll(G.cfg.boss); // 보스 유물 5%(신비한 조개와 따로, 확률 정보에 적힘)
     haptic([100, 50, 100, 50, 200]);
   }
 }
@@ -878,7 +879,7 @@ function giveUp() { bank(false); state = 'dead'; G.deadT = 0; }
 // ───────── 한 판 진행 ─────────
 // 필살 게이지 채우기(한 곳): 달리기에선 절반 속도 — 조사(인기 게임 스킬 10~20초·서브웨이 아이템 20~30초)·실험실: 7초 → 약 14초에 1단. 질주 엔진 업그레이드는 그대로 곱해짐
 const RUN_BOOST = 0.65; // 약 11초에 1단(예전 7초) — 보스전은 그대로(보스는 필살기로 들이받아야 아파서)
-function addBoost(v) { G.boost = Math.min(BMAX(), G.boost + v * (G.run && !(G.boss && !G.boss.dead) ? RUN_BOOST : 1)); }
+function addBoost(v) { G.boost = Math.min(BMAX(), G.boost + v * (1 + gearSum('boostRate')) * (G.run && !(G.boss && !G.boss.dead) ? RUN_BOOST : 1)); }
 function updatePlay(dt) {
   const p = G.p, cfg = G.cfg, E = G.eff;
   G.t += dt;
@@ -1971,7 +1972,7 @@ function drawScreenFxTop() {
 
 // ───────── 물방울 쏘기 · 체력 · 부술 것 (피하기만 하지 않고 깨부수는 맛) ─────────
 const fireGap = () => 0.34 * (1 - save.up.fire * 0.12);
-const shotDmg = () => 1 + save.up.power * 0.5;
+const shotDmg = () => (1 + save.up.power * 0.5) * (1 + gearSum('bossDmg'));
 function fireBullets(dt) {
   const p = G.p;
   if (p.dead || G.won || G.enterT > 0 || G.boosting > 0 || G.eff.whirl > 0) return;
@@ -1980,7 +1981,7 @@ function fireBullets(dt) {
   if (G.fireT > 0) return;
   G.fireT = fireGap();
   const mx = p.x + 44 * p.scale, my = p.y - 4, big = G.eff.giant > 0;
-  const spread = G.feverT > 0 ? [-0.16, 0, 0.16] : [0];
+  const spread = G.feverT > 0 || gearSum('spread') ? [-0.16, 0, 0.16] : [0];
   for (const a of spread) G.bullets.push({ x: mx, y: my, vx: Math.cos(a) * 920, vy: Math.sin(a) * 920, r: big ? 14 : 8, dmg: shotDmg() * (big ? 2 : 1), t: 0 });
   fx.push({ k: 'ring', x: mx, y: my, r: 4, maxR: 18, life: 0.15, max: 0.15, color: '#bff3ff', lw: 3 });
   snd('shoot', 0.12, rand(0.95, 1.15), 0.3); // 보스전 내내 나는 소리라 아주 작게·드물게
@@ -2072,8 +2073,10 @@ function drawShooting() {
     if (o.hp < o.maxHp) { ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(o.x - 26, o.y - o.r - 18, 52, 7, 3); ctx.fill(); ctx.fillStyle = C.yellow; rr(o.x - 26, o.y - o.r - 18, 52 * Math.max(0, o.hp / o.maxHp), 7, 3); ctx.fill(); }
   }
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const wc = (gearEq('wpn') || {}).col;
   for (const b of G.bullets) {
-    const g = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, b.r * 2.2); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(0.4, 'rgba(140,220,255,.7)'); g.addColorStop(1, 'rgba(80,170,255,0)');
+    const bc = wc === 'rainbow' ? `hsla(${(b.x * 0.6 + T * 300) % 360},95%,65%,` : wc ? `rgba(${rgb(wc).join(',')},` : null;
+    const g = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, b.r * 2.2); g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(0.4, bc ? bc + '.75)' : 'rgba(140,220,255,.7)'); g.addColorStop(1, bc ? bc + '0)' : 'rgba(80,170,255,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 2.2, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();

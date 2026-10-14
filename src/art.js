@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 그림: 배경·주인공·적·알·성·화면 부품
+// 터틀런 — 그림: 배경·주인공·적·알·성·화면 부품
 
 // 세계마다 다른 바다 색, 같은 세계 안에서는 갈수록 깊어짐
 function theme(n) {
@@ -172,7 +172,7 @@ function drawBackground(n, d) {
 }
 
 // ───────── 그리기: 캐릭터·적 ─────────
-function playerImg(k = save.skin) { return IMG[(save.face === 'lash' ? 'skinf_' : 'skin_') + k] || IMG.skin_basic; }
+function playerImg(k) { if (k == null) { const fi = typeof formImg === 'function' && formImg(); if (fi) return fi; k = save.skin; } return IMG[(save.face === 'lash' ? 'skinf_' : 'skin_') + k] || IMG.skin_basic; }
 function drawTurtle(x, y, h, rot, alpha = 1) {
   const im = playerImg();
   if (!drawImg(ready(im) ? im : null, x, y, h, rot, alpha)) {

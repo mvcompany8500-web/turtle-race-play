@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 공통: 화면(폰 가로 꽉 채움)·도구·그림 불러오기·저장·진동
+// 터틀런 — 공통: 화면(폰 가로 꽉 채움)·도구·그림 불러오기·저장·진동
 // (일반 <script> 끼리는 맨 위 let/const 를 같이 쓴다. 순서: data → core → audio → art → play → meta → main)
 
 // 화면 높이는 540 고정, 폭은 기기 비율대로 960~1280 (폰 가로 19.5:9 도 꽉 채움)
@@ -7,7 +7,7 @@ const H = 540, CEIL = 26, SEABED = H - 48;
 let W = 960, K = 1, CSS_S = 1, SAFE = 0, PORTRAIT = false, LOWFX = false, DPR_CAP = 3;
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
-const isTouch = matchMedia('(pointer: coarse)').matches;
+const isTouch = matchMedia('(pointer: coarse)').matches || /[?&]lab\b.*[?&]touch\b|[?&]touch\b.*[?&]lab\b/.test(location.search); // 실험실 ?lab&touch: 폰 화면처럼(스토어 스크린샷)
 function resize() {
   const vw = innerWidth, vh = innerHeight;
   PORTRAIT = isTouch && vh > vw * 1.05;
@@ -195,6 +195,8 @@ const save = (() => {
   } catch (e) { /* 저장 못 읽어도 새로 시작 */ }
   return d;
 })();
+// 어린이 모드(만 13세 미만): 첫 실행 때 중립 나이 묻기(구글 가족 정책 「혼합 연령」 방식) → 돈으로 사는 것 모두 막고, 뽑기는 진주로만
+const kidMode = () => save.age != null && save.age < 13;
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* 개인 창 등 */ } }
 const endlessOpen = () => save.unlocked >= 6;
 const petIs = (k) => save.pet === k;
@@ -206,6 +208,7 @@ function turtlePower() {
   let v = 100 + save.lv * 20;
   if (typeof UPS !== 'undefined') UPS.forEach((u) => { v += (save.up[u.k] || 0) * 15; });
   v += Object.values(save.petLv || {}).reduce((a, b) => a + b * 8, 0) + (save.trs || []).length * 20 + (save.trEq || []).length * 10;
+  if (typeof gearPower === 'function') v += gearPower(); // 신비한 조개·보스 유물 장비
   return v;
 }
 // 등급 간격(실험실 새 사람 따라가기: 중반 파워 +13/판) → 6~8판마다 한 번 오르게 9단계

@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 판 밖: 도전(미션)·선물·출석·별 상자·도감·설정·월드맵(세계 3곳)·첫 이야기·상점·결과 화면
+// 터틀런 — 판 밖: 도전(미션)·선물·출석·별 상자·도감·설정·월드맵(세계 3곳)·첫 이야기·상점·결과 화면
 // 메뉴 화면은 가운데 960 폭에 그린다(main.js 가 OX 만큼 옮겨 줌)
 
 // ───────── 오늘의 도전 ─────────
@@ -547,7 +547,7 @@ function drawMap() {
   else if (map.overlay === 'settings') drawSettings();
   else if (map.overlay === 'pass') drawPass();
   else if (map.overlay === 'ach') drawAch();
-  if (save.unlocked >= 6 && !save.starter && !map.overlay && typeof STARTER !== 'undefined') { // 조사: 스타터 팩은 튜토리얼·첫 보스 뒤 「가치를 안 다음」에, 싸게, 방해 없이(팝업 X, 배지 O)
+  if (save.unlocked >= 6 && !save.starter && !kidMode() && !map.overlay && typeof STARTER !== 'undefined') { // 조사: 스타터 팩은 튜토리얼·첫 보스 뒤 「가치를 안 다음」에, 싸게, 방해 없이(팝업 X, 배지 O)
     ctx.save(); ctx.translate(-OX(), 0); const bx = W - SAFE - 14 - 196, by = 92, sc = 1 + Math.max(0, Math.sin(T * 3)) * 0.04;
     ctx.translate(bx + 98, by + 18); ctx.scale(sc, sc); ctx.translate(-(bx + 98), -(by + 18));
     ctx.fillStyle = '#ff6fae'; rr(bx, by, 196, 36, 18); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; rr(bx, by, 196, 36, 18); ctx.stroke();
@@ -555,7 +555,9 @@ function drawMap() {
     ctx.save(); ctx.globalAlpha = 0; button(bx, by, 196, 36, '', () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; }, {}); ctx.restore();
     ctx.restore();
   }
+  if (save.unlocked >= 3 && !map.overlay) { ctx.save(); ctx.translate(-OX(), 0); gachaBtn(W - SAFE - 14 - 196, 92 + (save.unlocked >= 6 && !save.starter && !kidMode() ? 46 : 0), 196, 38, () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gacha'; }); ctx.restore(); } // 첫 바다 몇 판으로 재미를 안 뒤에(조사: 가치 먼저) — 공짜 조개가 있으면 빨간 점
   if (!boxShow && save.giftQ && save.giftQ.length && !map.overlay && !map.unlock && !map.path.length && stateT > 0.8 && typeof coach !== 'undefined' && !coach) openFirstGift();
+  if (!boxShow && !gacha.rv && gsave().relicQ.length && !map.overlay && !map.path.length && stateT > 0.8 && typeof coach !== 'undefined' && !coach) openRelicQ(); // 보스 유물을 주웠으면 지도에서 신화 연출
   if (boxShow) drawBoxShow(); // 상자 열기 연출은 맨 위
 }
 function overlayBase(x, y, w, h, title, ic) {
@@ -628,7 +630,7 @@ function drawIosGuide() {
   ctx.fillStyle = 'rgba(16,16,18,.88)'; ctx.fillRect(-OX(), 0, W, H);
   panel(170, 40, 620, 400, { fill: C.gray });
   text('아이폰은 꽉 찬 화면으로 하려면', 480, 84, 26, C.text, { stroke: false });
-  const steps = [['1', '사파리 아래(또는 위) 공유 버튼', 'share'], ['2', '「홈 화면에 추가」 누르기', 'plus'], ['3', '바탕화면 「터틀 레이스」 아이콘으로 실행', 'icon']];
+  const steps = [['1', '사파리 아래(또는 위) 공유 버튼', 'share'], ['2', '「홈 화면에 추가」 누르기', 'plus'], ['3', '바탕화면 「터틀런」 아이콘으로 실행', 'icon']];
   steps.forEach(([n, s, ic], i) => withRise(i, () => {
     const y = 140 + i * 82;
     ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(230, y + 20, 20, 0, Math.PI * 2); ctx.fill();
@@ -653,27 +655,32 @@ function goFullscreen() {
 let probOpen = false;
 function drawProbInfo() {
   if (!probOpen) return false;
+  if (probOpen === 'gacha') return drawGachaProb();
   buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
   ctx.save(); ctx.translate(OX(), 0);
   ctx.fillStyle = 'rgba(8,8,12,.88)'; ctx.fillRect(-OX(), 0, W, H);
   panel(120, 44, 720, 470, { fill: C.gray });
   if (!ribbon(480, 48, 340, '확률 정보', 22)) text('확률 정보', 480, 78, 24, C.text, { stroke: false }); // 다른 창과 같은 리본
-  const left = PETS.filter((p) => !save.pets.includes(p.k)), pc = left.length ? (100 / left.length).toFixed(2) : '0';
-  const lines = [
-    ['펫 알 부화', `진주 ${hatchCost()}개 · 진주는 보석으로도 살 수 있어 유료 확률 상품이에요`],
-    ['', left.length ? `아직 없는 펫 ${left.length}마리 중 하나 · 모두 같은 확률 ${pc}% · 이미 가진 펫은 안 나와요` : '펫을 다 모았어요(더는 부화하지 않아요)'],
-    ['', left.length ? left.map((p) => `${p.name} ${pc}%`).join(' · ') : ''],
-    ['선물 상자', '무료 · 3시간마다 · 진주 20~60개 중 하나(각 개수 같은 확률, 약 2.4%)'],
-    ['? 상자(판 중)', '무료 · 아이템 40% / 진주 60%(황금 +5 30% · +3 70%) · 아이템을 들고 있으면 진주'],
-    ['', '아이템: 그 바다에서 나올 수 있는 것끼리 같은 확률 (맞았거나 보스전이면 거품 방패·번개·커지는 물약 2.2배)'],
-    ['확률 없는 것', '별 상자(진주 80) · 보석 · 옷 · 보물 · 꼬리 · 패스 — 적힌 그대로 받아요'],
+  const left = PETS.filter((p) => !save.pets.includes(p.k)), pc = left.length ? +(100 / left.length).toFixed(2) : 0;
+  // 칸마다 카드 한 장: 왼쪽 제목(폭 132) · 오른쪽 짧은 줄들, 카드 안 위아래 14 · 카드 사이 10 · 줄 간격 1.45
+  const rows = [
+    ['펫 알 부화', C.yellow, [`진주 ${hatchCost()}개 · 진주는 보석으로도 바꿀 수 있어 유료 확률 상품이에요`, left.length ? `아직 없는 펫 ${left.length}마리 중 하나 · 모두 ${pc}% · 가진 펫은 안 나와요` : '펫을 다 모았어요']],
+    ['선물 상자', '#9fe3ff', ['무료 · 3시간마다 · 진주 20~60개 중 하나(각 약 2.4%)']],
+    ['? 상자(판 중)', '#9fe3ff', ['무료 · 아이템 40% / 진주 60%(황금 +5 30% · +3 70%)', '아이템은 그 바다에서 나오는 것끼리 같은 확률']],
+    ['신비한 조개', '#ff8ad8', ['보석으로 여는 뽑기 · 항목별 확률·천장은 상점 「신비한 조개 › 확률 정보」', '보스 유물: 보스를 이기면 5%']],
+    ['확률 없는 것', 'rgba(255,255,255,.7)', ['별 상자 · 보석 · 옷 · 보물 · 꼬리 · 패스 · 조각으로 받기']],
   ];
-  let y = 112; const lh = fs(13) * 1.34; // 글자 크기에 맞춘 줄 간격, 폭은 판 안쪽(166~808)
-  for (const [h, t] of lines) {
-    if (h) { text(h, 150, y, 16, C.yellow, { align: 'left', stroke: false }); y += fs(16) * 1.3; }
-    if (t) wrapText(t, 630, 13).forEach((l) => { text(l, 166, y, 13, '#ffffff', { align: 'left', body: true, stroke: false }); y += lh; });
-    y += 2;
-  }
+  const lh = fs(13) * 1.45, X = 150, CW = 660, TW = 132;
+  const hs = rows.map(([, , ls]) => 28 + ls.length * lh);
+  let y = 106 + (380 - (hs.reduce((a, b2) => a + b2, 0) + 10 * (rows.length - 1))) / 2;
+  rows.forEach(([t, col, ls], i) => {
+    const h = hs[i];
+    ctx.fillStyle = 'rgba(255,255,255,.06)'; rr(X, y, CW, h, 12); ctx.fill();
+    ctx.fillStyle = col; rr(X, y, 4, h, 2); ctx.fill();
+    text(t, X + 20, y + h / 2, 15, col, { align: 'left', stroke: false });
+    ls.forEach((l, j) => text(l, X + TW + 20, y + 14 + lh * (j + 0.5), 13, 'rgba(255,255,255,.88)', { align: 'left', body: true, stroke: false }));
+    y += h + 10;
+  });
   roundBtn('close', 828, 56, 22, () => { probOpen = false; sfx.click(); }, '닫기');
   ctx.restore();
   return true;
@@ -695,17 +702,18 @@ function drawSettings() {
     ['진동 · 흔들림', save.haptics && !save.noShake, () => { const on = save.haptics && !save.noShake; save.haptics = !on; save.noShake = on; persist(); haptic(30); }],
   ];
   rows.forEach(([label, on, fn, names], i) => withRise(i, () => {
-    const y = 88 + i * 54;
+    const y = 88 + i * 50;
     text(label, L0, y + 21, 18, C.text, { align: 'left', stroke: false });
     const bw = names ? 160 : 120; // 켜짐 = 초록, 꺼짐 = 회색(상태가 한눈에)
     button(R0 - bw, y, bw, 42, names ? names[on ? 0 : 1] : on ? '켜짐' : '꺼짐', fn, { size: 15, kind: names ? 'primary' : on ? 'ok' : 'soft' });
   }));
-  text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', X + Wd / 2, 318, 14, C.sub, { body: true, stroke: false });
+  text('나이', L0, 88 + 4 * 50 + 21, 18, C.text, { align: 'left', stroke: false }); // 바꾸려면 보호자 확인(아이가 혼자 어린이 모드를 끄지 못하게)
+  button(R0 - 200, 88 + 4 * 50, 200, 42, save.age == null ? '고르기' : kidMode() ? `${save.age}살 · 어린이 모드` : '13살 이상', () => withGate(() => { map.overlay = null; state = 'age'; stateT = 0; ageBack = 'map'; }), { size: 14, kind: kidMode() ? 'ok' : 'soft' });
   const grid = [
     [['꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }], ['확률 정보', () => { probOpen = true; sfx.click(); }], ['기록 지우기', askWipe]],
     [['저장하기', exportSave], ['불러오기', importSave], ['처음 화면', () => { map.overlay = null; state = 'title'; sfx.click(); }]], // 지도 → 처음 화면(게임 끄기도 거기)
   ];
-  grid.forEach((row, r) => { const w2 = (R0 - L0 - 8 * (row.length - 1)) / row.length; row.forEach((c, k) => button(L0 + k * (w2 + 8), 340 + r * 50, w2, 42, c[0], c[1], { size: 14, kind: 'soft' })); }); // 줄마다 판 폭을 꽉 채워 나눔
+  grid.forEach((row, r) => { const w2 = (R0 - L0 - 8 * (row.length - 1)) / row.length; row.forEach((c, k) => button(L0 + k * (w2 + 8), 346 + r * 48, w2, 40, c[0], c[1], { size: 14, kind: 'soft' })); }); // 줄마다 판 폭을 꽉 채워 나눔
   [['이용약관', 'terms'], ['개인정보', 'privacy'], ['만든 사람', 'credits']].forEach(([lb, f], k) => button(L0 + k * (cw + 8), 448, cw, 34, lb, () => withGate(() => window.open(`legal/${f}.html`, '_blank')), { size: 13, kind: 'soft' })); // 판 아래 끝과 28 띄움
 }
 
@@ -808,7 +816,7 @@ function drawIntro() {
     ctx.fillStyle = `rgba(16,16,18,${0.6 * a})`; ctx.fillRect(-OX(), 0, W, H);
     ctx.save(); ctx.globalAlpha = a;
     const s = 0.7 + 0.3 * easeOutBack(Math.min(1, t / 0.6));
-    ctx.translate(480, 200); ctx.scale(s, s); text('터틀 레이스', 0, 0, 86, C.yellow, { lw: 12 }); ctx.restore();
+    ctx.translate(480, 200); ctx.scale(s, s); text('터틀런', 0, 0, 86, C.yellow, { lw: 12 }); ctx.restore();
     ctx.save(); ctx.globalAlpha = a;
     text('아멜리아 공주 구출 대작전', 480, 270, 30, '#ffffff');
     text('느려도 괜찮아요. 포기만 하지 마세요', 480, 318, 20, C.text, { body: true });
@@ -860,6 +868,7 @@ function startGame() {
     if (IS_IOS) { if (!save.iosTipSeen) { save.iosTipSeen = true; persist(); iosGuide = true; return; } }
     else goFullscreen();
   }
+  if (save.age == null) { state = 'age'; stateT = 0; sfx.click(); return; } // 처음 한 번: 나이(어른이 대신 눌러도 됨)
   if (!save.introSeen) startIntro(); else { placeHero(Math.min(save.unlocked, LAST)); enterMap(); } }
 // 첫 화면 불러오기 막대(그림이 다 올 때까지)
 function drawLoadBar() {
@@ -901,6 +910,35 @@ function drawBye() { // 못 닫는 기기: 저장됐다는 인사 화면
   text('기록은 저장됐어요 · 이제 앱을 닫아도 돼요', 480, 391, 17, '#ffffff', { body: true, stroke: false });
   button(380, 429, 200, 50, '다시 하기', () => { state = 'title'; try { if (ac) ac.resume(); } catch (e) { /* 무시 */ } sfx.click(); }, { size: 19, kind: 'yellow' });
 }
+// 첫 화면 오른쪽: 상어왕(보스) + 끈에 매달린 거품 속 아멜리아(크게). 번갈아 말풍선, 누르면 반응. 구출한 뒤엔 아멜리아가 거품 밖에서 응원
+const titleFx = { am: -9, king: -9 };
+function drawTitleBoss(R) {
+  const am = IMG.spr_amelia, amc = IMG.spr_amelia_cheer, king = IMG.spr_boss_king, freed = !!save.cleared;
+  const kx = R - 160, ky = 168 + Math.sin(T * 1.3) * 6, kh = 220, kr = T - titleFx.king < 0.6 ? Math.sin((T - titleFx.king) * 40) * 0.06 : Math.sin(T * 1.3) * 0.03;
+  const swing = Math.sin(T * 1.6) * 0.14, hx = kx - 24, hy = ky + kh * 0.22, rope = 40, br = 96, bx = hx + Math.sin(swing) * (rope + br), by = hy + Math.cos(swing) * (rope + br);
+  if (!freed && king && ready(king)) {
+    drawImg(king, kx, ky, kh * (T - titleFx.king < 0.6 ? 1.06 : 1), kr);
+    ctx.strokeStyle = '#3b6b2c'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo((hx + bx) / 2 + 10, (hy + by - br) / 2, bx, by - br); ctx.stroke(); // 미역 끈
+    ctx.strokeStyle = '#5e9c44'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  const ax = freed ? R - 190 : bx, ay = freed ? 300 + Math.sin(T * 2.2) * 8 : by, img = freed || T - titleFx.am < 1 ? amc : am;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(ax, ay, 10, ax, ay, br * 1.25); g.addColorStop(0, 'rgba(255,170,215,.5)'); g.addColorStop(1, 'rgba(255,170,215,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ax, ay, br * 1.25, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  const hop = T - titleFx.am < 0.5 ? -Math.sin((T - titleFx.am) / 0.5 * Math.PI) * 18 : 0;
+  if (img && ready(img)) drawImg(img, ax, ay + 6 + hop, freed ? 220 : 172, freed ? 0 : -swing * 0.5, 1, true);
+  if (!freed) { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, ay, br, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(ax - br * 0.5, ay - br * 0.58, 20, 10, -0.6, 0, Math.PI * 2); ctx.fill(); }
+  for (let k = 0; k < 4; k++) { const h = (T * 0.5 + k * 0.25) % 1; ctx.globalAlpha = 1 - h; text('♥', ax + 54 - k * 34, ay - br - h * 46, 16, '#ff8fc8', { stroke: false }); } ctx.globalAlpha = 1;
+  ctx.font = `800 ${fs(15)}px ${FONT}`; const nw = ctx.measureText('아멜리아 공주').width + 28;
+  ctx.fillStyle = '#ff6fae'; rr(ax - nw / 2, ay + br + 6, nw, 30, 15); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; rr(ax - nw / 2, ay + br + 6, nw, 30, 15); ctx.stroke();
+  text('아멜리아 공주', ax, ay + br + 21, 15, '#ffffff', { stroke: false, weight: 800 });
+  // 말풍선: 3초마다 번갈아(구출 전: 공주 ↔ 상어왕 / 구출 뒤: 공주만)
+  const say = freed ? ['고마워, 터틀!', '또 달리러 갈까?'] : ['터틀아, 도와줘!', '크하하! 못 구할걸?'], i = Math.floor(T / 3) % 2, ph = (T % 3) / 3;
+  const who = freed ? 0 : i, s2 = say[i], sx = who ? kx - 40 : ax, sy = who ? ky - kh * 0.5 - 10 : ay - br - 34, a2 = Math.min(1, ph * 8, (1 - ph) * 8);
+  { ctx.save(); ctx.globalAlpha = a2; ctx.font = `800 ${fs(15)}px ${FONT}`; const tw = ctx.measureText(s2).width + 28; ctx.fillStyle = who ? '#3a2350' : '#ffffff'; rr(sx - tw / 2, sy - 17, tw, 34, 17); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx - 8, sy + 15); ctx.lineTo(sx + 8, sy + 15); ctx.lineTo(sx + (who ? 14 : -4), sy + 28); ctx.fill(); text(s2, sx, sy, 15, who ? '#ffd27a' : '#e0457b', { stroke: false }); ctx.restore(); }
+  // 누르면: 아멜리아 = 손 흔들며 폴짝 + 하트 / 상어왕 = 크게 웃으며 흔들
+  const mt = ctx.getTransform(), hit = (x, y, w, h, on) => buttons.push({ x: (mt.a * x + mt.e) / K, y: (mt.d * y + mt.f) / K, w: w * mt.a / K, h: h * mt.d / K, on });
+  hit(ax - br, ay - br, br * 2, br * 2, () => { titleFx.am = T; snd('pop', 0.7, 1.3); haptic(15); });
+  if (!freed) hit(kx - kh * 0.4, ky - kh * 0.5, kh * 0.8, kh * 0.7, () => { titleFx.king = T; snd('oof', 0.8, 0.7); haptic(30); });
+}
 function drawTitle() {
   drawLoadBar();
   // 인기 게임식 첫 화면: 화면 가득 키 아트(코덱스) + 로고 그림 + 크게 빛나는 시작 단추
@@ -910,28 +948,19 @@ function drawTitle() {
     const dw = bg.naturalWidth * sc, dh = bg.naturalHeight * sc;
     ctx.drawImage(bg, -OX() + (W - dw) / 2, (H - dh) / 2, dw, dh);
   }
-  const lg = IMG.spr_title_logo, ly = 96 + Math.sin(T * 2) * 4;
+  // 가운데 열(560): 로고 → 부제 → 시작 단추 → 아래 줄 / 오른쪽: 상어왕이 아멜리아 거품을 끈으로 들고 있음(이야기가 한눈에)
+  const CX = 560, R = 960 + OX() - SAFE;
+  drawTitleBoss(R);
+  const lg = ready(IMG.spr_title_logo_run) ? IMG.spr_title_logo_run : IMG.spr_title_logo, ly = 92 + Math.sin(T * 2) * 4;
   if (lg && ready(lg) && typeof obox === 'function') {
-    const b = obox(lg), lw = 470, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
-    ctx.save(); ctx.translate(650, ly); ctx.scale(ls, ls); ctx.drawImage(lg, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
-  } else text('터틀 레이스', 650, ly, 76, C.yellow, { lw: 12 });
-  ctx.font = `800 ${fs(20)}px ${FONT}`; const sw = ctx.measureText('아멜리아 공주 구출 대작전').width + 36;
-  ctx.fillStyle = 'rgba(8,30,70,.55)'; rr(650 - sw / 2, 168, sw, 36, 18); ctx.fill();
-  text('아멜리아 공주 구출 대작전', 650, 186, 20, '#ffffff', { stroke: false });
-  // 아멜리아 공주: 첫 화면부터 잘 보이게(시작 단추 오른쪽, 반짝이는 거품 속에서 손 흔듦 + 이름표)
-  { const am = IMG.spr_amelia, ax = 862, ay = 286 + Math.sin(T * 2.2) * 8;
-    if (am && ready(am)) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(ax, ay, 10, ax, ay, 105); g.addColorStop(0, 'rgba(255,170,215,.45)'); g.addColorStop(1, 'rgba(255,170,215,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ax, ay, 105, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-      drawImg(am, ax, ay + 4, 150, Math.sin(T * 1.6) * 0.05, 1, true);
-      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, ay, 88, 0, Math.PI * 2); ctx.stroke(); // 거품
-      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(ax - 44, ay - 52, 18, 9, -0.6, 0, Math.PI * 2); ctx.fill();
-      for (let k = 0; k < 4; k++) { const h = (T * 0.5 + k * 0.25) % 1; ctx.globalAlpha = 1 - h; text('♥', ax + 50 - k * 30, ay - 80 - h * 50, 16, '#ff8fc8', { stroke: false }); } ctx.globalAlpha = 1;
-      ctx.font = `800 ${fs(15)}px ${FONT}`; const nw = ctx.measureText('아멜리아 공주').width + 28;
-      ctx.fillStyle = '#ff6fae'; rr(ax - nw / 2, ay + 92, nw, 30, 15); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; rr(ax - nw / 2, ay + 92, nw, 30, 15); ctx.stroke();
-      text('아멜리아 공주', ax, ay + 107, 15, '#ffffff', { stroke: false, weight: 800 });
-    } }
+    const b = obox(lg), lw = 380, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
+    ctx.save(); ctx.translate(CX, ly); ctx.scale(ls, ls); ctx.drawImage(lg, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
+  } else text('터틀런', CX, ly, 76, C.yellow, { lw: 12 });
+  ctx.font = `800 ${fs(18)}px ${FONT}`; const sw = ctx.measureText('아멜리아 공주 구출 대작전').width + 40;
+  ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(CX - sw / 2, 172, sw, 34, 17); ctx.fill();
+  text('아멜리아 공주 구출 대작전', CX, 189, 18, '#ffffff', { stroke: false });
   // 시작 단추: 노랑→주황, 아래 그림자, 맥박, 빛줄
-  const bx0 = 530, by0 = 372, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
+  const bx0 = 440, by0 = 360, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(pulse, pulse); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
   ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 7, bw0, bh0, 24); ctx.fill();
   const gg = ctx.createLinearGradient(0, by0, 0, by0 + bh0); gg.addColorStop(0, '#ffd84a'); gg.addColorStop(1, '#ff8a00');
@@ -947,12 +976,37 @@ function drawTitle() {
   if (save.introSeen) row.push(['첫 이야기', startIntro]);
   if (isTouch && !STANDALONE) row.push(['꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }]);
   row.push(['게임 끄기', () => { quitAsk = true; sfx.click(); }]);
-  const bwR = 116, gapR = 8, totR = row.length * bwR + (row.length - 1) * gapR, x0R = 650 - totR / 2;
-  row.forEach(([lb, fn], i) => button(x0R + i * (bwR + gapR), 458, bwR, 40, lb, fn, { size: 14, kind: 'soft' }));
+  const bwR = 116, gapR = 8, totR = row.length * bwR + (row.length - 1) * gapR, x0R = 560 - totR / 2;
+  row.forEach(([lb, fn], i) => button(x0R + i * (bwR + gapR), 452, bwR, 40, lb, fn, { size: 14, kind: 'soft' }));
   if (iosGuide) drawIosGuide();
   eggBadge(36 - OX() + SAFE, 32, save.eggs, 30);
   if (quitAsk) drawQuitAsk();
   text(isTouch ? '눌러서 시작 · 폰은 가로로' : '스페이스로 시작', 480, H - 12, 14, 'rgba(255,255,255,.85)', { body: true });
+}
+
+// ───────── 나이 묻기(중립 화면: 어른 쪽으로 이끌지 않음 · 모든 단추 같은 모양) ─────────
+let ageBack = null;
+function drawAge() {
+  const bg = ready(IMG.spr_title_bg2) ? IMG.spr_title_bg2 : IMG.spr_title_bg;
+  if (bg && ready(bg)) { const sc = Math.max(W / bg.naturalWidth, H / bg.naturalHeight); ctx.drawImage(bg, -OX() + (W - bg.naturalWidth * sc) / 2, (H - bg.naturalHeight * sc) / 2, bg.naturalWidth * sc, bg.naturalHeight * sc); }
+  ctx.fillStyle = 'rgba(8,24,60,.62)'; ctx.fillRect(-OX(), 0, W, H);
+  panel(200, 64, 560, 412);
+  text('몇 살이에요?', 480, 120, 30, '#ffffff', { lw: 6 });
+  text('나이에 맞게 게임을 맞춰 줘요', 480, 158, 15, 'rgba(255,255,255,.75)', { body: true, stroke: false });
+  const ages = [5, 6, 7, 8, 9, 10, 11, 12, 13], bw = 140, bh = 56, gx = 14, gy = 14, cols = 3, tw = cols * bw + (cols - 1) * gx, x0 = 480 - tw / 2, y0 = 196;
+  ages.forEach((a, i) => withRise(i, () => {
+    const x = x0 + (i % cols) * (bw + gx), y = y0 + Math.floor(i / cols) * (bh + gy);
+    button(x, y, bw, bh, a === 13 ? '13살+' : a === 5 ? '5살↓' : `${a}살`, () => pickAge(a), { size: 20, kind: 'soft' });
+  }));
+  text('어린이는 돈으로 사는 것 없이 놀아요 · 보호자가 설정에서 바꿀 수 있어요', 480, 432, 13, 'rgba(255,255,255,.7)', { body: true, stroke: false });
+}
+function pickAge(a) {
+  const first = save.age == null; save.age = a;
+  if (first && a < 13 && !save.runs) save.diff = 0; // 처음 하는 어린이는 「쉬움」부터
+  persist(); sfx.levelup(); haptic(20);
+  toast(a < 13 ? '어린이 모드: 돈으로 사는 것이 없어요 · 30분마다 쉬어 가요' : '좋아요! 즐겁게 달려요', C.yellow);
+  if (ageBack === 'map') { ageBack = null; enterMap(); return; }
+  startGame();
 }
 
 // ───────── 상점 (실력 키우기 · 옷장 · 펫) ─────────
@@ -1022,7 +1076,7 @@ function levelPet(k) {
 }
 function updateShop(dt) {
   if (stateT > 0.6 && !shop.hatch && !buying) {
-    const T0 = { up: ['up', '실력 키우기', '진주로 사서 키우면 모든 판에 계속 적용돼요 · 「지금 → 다음」을 봐요'], skin: ['skin', '옷장', '산 옷은 달릴 때도 그대로 입어요 · 힘은 똑같고 꾸미기만'], tr: ['tr', '보물', '2개까지 끼우면 판마다 힘이 붙어요 · 누르면 끼우기/빼기'], pet: ['pet', '펫', '알을 부화하면 펫이 따라다니며 도와줘요 · 확률은 화면에 적혀 있어요'] }[shop.tab];
+    const T0 = { gacha: ['gacha', '신비한 조개', '하루 한 번은 공짜! 확률은 「확률 정보」에 다 적혀 있어요 · 40번 안에 전설 확정'], up: ['up', '실력 키우기', '진주로 사서 키우면 모든 판에 계속 적용돼요 · 「지금 → 다음」을 봐요'], skin: ['skin', '옷장', '산 옷은 달릴 때도 그대로 입어요 · 힘은 똑같고 꾸미기만'], tr: ['tr', '보물', '2개까지 끼우면 판마다 힘이 붙어요 · 누르면 끼우기/빼기'], pet: ['pet', '펫', '알을 부화하면 펫이 따라다니며 도와줘요 · 확률은 화면에 적혀 있어요'] }[shop.tab];
     if (T0) coachOnce('shop_' + T0[0], { text: T0[1], sub: T0[2], spot: null, pass: true, state: 'shop' });
   }
   if (shop.msgT > 0) shop.msgT -= dt;
@@ -1063,9 +1117,9 @@ function drawTurnPreview(x, y, size) {
 }
 function drawShop() {
   ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
-  if (shop.tab === 'up') { const pw = turtlePower(); text(`파워 ${pw.toLocaleString()} · ${powerRank(pw)}`, 480, 30, 16, '#ffd27a', { lw: 4 }); } // 키우면 바로 오르는 게 보이게
+  if (shop.tab === 'up') { const pw = turtlePower(); text(`파워 ${pw.toLocaleString()} · ${powerRank(pw)}`, 446, 30, 15, '#ffd27a', { lw: 4, align: 'left' }); } // 키우면 바로 오르는 게 보이게
   // 시안: 왼쪽 위 제목 리본, 오른쪽 위 크림색 재화 칸(지도와 같은 부품)
-  const stitle = shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : '진주 상점', sL = -OX() + SAFE + 14, sR = 960 + OX() - SAFE - 14;
+  const stitle = shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : shop.tab === 'gacha' ? '뽑기' : shop.tab === 'bag' ? '가방' : '진주 상점', sL = -OX() + SAFE + 14, sR = 960 + OX() - SAFE - 14;
   if (!ribbon(sL + 120, 30, 240, stitle, 22)) text(stitle, 480, 34, 32, C.text, { stroke: false });
   if (ready(IMG.spr_ui_cur_pill)) {
     curPill(sR - 150, 8, 150, (x, y) => drawPearl(x, y, 26 * (1 + hudPulse * 1.6)), save.eggs.toLocaleString(), null, null, 'pearl');
@@ -1073,16 +1127,17 @@ function drawShop() {
   } else { eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6)); gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26); }
   // 미끄러지는 알약 탭 (lucian-uxui #039, MIT): 노란 알약이 고른 탭으로 스르륵, 그 아래 글자만 진하게 · 내용은 옮긴 쪽에서 밀려 들어옴
   const TABS = [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['tr', '보물'], ['fx', '꼬리 효과'], ['gem', '보석']], ti = TABS.findIndex(([k]) => k === shop.tab);
-  if (shop.pillX == null) shop.pillX = ti;
+  gachaBtn(268, 10, 164, 40); // 신비한 조개(뽑기)·가방 — 탭 줄과 따로, 반짝이는 단추
+  if (shop.pillX == null) shop.pillX = Math.max(0, ti);
   const pdt = Math.min(0.1, Math.max(0, T - (shop.pillT || T))); shop.pillT = T;
-  shop.pillX += (ti - shop.pillX) * (1 - Math.exp(-pdt * 16)); if (Math.abs(ti - shop.pillX) < 0.002) shop.pillX = ti;
+  if (ti >= 0) { shop.pillX += (ti - shop.pillX) * (1 - Math.exp(-pdt * 16)); if (Math.abs(ti - shop.pillX) < 0.002) shop.pillX = ti; }
   // 탭 = 코덱스 흰 아이콘(왼쪽) + 글자(오른쪽) — 시안 ref_mock_shop 처럼
   const tabIcon = (k, i) => { const im = IMG['spr_tab_' + k]; if (im && ready(im)) { drawImg(im, 52 + i * 144 + 26, 81, 28); return true; } return false; };
   const hasIc = ready(IMG.spr_tab_up), lx = (i) => 52 + i * 144 + (hasIc ? 84 : 68);
   const tsz = (label) => { let z = 14; while (z > 12) { ctx.font = `800 ${fs(z)}px ${FONT}`; if (ctx.measureText(label).width <= 82) break; z--; } return z; }; // 아이콘 오른쪽 빈 폭(82)에 맞춤
   TABS.forEach(([k, label], i) => { button(52 + i * 144, 62, 136, 40, hasIc ? '' : label, () => { if (shop.tab !== k) { shop.tabDir = i > ti ? 1 : -1; shop.tabAt = T; } shop.tab = k; sfx.click(); }, { size: 15, kind: 'primary' }); if (hasIc) { tabIcon(k, i); text(label, lx(i), 81, tsz(label), '#ffffff', { stroke: 'rgba(0,20,60,.45)', lw: 3, weight: 800 }); } });
   const yb = IMG.spr_ui_btn_yellow, px = 52 + shop.pillX * 144;
-  if (yb && ready(yb)) {
+  if (yb && ready(yb) && ti >= 0) {
     slice3(yb, px - 2, 60, 140, 44);
     ctx.save(); ctx.beginPath(); ctx.rect(px + 4, 60, 128, 44); ctx.clip();
     TABS.forEach(([k, label], i) => { if (hasIc) tabIcon(k, i); text(label, lx(i), 82 - 40 * 0.04, hasIc ? tsz(label) : 15, '#5a3000', { stroke: false, weight: 800 }); });
@@ -1139,7 +1194,9 @@ function drawShop() {
       else if (save.eggs < c) button(x + 16, y + 114, w - 32, 40, `진주 ${c - save.eggs}개 더 모으면`, () => buyUp(i), { size: 15, disabled: true });
       else button(x + 16, y + 114, w - 32, 40, `키우기 · 진주 ${c}`, () => { buyUp(i); shop.upFlash = { i, t: 0 }; }, { size: 16 });
     }));
-  } else if (shop.tab === 'fx') {
+  } else if (shop.tab === 'gacha') drawGachaPage();
+  else if (shop.tab === 'bag') drawBagPage();
+  else if (shop.tab === 'fx') {
     TRAILS.forEach((t, i) => withRise(i, () => {
       const x = 40 + (i % 4) * 222, y = 116 + Math.floor(i / 4) * 176, w = 210, h = 166, own = save.trails.includes(t.k), on = save.trail === t.k;
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined });
@@ -1152,6 +1209,9 @@ function drawShop() {
       if (t.how && !own) text(t.how, x + w / 2, y + 104, 12, C.sub, { body: true, stroke: false });
       button(x + 16, y + 122, w - 32, 34, on ? '쓰는 중' : own ? '쓰기' : t.gems ? `보석 ${t.gems}` : '얻는 곳 보기', () => buyTrail(t), { size: 14, kind: on ? 'soft' : own ? 'soft' : t.gems ? 'yellow' : 'soft', disabled: on });
     }));
+  } else if (shop.tab === 'gem' && kidMode()) { // 어린이 모드: 파는 것 없음 — 모으는 곳만 알려 줌
+    withRise(0, () => { panel(40, 116, 880, 176); icon('e_gem', 120, 204, 64); text('보석은 놀면서 모아요', 180, 176, 22, '#ffffff', { align: 'left', stroke: false }); ['처음 깬 바다 선물 · 업적 · 바다 패스 · 도감 모으기', '어린이 모드에서는 돈으로 사는 상품이 없어요'].forEach((l, k) => text(l, 180, 214 + k * fs(14) * 1.6, 14, k ? C.yellow : 'rgba(255,255,255,.8)', { align: 'left', body: true, stroke: false })); });
+    withRise(1, () => { panel(40, 306, 880, 120); text('보석으로 진주 바꾸기', 70, 334, 16, C.text, { align: 'left', stroke: false }); EXCHANGE.forEach((x2, i) => button(70 + i * 250, 352, 230, 52, `보석 ${x2.gems} → 진주 ${x2.pearls.toLocaleString()}`, () => exchange(x2), { size: 14, kind: 'soft', disabled: save.gems < x2.gems })); text(`가진 보석 ${save.gems}`, 890, 334, 14, '#9fe3ff', { align: 'right', body: true, stroke: false }); });
   } else if (shop.tab === 'gem') {
     GEM_PACKS.forEach((p, i) => withRise(i, () => {
       const x = 40 + i * 222, y = 116, w = 210, h = 176;
@@ -1245,7 +1305,7 @@ function drawShop() {
   }
   ctx.restore();
   if (shop.msgT > 0) text(shop.msg, sL + 6, H - 35, 16, '#ffffff', { align: 'left', stroke: false });
-  else if (shop.tab !== 'skin') text(shop.tab === 'gem' ? (PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', sL + 6, H - 35, 13, C.sub, { align: 'left', body: true, stroke: false }); // 왼쪽 아래(오른쪽은 단추 자리)
+  else if (shop.tab !== 'skin') text(shop.tab === 'gacha' || shop.tab === 'bag' ? (kidMode() ? '어린이 모드 · 조개는 판에서 모은 진주로 열어요' : '보석은 결제로 사요 · 사기 전에 확률을 꼭 봐요 · 보스 유물은 팔지 않아요') : shop.tab === 'gem' ? (kidMode() ? '어린이 모드 · 돈으로 사는 상품이 없어요 · 거북알은 팔지 않아요' : PAY.real() ? '결제는 스토어로 · 보석은 게임 안에서만 · 거북알은 팔지 않아요' : '시험 결제 화면(실제로 돈이 나가지 않아요) · 거북알은 팔지 않아요') : '진주는 게임 안에서만 · 거북알·진주 모두 현금이 아니에요', sL + 6, H - 35, 13, C.sub, { align: 'left', body: true, stroke: false }); // 왼쪽 아래(오른쪽은 단추 자리)
   // 시안: 오른쪽 아래 — 동그란 뒤로 ↩ + 큰 노란 ▶ 출발
   const sr = 960 + OX() - SAFE - 16;
   button(sr - 250, H - 60, 250, 50, `▶ ${nameOf(shop.next)} 출발`, () => startLevel(shop.next), { size: 18, kind: 'yellow' });

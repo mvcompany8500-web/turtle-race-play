@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 소리: 파일 없이 합성. 세계별·보스·바다 축제 음악 + 마법 같은 효과음
+// 터틀런 — 소리: 파일 없이 합성. 세계별·보스·바다 축제 음악 + 마법 같은 효과음
 // 잔향(물속 울림)과 압축기로 폰 스피커에서도 꽉 차게 들리도록
 
 let ac = null, master = null, musicBus = null, sfxBus = null, verb = null, noiseBuf = null;

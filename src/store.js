@@ -1,5 +1,5 @@
 'use strict';
-// 터틀 레이스 — 보석(유료 화폐)·결제·꼬리 효과·바다 패스·업적·시작 아이템·저장 코드
+// 터틀런 — 보석(유료 화폐)·결제·꼬리 효과·바다 패스·업적·시작 아이템·저장 코드
 // 원칙: 거북알은 팔지 않음(디자인 키트: 현금 아님·환전 없음) → 돈으로 사는 건 「보석」만.
 //       확률 있는 상품(펫 부화)은 확률 공개. 결제 전 확인 창·청약철회 안내. 꾸밈·편의 위주(돈으로 실력 키우기 직접 판매 없음)
 //       실제 결제: window.TurtlePay.buy(id) 가 있으면 그걸로(앱·스토어 연결 — 맥미니/출시 때), 없으면 「시험 결제」(돈 안 나감)
@@ -59,7 +59,7 @@ async function restoreBuys() {
   persist();
   toast(n ? `구매 ${n}개를 되돌렸어요` : r.test ? '시험 결제라 되돌릴 구매가 없어요' : '되돌릴 구매가 없어요', n ? C.yellow : '#ffffff');
 }
-function askBuy(prod, onDone) { buying = { prod, onDone, t: 0 }; sfx.click(); }
+function askBuy(prod, onDone) { if (kidMode()) { sfx.no(); toast('어린이 모드에서는 돈으로 사는 게 없어요', C.danger); return; } buying = { prod, onDone, t: 0 }; sfx.click(); }
 // 보호자 확인(앱스토어 어린이 규칙 1.3: 결제·바깥 링크 전에 어른만 풀 수 있는 문제). 맞히면 10분 동안 다시 안 물음
 let gateUntil = 0, gate = null;
 function withGate(then) {
@@ -108,10 +108,10 @@ function drawSpend() {
   ctx.save(); ctx.translate(OX(), 0);
   ctx.fillStyle = 'rgba(8,8,12,.72)'; ctx.fillRect(-OX(), 0, W, H);
   panel(280, 130, 400, 270, { fill: C.gray });
-  if (!ribbon(480, 134, 280, '보석 쓰기', 22)) text('보석 쓰기', 480, 166, 24, C.text, { stroke: false });
+  if (!ribbon(480, 134, 280, sp.pearl ? '진주 쓰기' : '보석 쓰기', 22)) text(sp.pearl ? '진주 쓰기' : '보석 쓰기', 480, 166, 24, C.text, { stroke: false });
   text(sp.name, 480, 196, 22, C.yellow, { stroke: false });
-  icon('e_gem', 438, 242, 30); text(`${sp.gems}개를 써요`, 458, 243, 22, '#ffffff', { align: 'left', stroke: false });
-  text(`남는 보석 ${(save.gems - sp.gems).toLocaleString()}개`, 480, 282, 14, C.sub, { body: true, stroke: false });
+  if (sp.pearl) drawPearl(438, 242, 30); else icon('e_gem', 438, 242, 30); text(`${sp.gems.toLocaleString()}개를 써요`, 458, 243, 22, '#ffffff', { align: 'left', stroke: false });
+  text(`남는 ${sp.pearl ? '진주' : '보석'} ${((sp.pearl ? save.eggs : save.gems) - sp.gems).toLocaleString()}개`, 480, 282, 14, C.sub, { body: true, stroke: false });
   button(312, 316, 162, 54, '쓰기', () => { spending = null; sp.then(); }, { size: 19, kind: 'ok' });
   button(486, 316, 162, 54, '취소', () => { spending = null; sfx.click(); }, { size: 17, kind: 'soft' });
   ctx.restore();
@@ -207,7 +207,7 @@ function drawPass() {
   text(`${save.pass.season} 시즌 · ${tier}/${PASS_TIERS}단계`, 110, 88, 16, C.text, { align: 'left', body: true, stroke: false });
   ctx.fillStyle = C.line; rr(330, 82, 300, 12, 6); ctx.fill();
   ctx.fillStyle = C.blueD; rr(330, 82, tier >= PASS_TIERS ? 300 : Math.max(12, (300 * into) / PASS_XP), 12, 6); ctx.fill();
-  if (!save.pass.prem) button(700, 66, 180, 40, `프리미엄 ${won(PASS_PROD.won)}`, buyPass, { size: 15, kind: 'yellow' });
+  if (!save.pass.prem && !kidMode()) button(700, 66, 180, 40, `프리미엄 ${won(PASS_PROD.won)}`, buyPass, { size: 15, kind: 'yellow' });
   else text('프리미엄 ✓', 790, 86, 16, C.yellow, { stroke: false });
   text('무료', 104, 196, 15, C.sub, { stroke: false }); text('프리미엄', 104, 330, 15, C.yellow, { stroke: false });
   const per = 6, start = passPage * per + 1;
