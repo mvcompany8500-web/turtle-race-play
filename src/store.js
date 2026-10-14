@@ -428,7 +428,11 @@ function coachRunTriggers() {
   if (G.tut) return; // 첫 판(기본 연습) 동안은 다른 안내 없음 — 첫 판 기본 연습(점프·숙이기·이단 점프·밟기·물약)이 끝난 뒤에
   const p = G.p, low = G.en / G.maxEn;
   const bb = BOOST_BTN(), ib = ITEM_BTN();
-  if (G.boost >= 100 && !G.bonus && G.boosting <= 0) coachOnce('boost', { text: '질주가 꽉 찼어요!', sub: '번개 단추를 누르면 앞을 다 들이받아요', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, wait: 'boost', state: 'play' });
+  const wall = G.obs.find((o) => o.k === 'wall' && !o.dead && o.x > p.x), jarA = G.breaks.find((o) => o.k === 'jar' && !o.dead && o.x - p.x < 380 && o.x > p.x + 60), cl = G.obs.find((o) => o.climb && !o.dead && o.x - p.x < 430 && o.x > p.x + 40);
+  if (wall && wall.x - p.x < 560 && G.boost >= 100 && G.boosting <= 0) coachOnce('wall', { text: '앞은 벽! 필살기로 부숴요', sub: isTouch ? '오른쪽 필살 단추를 눌러요 · 뒤에서 상어가 와요!' : 'Shift 를 눌러요 · 뒤에서 상어가 와요!', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, wait: 'boost', state: 'play' }); // 벽 앞 첫 안내
+  else if (jarA) coachOnce('jar', { text: '항아리는 숙여서 깨요', sub: isTouch ? '오른쪽 꾹 = 등껍질 굴리기 · 진주가 나와요' : '↓ 꾹 = 등껍질 굴리기 · 진주가 나와요', spot: { x: jarA.x, y: jarA.y, r: 54 }, wait: 'slide', state: 'play' });
+  else if (cl) coachOnce('climb', { text: '발판을 밟고 위로, 위로!', sub: '발판 끝에서 톡 뛰어요 · 아래는 가시예요', spot: { x: cl.x + cl.w / 2, y: cl.y - 20, r: 80 }, state: 'play' });
+  else if (G.boost >= 100 && !G.bonus && G.boosting <= 0 && !wall) coachOnce('boost', { text: '질주가 꽉 찼어요!', sub: '번개 단추를 누르면 앞을 다 들이받아요', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, wait: 'boost', state: 'play' });
   else if (G.item && isTouch) coachOnce('item', { text: `아이템 「${ITEMS[G.item].name}」!`, sub: ITEMS[G.item].desc, spot: { x: ib.x, y: ib.y, r: ib.r + 14 }, wait: 'item', state: 'play' });
   else if (low < 0.25 && G.en > 0) coachOnce('lowEn', { text: '기운이 얼마 안 남았어요', sub: '분홍 물약을 먹으면 차요 · 질주 중엔 안 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 59, w: 270, h: 46 }, state: 'play' });
   else if (G.n >= 2 && G.t > 4 && p.onG && !G.enemies.some((e) => !e.dead && e.x - p.x < 420 && e.x > p.x - 40)) coachOnce('beat', { text: '고리가 금색일 때 뛰면', sub: '「박자 딱!」 — 질주가 빨리 차고 진주도 받아요', spot: { x: p.x, y: p.y, r: 90 }, state: 'play' });

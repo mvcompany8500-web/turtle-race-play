@@ -305,7 +305,7 @@ const PATS = [
     const TOP = GROUND - 290; // 꼭대기 한계(더 높으면 천장에 머리를 박아 점프가 짧아짐) — 닿으면 내려가는 계단으로
     for (let i = 0; i < tiers; i++) {
       let y = GROUND - 92 - lv * dy; if (y < TOP) { dir = -1; lv -= 2; y = GROUND - 92 - lv * dy; }
-      plat(cx, pw, y, k > 0.35 ? lerp(8, 30, (k - 0.35) / 0.65) * (i % 2 ? 1 : -1) : 0); lv += dir; // 뒤 판: 오르내리는 발판(번갈아 반대로)
+      plat(cx, pw, y, k > 0.35 ? lerp(8, 30, (k - 0.35) / 0.65) * (i % 2 ? 1 : -1) : 0); G.obs[G.obs.length - 1].climb = i === 0; lv += dir; // 첫 발판 표시(첫 안내용) // 뒤 판: 오르내리는 발판(번갈아 반대로)
       eggLine(cx + 18, Math.max(2, Math.floor(pw / 48)), y - 30, 44); if (i === tiers - 1) egg(cx + pw - 16, y - 36, true); // 꼭대기엔 황금 진주
       cx += pw + gap;
     }
