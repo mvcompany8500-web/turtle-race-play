@@ -117,18 +117,21 @@ function drawBuyConfirm() {
   buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
   ctx.save(); ctx.translate(OX(), 0);
   ctx.fillStyle = 'rgba(8,8,12,.78)'; ctx.fillRect(-OX(), 0, W, H);
-  panel(250, 90, 460, 360, { fill: C.gray });
-  text('결제 확인', 480, 128, 26, C.text, { stroke: false });
-  text(p.name, 480, 178, 22, C.yellow, { stroke: false });
-  if (p.desc) text(p.desc, 480, 210, 15, C.sub, { body: true, stroke: false });
-  else if (p.gems) text(`보석 ${(p.gems + (p.bonus || 0)).toLocaleString()}개${p.bonus ? ` (보너스 ${p.bonus})` : ''}`, 480, 210, 16, C.sub, { body: true, stroke: false });
-  text(won(p.won), 480, 246, 34, '#ffffff', { stroke: false });
-  text(p.id === 'pass' ? '부가세 포함 · 한 번 결제(자동 갱신 없음) · 이번 달만' : '부가세 포함', 480, 274, 13, C.sub, { body: true, stroke: false });
-  if (test) { ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(286, 288, 388, 30, 10); ctx.fill(); text('시험 결제예요 · 실제로 돈이 나가지 않아요', 480, 303, 14, C.yellow, { body: true, stroke: false }); }
-  text('14세 미만은 보호자 동의 · 안 쓴 상품은 7일 안 청약철회', 480, 326, 13, C.sub, { body: true, stroke: false });
-  text('쓴 보석·받은 보상은 철회가 제한돼요 · 이용약관 2조', 480, 350, 13, C.mute, { body: true, stroke: false });
-  button(290, 366, 200, 52, buying.busy ? '처리 중…' : '결제하기', () => withGate(confirmBuy), { size: 19, disabled: !!buying.busy });
-  button(500, 366, 170, 52, '취소', () => { buying = null; sfx.click(); }, { size: 17, kind: 'soft' });
+  panel(210, 50, 540, 440, { fill: C.gray }); // 넓고 높게: 법 안내 문구가 잘리지 않게(판 안쪽 폭 470에서 줄바꿈)
+  if (!ribbon(480, 54, 320, '결제 확인', 22)) text('결제 확인', 480, 88, 26, C.text, { stroke: false });
+  text(p.name, 480, 110, 22, C.yellow, { stroke: false });
+  if (p.desc) text(p.desc, 480, 140, 15, C.sub, { body: true, stroke: false });
+  else if (p.gems) text(`보석 ${(p.gems + (p.bonus || 0)).toLocaleString()}개${p.bonus ? ` (보너스 ${p.bonus})` : ''}`, 480, 140, 16, C.sub, { body: true, stroke: false });
+  text(won(p.won), 480, 180, 34, '#ffffff', { stroke: false });
+  text(p.id === 'pass' ? '부가세 포함 · 한 번 결제(자동 갱신 없음) · 이번 달만' : '부가세 포함', 480, 210, 13, C.sub, { body: true, stroke: false });
+  let ny = 242;
+  if (test) { ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(250, ny - 15, 460, 30, 10); ctx.fill(); text('시험 결제예요 · 실제로 돈이 나가지 않아요', 480, ny, 14, C.yellow, { body: true, stroke: false }); ny += 34; }
+  const lh = fs(13) * 1.4;
+  wrapText('14세 미만은 보호자 동의가 필요해요 · 안 쓴 상품은 7일 안에 청약철회할 수 있어요', 470, 13).forEach((l) => { text(l, 480, ny, 13, C.sub, { body: true, stroke: false }); ny += lh; });
+  wrapText('쓴 보석·받은 보상은 철회가 제한돼요 · 이용약관 2조', 470, 13).forEach((l) => { text(l, 480, ny, 13, C.mute, { body: true, stroke: false }); ny += lh; });
+  const by = Math.max(ny + 14, 400); // 안내 끝에서 14 띄우고, 두 단추는 같은 크기(아이 보호: 한쪽만 크게 하지 않음)
+  button(250, by, 224, 52, buying.busy ? '처리 중…' : '결제하기', () => withGate(confirmBuy), { size: 19, disabled: !!buying.busy });
+  button(486, by, 224, 52, '취소', () => { buying = null; sfx.click(); }, { size: 17, kind: 'soft' });
   ctx.restore();
 }
 // 보석 배지
@@ -180,7 +183,7 @@ function claimPass(tier, prem) {
 }
 let passPage = 0;
 function drawPass() {
-  overlayBase(60, 30, 840, 480, '바다 패스', 'e_medal');
+  overlayBase(60, 44, 840, 476, '바다 패스', 'e_medal'); ctx.save(); ctx.translate(0, 14); // 리본이 화면 위에 잘리지 않게 창을 14 내림(내용도 같이)
   passSeason();
   const tier = passTier(), into = save.pass.xp % PASS_XP;
   text(`${save.pass.season} 시즌 · ${tier}/${PASS_TIERS}단계`, 110, 88, 16, C.text, { align: 'left', body: true, stroke: false });
@@ -207,6 +210,7 @@ function drawPass() {
   button(70, 410, 60, 44, '◀', () => { passPage = Math.max(0, passPage - 1); sfx.click(); }, { size: 18, kind: 'soft' });
   button(830, 410, 60, 44, '▶', () => { passPage = Math.min(Math.ceil(PASS_TIERS / per) - 1, passPage + 1); sfx.click(); }, { size: 18, kind: 'soft' });
   text('프리미엄은 이번 달만 · 무료 줄은 누구나 · 보상은 꾸밈·보석·진주(실력 직접 판매 없음)', 480, 432, 13, C.sub, { body: true, stroke: false });
+  ctx.restore();
 }
 
 // ───────── 업적 (보석 보상 → 돈 안 써도 보석을 모을 수 있게) ─────────
@@ -237,16 +241,17 @@ const achReady = () => ACH.filter((a) => !save.ach[a.k] && a.test()).length;
 function claimAch(a) { if (save.ach[a.k] || !a.test()) return; save.ach[a.k] = Date.now(); save.gems += a.gems; persist(); sfx.mission(); toast(`업적 「${a.name}」 보석 +${a.gems}`, '#7cd8ff'); }
 let achPage = 0;
 function drawAch() {
-  overlayBase(160, 30, 640, 480, '업적', 'e_trophy');
+  overlayBase(160, 46, 640, 474, '업적', 'e_trophy'); // 리본 아래 여백 확보
   const per = 8, list = ACH.slice(achPage * per, achPage * per + per);
   list.forEach((a, i) => withRise(i, () => {
-    const y = 92 + i * 46, done = !!save.ach[a.k], ok = a.test();
-    ctx.fillStyle = done ? 'rgba(52,201,135,.12)' : C.soft; rr(190, y, 580, 42, 12); ctx.fill();
-    text(a.name, 214, y + 21, 16, done ? C.ok : C.text, { align: 'left', stroke: false });
-    icon('e_gem', 620, y + 21, 22); text(String(a.gems), 636, y + 22, 15, '#9fe3ff', { align: 'left', stroke: false });
-    if (done) text('받음 ✓', 730, y + 22, 14, C.ok, { stroke: false });
-    else button(686, y + 5, 78, 32, ok ? '받기' : '아직', () => claimAch(a), { size: 13, kind: ok ? 'primary' : 'soft', disabled: !ok });
+    const y = 100 + i * 44, done = !!save.ach[a.k], ok = a.test();
+    ctx.fillStyle = done ? 'rgba(52,201,135,.12)' : C.soft; rr(190, y, 580, 40, 12); ctx.fill();
+    text(a.name, 214, y + 20, 16, done ? C.ok : C.text, { align: 'left', stroke: false });
+    icon('e_gem', 620, y + 20, 22); text(String(a.gems), 636, y + 21, 15, '#9fe3ff', { align: 'left', stroke: false });
+    if (done) text('받음 ✓', 725, y + 21, 14, C.ok, { stroke: false });
+    else button(686, y + 4, 78, 32, ok ? '받기' : '아직', () => claimAch(a), { size: 13, kind: ok ? 'ok' : 'soft', disabled: !ok }); // 받기 = 초록(도전 창과 같게)
   }));
+  text(`${achPage + 1} / ${Math.ceil(ACH.length / per)}`, 480, 486, 14, C.sub, { body: true, stroke: false });
   button(190, 470, 60, 32, '◀', () => { achPage = Math.max(0, achPage - 1); }, { size: 15, kind: 'soft' });
   button(710, 470, 60, 32, '▶', () => { achPage = Math.min(Math.ceil(ACH.length / per) - 1, achPage + 1); }, { size: 15, kind: 'soft' });
 }

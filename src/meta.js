@@ -401,7 +401,7 @@ function drawMap() {
     const cr = chestReady();
     pill(L + 302, 120, (x, y) => drawStar(x, y, 13, true), `${totalStars()}`, null, openChest);
     if (cr) { // 알림 딱지: 칸 오른쪽 위 모서리에 걸침(칸 글자는 안 가림) + 살짝 통통
-      const bx = L + 302 + 120 - 8, by = 12 + Math.max(0, Math.sin(T * 6)) * -3; ctx.font = `800 ${fs(12)}px ${FONT}`; const bw = ctx.measureText('상자!').width + 14;
+      const bx = L + 302 + 120 - 8, by = 16 + Math.max(0, Math.sin(T * 6)) * -3; ctx.font = `800 ${fs(12)}px ${FONT}`; const bw = ctx.measureText('상자!').width + 14;
       ctx.fillStyle = '#ffffff'; rr(bx - bw / 2 - 2, by - 11, bw + 4, 22, 11); ctx.fill(); ctx.fillStyle = C.danger; rr(bx - bw / 2, by - 9, bw, 18, 9); ctx.fill(); text('상자!', bx, by, 12, '#fff', { stroke: false });
     }
     // 둘째 줄: 레벨·출석·왕관을 같은 높이(36)·같은 남색 알약으로, 칸 사이 8
@@ -507,9 +507,10 @@ function overlayBase(x, y, w, h, title, ic) {
   ctx.fillStyle = 'rgba(16,16,18,.7)'; ctx.fillRect(-OX(), 0, W, H);
   buttons.length = 0;
   buttons.push({ x: 0, y: 0, w: W, h: H, on: () => { map.overlay = null; } });
+  buttons.push({ x: x + OX(), y, w, h, on: () => {} }); // 판 안 빈 곳을 눌러도 닫히지 않게(바깥만 닫힘)
   panel(x, y, w, h, { fill: C.gray });
-  if (ic) icon(ic, x + 44, y + 38, 34);
-  text(title, x + w / 2, y + 38, 26, C.text, { stroke: false });
+  if (!ribbon(x + w / 2, y + 4, Math.min(w * 0.72, 340), title, 22)) { if (ic) icon(ic, x + 44, y + 38, 34); text(title, x + w / 2, y + 38, 26, C.text, { stroke: false }); } // 시안: 판 위에 걸친 파란 리본
+  roundBtn('close', x + w - 12, y + 12, 22, () => { map.overlay = null; sfx.click(); }, '닫기'); // 오른쪽 위 동그란 ✕
 }
 function drawMissions() {
   overlayBase(200, 70, 560, 400, '오늘의 도전', 'e_target');
@@ -523,13 +524,12 @@ function drawMissions() {
     if (m.done) button(598, y + 16, 120, 44, `받기 +${m.reward}`, () => claimMission(i), { size: 16, kind: 'ok' });
     else { drawPearl(636, y + 38, 24); text(`+${m.reward}`, 652, y + 39, 18, C.yellow, { align: 'left', stroke: false }); }
   }));
-  text('도전을 이루면 바로 새 도전이 와요', 480, 402, 14, C.sub, { body: true, stroke: false });
-  button(400, 420, 160, 40, '닫기', () => { map.overlay = null; sfx.click(); }, { size: 16, kind: 'soft' });
+  text('도전을 이루면 바로 새 도전이 와요', 480, 436, 14, C.sub, { body: true, stroke: false }); // 닫기는 오른쪽 위 ✕ 하나로
 }
 function drawDex() {
   overlayBase(60, 66, 840, 420, '바다 도감', 'e_dex');
   const found = ENEMY_KEYS.filter((k) => save.dex[k]).length;
-  text(`${found}/${ENEMY_KEYS.length} 만남`, 880, 104, 13, C.sub, { align: 'right', body: true, stroke: false });
+  text(`${found}/${ENEMY_KEYS.length} 만남`, 866, 108, 13, C.sub, { align: 'right', body: true, stroke: false });
   ENEMY_KEYS.forEach((k, i) => withRise(i, () => { // 13마리 → 5칸 × 3줄(4칸이면 4줄째가 화면 밖)
     const col = i % 5, row = Math.floor(i / 5), x = 74 + col * 164, y = 124 + row * 104, cw = 156, ch = 96, info = ENEMIES[k], d = save.dex[k];
     panel(x, y, cw, ch, { fill: C.sel, r: 16 });
@@ -548,7 +548,6 @@ function drawDex() {
     } else text(`${info.intro}번 바다`, tx, y + 48, 13, C.mute, { align: 'left', body: true, stroke: false });
     ctx.restore();
   }));
-  button(400, 476 - 38, 160, 40, '닫기', () => { map.overlay = null; sfx.click(); }, { size: 16, kind: 'soft' });
 }
 function drawIosGuide() {
   buttons.length = 0;
@@ -583,8 +582,8 @@ function drawProbInfo() {
   buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
   ctx.save(); ctx.translate(OX(), 0);
   ctx.fillStyle = 'rgba(8,8,12,.88)'; ctx.fillRect(-OX(), 0, W, H);
-  panel(120, 26, 720, 488, { fill: C.gray });
-  text('확률 정보', 480, 60, 24, C.text, { stroke: false });
+  panel(120, 44, 720, 470, { fill: C.gray });
+  if (!ribbon(480, 48, 340, '확률 정보', 22)) text('확률 정보', 480, 78, 24, C.text, { stroke: false }); // 다른 창과 같은 리본
   const left = PETS.filter((p) => !save.pets.includes(p.k)), pc = left.length ? (100 / left.length).toFixed(2) : '0';
   const lines = [
     ['펫 알 부화', `진주 ${hatchCost()}개 · 진주는 보석으로도 살 수 있어 유료 확률 상품이에요`],
@@ -595,13 +594,13 @@ function drawProbInfo() {
     ['', '아이템: 그 바다에서 나올 수 있는 것끼리 같은 확률 (맞았거나 보스전이면 거품 방패·번개·커지는 물약 2.2배)'],
     ['확률 없는 것', '별 상자(진주 80) · 보석 · 옷 · 보물 · 꼬리 · 패스 — 적힌 그대로 받아요'],
   ];
-  let y = 100;
+  let y = 112; const lh = fs(13) * 1.34; // 글자 크기에 맞춘 줄 간격, 폭은 판 안쪽(166~808)
   for (const [h, t] of lines) {
-    if (h) { text(h, 150, y, 16, C.yellow, { align: 'left', stroke: false }); y += 24; }
-    if (t) wrapText(t, 660, 13).forEach((l) => { text(l, 166, y, 13, '#ffffff', { align: 'left', body: true, stroke: false }); y += 20; });
+    if (h) { text(h, 150, y, 16, C.yellow, { align: 'left', stroke: false }); y += fs(16) * 1.3; }
+    if (t) wrapText(t, 630, 13).forEach((l) => { text(l, 166, y, 13, '#ffffff', { align: 'left', body: true, stroke: false }); y += lh; });
     y += 2;
   }
-  button(724, 40, 100, 38, '닫기 ✕', () => { probOpen = false; sfx.click(); }, { size: 14, kind: 'soft' });
+  roundBtn('close', 828, 56, 22, () => { probOpen = false; sfx.click(); }, '닫기');
   ctx.restore();
   return true;
 }
@@ -613,7 +612,8 @@ function askWipe() {
   location.reload();
 }
 function drawSettings() {
-  overlayBase(280, 40, 400, 470, '설정', null);
+  const X = 250, Wd = 460, L0 = X + 32, R0 = X + Wd - 32, cw = (R0 - L0 - 16) / 3; // 3칸 격자, 칸 사이 8
+  overlayBase(X, 40, Wd, 470, '설정', null);
   const rows = [
     ['조작', save.ctrl !== 'swim', () => { save.ctrl = save.ctrl === 'swim' ? 'run' : 'swim'; persist(); sfx.click(); }, ['점프 달리기', '자유 헤엄']],
     ['배경 음악', !save.musicOff, () => { save.musicOff = !save.musicOff; persist(); initAudio(); }],
@@ -621,19 +621,18 @@ function drawSettings() {
     ['진동 · 흔들림', save.haptics && !save.noShake, () => { const on = save.haptics && !save.noShake; save.haptics = !on; save.noShake = on; persist(); haptic(30); }],
   ];
   rows.forEach(([label, on, fn, names], i) => withRise(i, () => {
-    const y = 96 + i * 58;
-    text(label, 312, y + 22, 18, C.text, { align: 'left', stroke: false });
-    button(names ? 490 : 520, y, names ? 160 : 130, 44, names ? names[on ? 0 : 1] : on ? '켜짐' : '꺼짐', fn, { size: 15, kind: on ? 'primary' : 'soft' });
+    const y = 88 + i * 54;
+    text(label, L0, y + 21, 18, C.text, { align: 'left', stroke: false });
+    const bw = names ? 160 : 120; // 켜짐 = 초록, 꺼짐 = 회색(상태가 한눈에)
+    button(R0 - bw, y, bw, 42, names ? names[on ? 0 : 1] : on ? '켜짐' : '꺼짐', fn, { size: 15, kind: names ? 'primary' : on ? 'ok' : 'soft' });
   }));
-  text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', 480, 340, 14, C.sub, { body: true, stroke: false });
-  button(484, 366, 166, 44, '확률 정보', () => { probOpen = true; sfx.click(); }, { size: 14, kind: 'soft' });
-  button(312, 366, 166, 44, '꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }, { size: 15, kind: 'soft' });
-  button(312, 418, 166, 44, '기록 지우기', askWipe, { size: 14, kind: 'soft' });
-  button(484, 418, 80, 44, '저장↑', exportSave, { size: 13, kind: 'soft' });
-  button(570, 418, 80, 44, '불러오기', importSave, { size: 13, kind: 'soft' });
-  button(312, 468, 108, 32, '이용약관', () => withGate(() => window.open('legal/terms.html', '_blank')), { size: 13, kind: 'soft' });
-  button(426, 468, 120, 32, '개인정보', () => withGate(() => window.open('legal/privacy.html', '_blank')), { size: 13, kind: 'soft' });
-  button(552, 468, 98, 32, '만든 사람', () => withGate(() => window.open('legal/credits.html', '_blank')), { size: 13, kind: 'soft' });
+  text(save.ctrl === 'swim' ? '손가락으로 끌어서 자유롭게 헤엄 (예전 방식)' : '왼쪽 톡 점프 · 오른쪽 꾹 숙이기 · 위에서 밟기', X + Wd / 2, 318, 14, C.sub, { body: true, stroke: false });
+  const grid = [
+    [['꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }], ['확률 정보', () => { probOpen = true; sfx.click(); }], ['기록 지우기', askWipe]],
+    [['저장하기', exportSave], ['불러오기', importSave]],
+  ];
+  grid.forEach((row, r) => { const w2 = (R0 - L0 - 8 * (row.length - 1)) / row.length; row.forEach((c, k) => button(L0 + k * (w2 + 8), 340 + r * 50, w2, 42, c[0], c[1], { size: 14, kind: 'soft' })); }); // 줄마다 판 폭을 꽉 채워 나눔
+  [['이용약관', 'terms'], ['개인정보', 'privacy'], ['만든 사람', 'credits']].forEach(([lb, f], k) => button(L0 + k * (cw + 8), 448, cw, 34, lb, () => withGate(() => window.open(`legal/${f}.html`, '_blank')), { size: 13, kind: 'soft' })); // 판 아래 끝과 28 띄움
 }
 
 // ───────── 첫 이야기: 공주 납치 ─────────
@@ -1006,8 +1005,8 @@ function drawShop() {
       panel(x, y, w, h, { sel: !save.starter });
       text('한 번만!', x + w / 2, y + 20, 13, C.danger, { stroke: false });
       drawImg(IMG.x_chest_gold_closed, x + w / 2, y + 54, 56);
-      text(STARTER.name, x + w / 2, y + 92, 15, C.text, { stroke: false });
-      text(STARTER.desc, x + w / 2, y + 114, 12, C.sub, { body: true, stroke: false });
+      text(STARTER.name, x + w / 2, y + 84, 15, C.text, { stroke: false });
+      wrapText(STARTER.desc, w - 24, 13).slice(0, 2).forEach((l, k, a) => text(l, x + w / 2, y + 112 - (a.length - 1) * 8 + k * fs(13) * 1.25, 13, C.sub, { body: true, stroke: false })); // 카드 폭 안에서 두 줄까지
       button(x + 16, y + 134, w - 32, 34, save.starter ? '샀어요 ✓' : won(STARTER.won), buyStarter, { size: 14, kind: 'yellow', disabled: save.starter });
     });
     withRise(4, () => { // 보석 → 진주
@@ -1060,9 +1059,9 @@ function drawShop() {
   } else {
     panel(40, 118, 270, 350);
     drawImg(IMG.egg, 175, 240, 130, Math.sin(T * 6) * 0.12);
-    text('알 부화', 175, 336, 22, C.text, { stroke: false });
+    text('알 부화', 175, 326, 22, C.text, { stroke: false });
     const left = PETS.length - save.pets.length;
-    text(left ? `안 가진 펫 ${left}마리 중 하나 · 각 ${(100 / left).toFixed(1)}%` : '다 모았어요', 175, 364, 13, C.sub, { body: true, stroke: false }); // 확률 공개
+    (left ? [`안 가진 펫 ${left}마리 중 하나`, `각 ${(100 / left).toFixed(1)}% (같은 확률)`] : ['다 모았어요']).forEach((l, k) => text(l, 175, 352 + k * fs(13) * 1.35, 13, C.sub, { body: true, stroke: false })); // 확률 공개 — 카드 폭에 맞게 두 줄
     button(234, 126, 68, 30, '확률', () => { probOpen = true; sfx.click(); }, { size: 13, kind: 'soft' });
     const all = save.pets.length >= PETS.length;
     button(64, 396, 222, 52, all ? '다 모았어요!' : `진주 ${hatchCost()}개로 부화`, hatchPet, { size: 16, kind: 'yellow', disabled: all || save.eggs < hatchCost() });
@@ -1070,9 +1069,10 @@ function drawShop() {
       const x = 326 + (i % 3) * 206, y = 118 + Math.floor(i / 3) * 118, w = 198, h = 110, own = save.pets.includes(p.k), on = save.pet === p.k, lv = petLv(p.k);
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined, r: 16 });
       if (own) drawImg(IMG['pet_' + p.k], x + 38, y + 48, 58, Math.sin(T * 3 + i) * 0.08);
-      else text('?', x + 38, y + 50, 40, C.mute, { stroke: false });
-      text(own ? `${p.name} ${lv}단계` : '???', x + 74, y + 20, 15, C.text, { align: 'left', stroke: false });
-      wrapText(own ? p.perk(lv) : '알을 깨서 만나요', 118, 13).slice(0, 2).forEach((l, k) => text(l, x + 74, y + 42 + k * 18, 13, C.sub, { align: 'left', body: true, stroke: false }));
+      else text('?', x + 38, y + h / 2, 40, C.mute, { stroke: false });
+      const ty = own ? y + 20 : y + h / 2 - 12; // 못 만난 칸은 글자를 세로 가운데로
+      text(own ? `${p.name} ${lv}단계` : '???', x + 74, ty, 15, C.text, { align: 'left', stroke: false });
+      wrapText(own ? p.perk(lv) : '알을 깨서 만나요', 118, 13).slice(0, 2).forEach((l, k) => text(l, x + 74, ty + 22 + k * 18, 13, C.sub, { align: 'left', body: true, stroke: false }));
       if (own) {
         button(x + 8, y + 76, 86, 28, on ? '함께해요' : '데려가기', () => { save.pet = on ? null : p.k; persist(); sfx.click(); }, { size: 13, kind: on ? 'primary' : 'soft' });
         button(x + 100, y + 76, 90, 28, lv >= 5 ? '최고' : `키우기 ${PET_LV_COST[lv - 1]}`, () => levelPet(p.k), { size: 13, kind: 'soft', disabled: lv >= 5 || save.eggs < PET_LV_COST[lv - 1] });
@@ -1139,16 +1139,23 @@ function drawBless() {
 function drawRevive() { // 조사 D 규칙: 시간 압박(카운트다운)·아깝다는 문구 없이, 두 버튼 같은 크기
   ctx.fillStyle = 'rgba(16,16,18,.66)'; ctx.fillRect(-OX(), 0, W, H);
   drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 250);
-  panel(RC.x, 110, RC.w, 300, { fill: 'rgba(27,28,31,.94)' });
-  text('이어서 할까요?', RM, 154, 30, '#ffffff', { stroke: false });
-  text(G.cfg.endless ? `지금 ${meters()}미터` : `지금 ${Math.floor(progress() * 100)}%`, RM, 196, 18, C.sub, { body: true, stroke: false });
+  panel(RC.x, 104, RC.w, 316); // 다른 결과 화면과 같은 유리 판 + 리본
+  if (!ribbon(RM, 112, 360, '이어서 할까요?', 24)) text('이어서 할까요?', RM, 154, 30, '#ffffff', { stroke: false });
+  const pk = G.cfg.endless ? 0 : clamp(progress(), 0, 1);
+  text(G.cfg.endless ? `지금 ${meters()}미터` : `지금 ${Math.floor(pk * 100)}%`, RM, 180, 30, '#ffffff', { lw: 5 });
+  if (!G.cfg.endless) { // 어디까지 왔는지(조사 D: 아깝다는 문구·카운트다운 없이 사실만)
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; rr(RL, 210, RR - RL, 12, 6); ctx.fill();
+    ctx.fillStyle = C.blueD; rr(RL, 210, Math.max(12, (RR - RL) * pk), 12, 6); ctx.fill();
+    drawImg(IMG.princess, RR + 4, 216, 30);
+  }
+  drawItemIcon('heart', RM - 150, 254, 26); text('기운을 채우고 이 자리에서 다시 출발해요', RM - 132, 254, 15, C.text, { align: 'left', body: true, stroke: false });
   const cost = reviveCost(), ok = canRevive(), bw = (RR - RL - 12) / 2;
-  button(RL, 300, bw, 64, G.freeRevive ? '공짜로 일어나기' : `이어하기 · 진주 ${cost}`, doRevive, { size: 17, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
-  button(RL + bw + 12, 300, bw, 64, '결과 보기', giveUp, { size: 17, kind: 'soft' });
-  text(ok || G.freeRevive ? `이번 판에서 모은 진주 ${G.eggs}개로` : `이번 판 진주가 ${cost - G.eggs}개 모자라요 (모아 둔 진주는 안 써요)`, RM, 384, 13, C.sub, { body: true, stroke: false });
+  button(RL, 298, bw, 64, G.freeRevive ? '공짜로 일어나기' : `이어하기 · 진주 ${cost}`, doRevive, { size: 17, kind: G.freeRevive ? 'yellow' : 'primary', disabled: !ok });
+  button(RL + bw + 12, 298, bw, 64, '결과 보기', giveUp, { size: 17, kind: 'soft' });
+  text(ok || G.freeRevive ? `이번 판에서 모은 진주 ${G.eggs}개로` : `이번 판 진주가 ${cost - G.eggs}개 모자라요 (모아 둔 진주는 안 써요)`, RM, 390, 13, C.sub, { body: true, stroke: false });
 }
 // ───────── 결과 화면 공통: 오른쪽 카드 한 장 · 안쪽 여백 32 · 표처럼 정렬 · 아래 단추 한 줄 ─────────
-const RC = { x: 380, y: 22, w: 556, h: 496 }, RL = RC.x + 32, RR = RC.x + RC.w - 32, RM = RC.x + RC.w / 2;
+const RC = { x: 380, y: 40, w: 556, h: 476 }, RL = RC.x + 32, RR = RC.x + RC.w - 32, RM = RC.x + RC.w / 2;
 function resultCard() { panel(RC.x, RC.y, RC.w, RC.h, { fill: 'rgba(27,28,31,.94)' }); }
 function cardDivider(y) { ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(RL, y, RR - RL, 1); }
 function rewardRow(y, iconFn, label, value, color = C.text, sub) {
@@ -1159,7 +1166,9 @@ function rewardRow(y, iconFn, label, value, color = C.text, sub) {
 }
 function measureW(s, size) { ctx.font = `600 ${fs(size)}px ${FONT}`; return ctx.measureText(s).width; }
 function sayBubble(x, y, w, line, color = '#ffffff') { // 왼쪽 캐릭터 아래 말풍선
-  const lines = wrapText(line, w - 32, 14).slice(0, 2), h = 22 + lines.length * fs(14) * 1.35;
+  let lines = wrapText(line, w - 32, 14);
+  if (lines.length > 1 && line.includes(', ')) { const parts = line.split(', ').map((p, i, a) => (i < a.length - 1 ? p + ',' : p)); if (parts.every((p) => measureW(p, 14) <= w - 32)) lines = parts; } // 끊을 땐 쉼표에서(「…하지 / 마세요」처럼 어색하게 안 끊기게)
+  lines = lines.slice(0, 2); const h = 22 + lines.length * fs(14) * 1.35;
   ctx.fillStyle = 'rgba(27,28,31,.9)'; ctx.beginPath(); ctx.moveTo(x - 10, y + 2); ctx.lineTo(x, y - 10); ctx.lineTo(x + 10, y + 2); ctx.fill();
   panel(x - w / 2, y, w, h, { r: 16 }); // 말풍선도 코덱스 판
   lines.forEach((l, i) => text(l, x, y + 18 + i * fs(14) * 1.35, 14, color, { body: true, stroke: false }));
@@ -1180,9 +1189,9 @@ function drawDead() {
   sayBubble(190, 380, 300, '느려도 괜찮아요, 포기만 하지 마세요');
   resultCard();
   if (!ribbon(RM, RC.y + 12, 380, '쿵! 부딪혔어요', 24, true)) text('쿵! 부딪혔어요', RM, RC.y + 42, 30, '#ff9aa8', { lw: 6 });
-  text(endless ? `${G.prog}미터` : `${G.prog}%`, RM, RC.y + 92, 44, '#ffffff');
+  text(endless ? `${G.prog}미터` : `${G.prog}%`, RM, RC.y + 86, 44, '#ffffff');
   if (!endless) {
-    const by = RC.y + 124;
+    const by = RC.y + 116; // 아래 점수 줄과 18 띄움
     ctx.fillStyle = 'rgba(255,255,255,.12)'; rr(RL, by, RR - RL, 12, 6); ctx.fill();
     ctx.fillStyle = C.blueD; rr(RL, by, Math.max(12, (RR - RL) * G.prog / 100), 12, 6); ctx.fill();
     if (G.prevBest > 0) { const fx2 = RL + (RR - RL) * Math.min(1, G.prevBest / 100); ctx.fillStyle = C.yellow; ctx.fillRect(fx2 - 2, by - 5, 4, 22); }
@@ -1254,28 +1263,38 @@ function drawClear() {
   if (save.diff === 2) icon('e_crown', RM + 120, RC.y + 34, 26, Math.sin(T * 4) * 0.1);
   drawScoreBlock(RC.y + 96);
   const labels = ['도착', '진주 70%', '안 맞기'];
-  for (let i = 0; i < 3; i++) {
-    const x = RM + (i - 1) * 110, y = RC.y + 158, shown = i < G.starShown, got = G.starGot[i];
+  for (let i = 0; i < 3; i++) { // 시안: 큰 별 셋(가운데가 조금 높게), 글자는 별 아래 띄워서
+    const x = RM + (i - 1) * 118, y = RC.y + 162 - (i === 1 ? 6 : 0), shown = i < G.starShown, got = G.starGot[i];
     const age = endT - STAR_AT[i], sc = shown ? (got ? 1 + Math.max(0, 0.6 - age * 3) : 1) : 0;
-    drawStar(x, y, 20, false);
-    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawStar(0, 0, 20, true); ctx.restore(); }
-    text(labels[i], x, y + 26, 12, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
+    drawStar(x, y, 27, false);
+    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawStar(0, 0, 27, true); ctx.restore(); }
+    text(labels[i], x, RC.y + 202, 13, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
   }
-  cardDivider(RC.y + 194);
-  // 받은 것(표): 진주는 굴러 오르고, 보너스는 하나씩 붙음
-  rewardRow(RC.y + 220, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggShown || 0}`, C.yellow, G.diffBonus ? `난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus}` : '');
+  cardDivider(RC.y + 220);
+  // 받은 것(표): 진주는 굴러 오르고, 보너스는 하나씩 붙음 — 보너스 칸이 판 폭을 넘으면 다음 줄로
+  rewardRow(RC.y + 244, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggShown || 0}`, C.yellow, G.diffBonus ? `난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus}` : '');
+  // 보너스 칸은 한 줄만: 넘치면 남은 것을 「그 밖 +합계」 하나로 묶음(아래 줄·단추와 안 겹치게)
+  const shownS = (G.settle || []).filter((it, i) => endT - (EGG_AT + 0.5 + i * 0.35) >= 0), chips = [];
+  { let used = 0; const room = RR - (RL + 34);
+    for (let i = 0; i < shownS.length; i++) {
+      const it = shownS[i], lab = `${it.s} +${it.v}`, w = measureW(lab, 12) + 20, rest = shownS.slice(i + 1).reduce((t, o) => t + o.v, 0);
+      const restW = rest ? measureW(`그 밖 +${rest}`, 12) + 28 : 0;
+      if (used + w + (i < shownS.length - 1 ? restW : 0) > room && chips.length) { const sum = shownS.slice(i).reduce((t, o) => t + o.v, 0); chips.push({ lab: `그 밖 +${sum}`, w: measureW(`그 밖 +${sum}`, 12) + 20, i }); break; }
+      chips.push({ lab, w, i }); used += w + 8;
+    } }
   let px = RL + 34;
-  (G.settle || []).forEach((it, i) => {
-    const age = endT - (EGG_AT + 0.5 + i * 0.35); if (age < 0) return;
-    if (!it.played) { it.played = true; snd('count', 0.8, 1 + i * 0.12); haptic(10); }
-    const label = `${it.s} +${it.v}`, w = measureW(label, 12) + 20, s2 = age < 0.12 ? 0.6 + (age / 0.12) * 0.4 : 1;
-    ctx.save(); ctx.translate(px + w / 2, RC.y + 248); ctx.scale(s2, s2);
-    ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(-w / 2, -11, w, 22, 11); ctx.fill();
-    text(label, 0, 1, 12, C.yellow, { body: true, stroke: false }); ctx.restore();
-    px += w + 8;
+  chips.forEach((c) => {
+    const it = G.settle[c.i], age = endT - (EGG_AT + 0.5 + c.i * 0.35);
+    shownS.forEach((o, k) => { if (!o.played && endT - (EGG_AT + 0.5 + k * 0.35) >= 0) { o.played = true; snd('count', 0.8, 1 + k * 0.12); haptic(10); } });
+    const s2 = age < 0.12 ? 0.6 + (age / 0.12) * 0.4 : 1;
+    ctx.save(); ctx.translate(px + c.w / 2, RC.y + 270); ctx.scale(s2, s2);
+    ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(-c.w / 2, -11, c.w, 22, 11); ctx.fill();
+    text(c.lab, 0, 1, 12, C.yellow, { body: true, stroke: false }); ctx.restore();
+    px += c.w + 8;
   });
-  rewardRow(RC.y + 282, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
-  if (G.appEgg) rewardRow(RC.y + 316, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : '오늘 3판 다 받음');
+  const ry = RC.y + 302;
+  rewardRow(ry, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
+  if (G.appEgg) rewardRow(ry + 32, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : '오늘 3판 다 받음');
   bottomButtons('다음 바다로 ▶', () => enterMap(G.n), [['상점', () => openShop(G.n + 1)], ['다시 하기', () => startLevel(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
@@ -1306,7 +1325,7 @@ function drawEnding() {
   text('다섯 바다를 건넜어요. 느려도 괜찮았죠? 포기하지 않았으니까요.', 480, 114, 20, '#ffffff', { body: true });
   if (endT > 2 && ti >= ENDING_TALK.length) {
     text('끝없는 바다·어려움 왕관에 도전해 보세요!', 480, 430, 16, C.text, { body: true, stroke: false });
-    button(330, 452, 300, 56, '지도로', () => enterMap(), { size: 22 });
+    button(330, 452, 300, 56, '지도로', () => enterMap(), { size: 22, kind: 'yellow' });
   }
 }
 function drawPause() {
@@ -1423,7 +1442,7 @@ function drawResultOverlay() {
     wrapText(full.slice(0, Math.floor(G.letterShow.shown)), 500, 19).forEach((l, i) => text(l, -250, -64 + i * lh, 19, '#4a3a2a', { align: 'left', body: true, stroke: false }));
     if (G.letterShow.shown >= full.length) text('— 공주 거북', 250, 150, 17, '#b24a7a', { align: 'right', stroke: false });
     ctx.restore();
-    if (G.letterShow.shown >= full.length && t > 0.8) button(380, 486, 200, 44, '편지 접기', closeResultOverlay, { size: 16 });
+    if (G.letterShow.shown >= full.length && t > 0.8) button(380, 486, 200, 44, '편지 접기', closeResultOverlay, { size: 16, kind: 'yellow' });
     return;
   }
   const lv = G.lvUps[0], perk = LV_PERKS[lv];
@@ -1448,7 +1467,7 @@ function drawResultOverlay() {
     const nx = Object.keys(LV_PERKS).map(Number).find((k) => k > lv);
     if (nx) text(`Lv ${nx} 에 「${LV_PERKS[nx].name}」`, 570, 366, 16, C.sub, { body: true, stroke: false });
   }
-  if (t > 0.7) button(430, 430, 280, 56, '좋아요!', closeResultOverlay, { size: 21 });
+  if (t > 0.7) button(430, 430, 280, 56, '좋아요!', closeResultOverlay, { size: 21, kind: 'yellow' });
 }
 
 // ───────── 마지막: 다시 만난 둘의 대화 ─────────
