@@ -1817,8 +1817,11 @@ function drawHUD() {
     const a = Math.min(1, G.intro / 0.4, (2.8 - G.intro) / 0.3);
     ctx.save(); ctx.globalAlpha = a;
     if (!endless && n % 10 === 1) text(`제${(n - 1) / 10 + 1}장 · ${worldOf(n).name}`, W / 2, H / 2 - 104, 24, C.yellow, { lw: 6 });
-    text(endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, W / 2, H / 2 - 54, 38, '#ffffff');
-    wrapText(STAGES[n].tip, 760, 20).forEach((l, i) => text(l, W / 2, H / 2 + i * 30, 20, C.text, { body: true }));
+    const ttl = endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, pin = 0.85 + 0.15 * easeOutBack(Math.min(1, (4.4 - G.intro) / 0.5 || 1)); // 리본 띠가 톡 튀어나옴
+    ctx.save(); ctx.translate(W / 2, H / 2 - 54); ctx.scale(pin, pin); if (!ribbon(0, 0, 560, ttl, 30, true)) text(ttl, 0, 0, 38, '#ffffff'); ctx.restore();
+    const tl = wrapText(STAGES[n].tip, 680, 18); ctx.font = `600 ${fs(18)}px ${FONT}`; const tw2 = Math.min(720, Math.max(...tl.map((l) => ctx.measureText(l).width)) + 48), th2 = tl.length * fs(18) * 1.45 + 20;
+    ctx.fillStyle = 'rgba(8,30,70,.55)'; rr(W / 2 - tw2 / 2, H / 2 + 2, tw2, th2, 18); ctx.fill();
+    tl.forEach((l, i) => text(l, W / 2, H / 2 + 12 + fs(18) * 1.45 * (i + 0.5), 18, '#ffffff', { body: true, stroke: false }));
     const fresh = n !== ENDLESS && STAGES[n].fresh;
     if (fresh) { const it = ENEMIES[fresh].weak; drawItemIcon(it, W / 2 - 150, H / 2 + 70, 30); text(`새 몬스터 ${ENEMIES[fresh].name} · 약점 ${ITEMS[it].name}`, W / 2 + 10, H / 2 + 70, 17, C.yellow, { body: true }); }
     else if (n === 1 && save.runs <= 2) text(G.run ? (isTouch ? '왼쪽 톡 = 점프 · 오른쪽 꾹 = 숙이기 · 위에서 밟으면 처치!' : '스페이스·↑ 점프 · ↓ 숙이기 · Shift 필살기 · E 아이템') : isTouch ? '손가락으로 끌어서 움직이고, 필살 단추를 눌러요!' : '방향키로 움직이고, 스페이스로 필살기! E로 아이템!', W / 2, H / 2 + 70, 18, C.yellow, { body: true });

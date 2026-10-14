@@ -72,7 +72,7 @@ function drawBackground(n, d) {
   g.addColorStop(0, th.top); g.addColorStop(1, th.bot);
   ctx.fillStyle = g; ctx.fillRect(-30, -30, W + 60, H + 60);
   const inRun = typeof G !== 'undefined' && G && G.run && (state === 'play' || state === 'pause' || state === 'bless' || state === 'revive' || state === 'dead' || state === 'clear');
-  const v2 = IMG['spr_bgv2_' + th.world], bgi = inRun && v2 && ready(v2) ? v2 : IMG['spr_bg' + th.world]; // 판 배경은 첫 화면과 같은 화풍(있으면)
+  const v2 = IMG['spr_bgv2_' + th.world], bgi = v2 && ready(v2) ? v2 : IMG['spr_bg' + th.world]; // 판 밖(준비 창·상점 뒤)도 첫 화면 화풍 배경 // 판 배경은 첫 화면과 같은 화풍(있으면)
   if (ready(bgi)) {
     const bh = H + 40, bw = bh * bgi.naturalWidth / bgi.naturalHeight, off = (d * 0.22) % (bw * 2);
     const src = inRun ? bgDepth(bgi, bh) : bgi; // 판 중엔 살짝 흐리고 또렷한 색(앞이 튀어나오게)

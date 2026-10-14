@@ -1414,7 +1414,8 @@ function drawDead() {
   drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 260);
   sayBubble(190, 380, 300, '느려도 괜찮아요, 포기만 하지 마세요');
   resultCard();
-  if (!ribbon(RM, RC.y + 12, 380, '쿵! 부딪혔어요', 24, true)) text('쿵! 부딪혔어요', RM, RC.y + 42, 30, '#ff9aa8', { lw: 6 });
+  const dt0 = G.fellPit ? '풍덩! 빠졌어요' : '쿵! 부딪혔어요'; // 구멍이면 빠졌다고
+  if (!ribbon(RM, RC.y + 12, 380, dt0, 24, true)) text(dt0, RM, RC.y + 42, 30, '#ff9aa8', { lw: 6 });
   text(endless ? `${G.prog}미터` : `${G.prog}%`, RM, RC.y + 86, 44, '#ffffff');
   if (!endless) {
     const by = RC.y + 116; // 아래 점수 줄과 18 띄움
@@ -1429,7 +1430,7 @@ function drawDead() {
   rewardRow(RC.y + 210, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggs}`, C.yellow, `가진 진주 ${save.eggs.toLocaleString()}`);
   rewardRow(RC.y + 244, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
   if (G.appEgg) rewardRow(RC.y + 278, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : G.appEgg.short ? '짧은 판' : '오늘 3판 다 받음');
-  const tip = G.helpNext ? '다음 판은 방패 하나를 그냥 줄게요 ♥ 같이 가요!' : HIT_TIPS[G.lastHit] || '박자에 맞춰 뛰면 타이밍이 쉬워요';
+  const tip = G.helpNext ? '다음 판은 방패 하나를 그냥 줄게요 ♥ 같이 가요!' : G.fellPit ? '구멍 바로 앞에서 톡! 발판은 끝까지 가서 뛰어요' : HIT_TIPS[G.lastHit] || '박자에 맞춰 뛰면 타이밍이 쉬워요';
   ctx.fillStyle = G.helpNext ? 'rgba(255,111,168,.16)' : 'rgba(255,213,74,.1)'; rr(RL, RC.y + 304, RR - RL, 34, 10); ctx.fill();
   text(G.helpNext ? tip : `💡 ${tip}`, RL + 14, RC.y + 322, 13, G.helpNext ? '#ffc4dc' : C.yellow, { align: 'left', body: true, stroke: false });
   ctx.restore();
@@ -1463,6 +1464,7 @@ function updateClear() { updateScoreRoll();
   while (G.starShown < 3 && endT >= STAR_AT[G.starShown]) {
     const i = G.starShown++, got = G.starGot[i];
     sfx.star(i, got);
+    if (got) snd('stomp', 0.9, 1 + i * 0.12, 0, 0.22); // 별이 쾅 박히는 순간(0.22초 뒤)
     if (got) { shake = 8 + i * 3; haptic(30 + i * 15); burst(500 + OX() + i * 110, 250, '#ffe36b', 18, 300); }
   }
 }
@@ -1481,7 +1483,14 @@ function drawScoreBlock(y) {
 function drawClear() {
   ctx.fillStyle = 'rgba(16,16,18,.55)'; ctx.fillRect(-OX(), 0, W, H);
   drawConfetti();
-  drawImg(IMG.cheer, 190, 220 + Math.abs(Math.sin(T * 4)) * -14, 250);
+  { // 승리 동작(코덱스) + 뒤에서 도는 빛줄기 — 옷·변신이면 그 모습으로
+    ctx.save(); ctx.translate(190, 230); ctx.rotate(T * 0.5); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = 'rgba(255,215,90,.13)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-26, -230); ctx.lineTo(26, -230); ctx.fill(); }
+    ctx.restore();
+    const plain = (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')), hop = Math.abs(Math.sin(T * 4)) * -16, sq = 1 + Math.sin(T * 8) * 0.03;
+    const im = plain && ready(IMG.pose_hero_win) ? IMG.pose_hero_win : (typeof formImg === 'function' && formImg()) || IMG.cheer;
+    ctx.save(); ctx.translate(190, 230 + hop); ctx.scale(1 / sq, sq); drawImg(im, 0, 0, 260); ctx.restore();
+  }
   if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 320 + Math.abs(Math.sin(T * 4 + 1)) * -10, 62);
   sayBubble(190, 370, 300, BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], '#ffd1ef');
   resultCard();
@@ -1491,9 +1500,12 @@ function drawClear() {
   const labels = ['도착', '진주 70%', '안 맞기'];
   for (let i = 0; i < 3; i++) { // 시안: 큰 별 셋(가운데가 조금 높게), 글자는 별 아래 띄워서
     const x = RM + (i - 1) * 118, y = RC.y + 162 - (i === 1 ? 6 : 0), shown = i < G.starShown, got = G.starGot[i];
-    const age = endT - STAR_AT[i], sc = shown ? (got ? 1 + Math.max(0, 0.6 - age * 3) : 1) : 0;
+    const age = endT - STAR_AT[i], k = clamp(age / 0.22, 0, 1), sc = shown ? (got ? (age < 0.22 ? 2.4 - k * 1.4 : 1 + Math.max(0, 0.12 - (age - 0.22)) * 1.5) : 1) : 0; // 쾅: 크게 위에서 떨어져 박힘 → 살짝 튐
     drawStar(x, y, 27, false);
-    if (shown && got) { ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc); drawStar(0, 0, 27, true); ctx.restore(); }
+    if (shown && got) {
+      if (age >= 0.22 && age < 0.7) { const a2 = 1 - (age - 0.22) / 0.48; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a2; ctx.strokeStyle = '#ffe36b'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, 30 + (1 - a2) * 40, 0, Math.PI * 2); ctx.stroke(); for (let r2 = 0; r2 < 8; r2++) { const an = r2 * Math.PI / 4; drawImg(IMG.spr_fx_spark, x + Math.cos(an) * (34 + (1 - a2) * 36), y + Math.sin(an) * (34 + (1 - a2) * 36), 18, an, a2); } ctx.restore(); }
+      ctx.save(); ctx.translate(x, y); ctx.rotate(age < 0.22 ? (1 - k) * -0.6 : 0); ctx.scale(sc, sc); ctx.globalAlpha = Math.min(1, 0.4 + k); drawStar(0, 0, 27, true); ctx.restore();
+    }
     text(labels[i], x, RC.y + 202, 13, shown && got ? C.yellow : C.sub, { body: true, stroke: false });
   }
   cardDivider(RC.y + 220);

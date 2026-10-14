@@ -38,7 +38,7 @@ function runInit() {
   G.letterAt = [0.14, 0.36, 0.58, 0.8].map((k) => G.cfg.length * k);
   G.touch = { j: null, s: null };
   if (!G.cfg.boss && !G.cfg.endless && !G.tut) G.chaser = { x: -200, flee: 0, until: 3.5, intro: true }; // 출발하자마자 뒤에서 상어가 쫓아옴(그림만, 3.5초 뒤 지쳐서 감)
-  setTimeout(() => ameliaSay(pick(['터틀아, 힘내!', '오늘도 같이 달리자!', '기다릴게, 터틀!']), 'cheer', true), 900);
+  setTimeout(() => ameliaSay(pick(['터틀아, 힘내!', '오늘도 같이 달리자!', '기다릴게, 터틀!']), 'cheer', true), 3300);
   if (hasPerk('boostStart')) G.boost = Math.max(G.boost, 25);
   if (hasPerk('shieldStart')) G.shield++;
   Object.assign(p, { fy: GROUND, vy: 0, onG: true, jumps: 0, slide: false, slideHold: false, holdJ: false, buf: 0, coyote: 0, land: 0, spin: 0, r: STAND_R, airT: 0 });
