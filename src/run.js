@@ -6,6 +6,9 @@
 const GROUND = SEABED - 2;                 // 발이 닿는 바닥
 const PX = () => 230 + SAFE;               // 거북이 가로 자리(고정)
 const GRAV = 2700, JUMP_V = 900, JUMP2_V = 800, FALL_MAX = 1050;
+// 세계마다 물의 느낌(높이는 같고 떠 있는 시간만 다름): 깊은 바다·심연은 둥실, 얼음 불꽃은 탱탱 — 패턴은 jumpW 로 저절로 맞춰짐
+const WORLD_FLOAT = [1, 1, 0.8, 1.15, 1, 0.88];
+const flo = () => (G && G.run && !G.cfg.endless ? WORLD_FLOAT[Math.floor((G.n - 1) / 10) + 1] || 1 : 1);
 const STAND_R = 28, SLIDE_R = 16;          // 서 있을 때·숙였을 때 몸 판정
 const HEAD_Y = GROUND - 66;                // 머리 높이 줄(숙여야 피함)
 const runMode = () => save.ctrl !== 'swim';
@@ -78,7 +81,7 @@ function doJump(first) {
   const p = G.p;
   const k = (G.grabT > 0 ? 0.72 : 1) * (G.eff.giant > 0 ? 1.06 : 1) * (1 + abStar('jump') * 0.06);
   if (first && p.onG) beatJudge(); // 땅에서 뛸 때 박자 판정
-  p.vy = -(first ? JUMP_V : JUMP2_V) * k * (p.holdJ ? 1 : 0.62);
+  p.vy = -(first ? JUMP_V : JUMP2_V) * k * (p.holdJ ? 1 : 0.62) * Math.sqrt(flo());
   p.jumps = first ? 1 : Math.max(2, p.jumps + 1); // 발판에서 떨어진 뒤 공중 점프는 두 번째로 셈
   p.onG = false; p.coyote = 0; p.buf = 0; p.slide = false; p.bounced = false;
   if (first) {
@@ -133,8 +136,8 @@ function runMove(dt) {
     else p.buf -= dt;
   }
   // 중력: 꾹 누르고 올라가는 중엔 살짝 덜 당김(높이 조절), 질주 중엔 사뿐
-  const g = GRAV * (p.vy < 0 && p.holdJ ? 0.8 : 1) * (G.boosting > 0 ? 0.85 : 1);
-  p.vy = Math.min(FALL_MAX * (p.slideHold ? 1.3 : 1), p.vy + g * dt);
+  const g = GRAV * flo() * (p.vy < 0 && p.holdJ ? 0.8 : 1) * (G.boosting > 0 ? 0.85 : 1);
+  p.vy = Math.min(FALL_MAX * Math.sqrt(flo()) * (p.slideHold ? 1.3 : 1), p.vy + g * dt);
   const prevF = p.fy, vyNow = p.vy;
   p.fy += p.vy * dt;
   const sc = p.scale, topNow = p.fy - STAND_R * 2 * sc;
@@ -206,7 +209,7 @@ function stompBoss(b) {
 
 // ───────── 코스: 패턴을 이어 붙인다 (곡의 마디처럼 — 쉬운 곳·몰아치는 곳이 번갈아) ─────────
 const runSpd = () => G.cfg.speed * G.slowMul;
-const jumpW = () => runSpd() * 0.74;            // 한 번 점프로 날아가는 가로 길이
+const jumpW = () => runSpd() * 0.74 / Math.sqrt(flo());            // 한 번 점프로 날아가는 가로 길이
 const GC = () => GROUND - STAND_R;               // 서 있을 때 몸 가운데 높이
 const REACT = () => runSpd() * 0.45;            // 한 동작이 끝나고 다음 위험까지 최소 거리(0.45초 = 착지 + 사람 반응)
 // 길잡이는 「물방울 구슬」(돈 아님: 연속·질주·바다 축제 게이지만), 진짜 알은 타이밍이 맞아야 닿는 곳(점프 꼭대기·위험한 길)에만
@@ -294,16 +297,110 @@ const PATS = [
     eggArc(x, w * 1.5, 240, 9, true); if (G.tut) G.tut.dbl = true; return w * 0.3 + span + REACT();
   }],
   ['tutPotion', 99, 0, (x) => { G.eggsArr.push({ x: x + 200, y: GROUND - 70, potion: 's', t: 0, tut: true }); eggLine(x, 4, GC()); return 320; }], // 튜토리얼: 기운 물약
+  // ── 판마다 다른 맛: 대표 패턴(STAGE_STYLE 의 sig 로만 나옴) ──
+  ['kelpSteps', 99, 1, (x) => { // 해초 계단: 세 칸 올라가며 진주, 아래는 가시
+    plat(x, 170, GROUND - 96); plat(x + 230, 170, GROUND - 166); plat(x + 460, 190, GROUND - 236);
+    eggLine(x + 20, 3, GROUND - 126, 50); eggLine(x + 250, 3, GROUND - 196, 50); eggLine(x + 480, 3, GROUND - 266, 50, 2);
+    spike(x + 200); spike(x + 430); return 690;
+  }],
+  ['duckJump', 99, 1, (x) => { // 숙이기 → 점프 → 숙이기
+    const w = jumpW(), s1 = x + 30 + 64 + REACT() + w * 0.35, p2 = s1 + w * 0.5 + REACT();
+    pillar(x + 30, 64); eggLine(x, 3, GROUND - 16, 40); spike(s1); eggArc(s1 - w * 0.5, w); pillar(p2, 64); eggLine(p2 - 30, 3, GROUND - 16, 40);
+    return p2 + 100 - x;
+  }],
+  ['jellyField', 99, 1, (x) => { // 긴 가시밭: 이단 점프 또는 가운데 해파리 밟기
+    const w = jumpW(), span = w * 0.95; for (let i = 0; i < 7; i++) spike(x + w * 0.3 + i * span / 6);
+    mon('jelly', x + w * 0.3 + span * 0.5, GROUND - 150, { amp: 8, vx: 0, noSp: true, ph: 0 });
+    eggArc(x, w * 1.5, 240, 9, true); return w * 0.3 + span + REACT();
+  }],
+  ['rockRow', 99, 1, (x) => { const w = jumpW(), g = w + REACT(); rockAt(x + 120); rockAt(x + 120 + g); eggArc(x - 10, w * 1.05, 175, 6); eggArc(x - 10 + g, w * 1.05, 175, 6); return 120 + g + w * 0.7; }], // 바위 두 개: 넘거나 밟아 부수기
+  ['zigzag', 99, 1, (x) => { // 높고 낮은 발판 지그재그
+    plat(x, 150, GROUND - 140); plat(x + 250, 150, GROUND - 70); plat(x + 500, 150, GROUND - 170);
+    eggLine(x + 15, 3, GROUND - 170, 46); eggLine(x + 265, 3, GROUND - 100, 46); eggLine(x + 515, 3, GROUND - 200, 46, 2);
+    return 680;
+  }],
+  ['treasure', 99, 1, (x) => { const w = jumpW(); qblock(x + w * 0.4); qblock(x + w * 0.4 + 96); rockAt(x + w * 0.4 + 260, 'chest'); for (let i = 0; i < 3; i++) pearl(x + w * 0.4 - 40 + i * 48, GC()); return w * 0.4 + 380; }], // 보물: ? 조개 두 개 + 상자
+  ['pearlWave', 99, 1, (x) => { for (let i = 0; i < 11; i++) pearl(x + i * 46, GROUND - 34 - Math.sin(i / 10 * Math.PI) * 150); return 520; }], // 쉬어 가는 진주 물결(뛰면서 줍기)
+  ['spikeRhythm', 99, 1, (x) => { // 하나·둘·셋·넷 — 착지하자마자 다시 뛰는 박자 가시
+    const w = jumpW(), step = w + REACT() * 0.7; for (let i = 0; i < 4; i++) { spike(x + w * 0.5 + i * step); eggArc(x + i * step, w, 130, 5); } return w + 3 * step;
+  }],
+  ['lowCeil', 99, 1, (x) => { // 낮은 천장 가시: 톡 짧게만 뛰어야
+    const w = jumpW() * 0.62; spike(x + w * 0.5); for (let i = 0; i < 4; i++) spike(x + w * 0.05 + i * w * 0.3, GROUND - 212);
+    eggArc(x, w, 60, 5); return w + 60;
+  }],
   ['box', 1, 1, (x) => { G.boxes.push({ x: x + 140, y: GROUND - 150, t: 0 }); eggArc(x + 20, jumpW(), 150, 5); return 260; }],
 ];
 const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
+// 판마다 다른 코스(인기 게임 에피소드·인기 게임 판처럼 「그 판만의 장치」): sig = 대표 패턴 배수, enter = 몹이 나타나는 모습, tempo = 패턴 사이 간격
+// 판 한가운데쯤엔 대표 패턴 두 개로 만든 연속 구간(그 판의 하이라이트)이 한 번 나옴
+const STAGE_STYLE = {
+  1: { sig: { eggs: 2, hop: 1.5, pearlWave: 3 }, tempo: 1.1 },
+  2: { sig: { kelpSteps: 4, shark: 1.5 }, enter: 'rise' },
+  3: { sig: { rock: 3, chest: 3, rockRow: 3 }, enter: 'drop' },
+  4: { sig: { stomp: 4, jellyField: 3 }, enter: 'pop' },
+  5: { sig: { rockRow: 3, hop2: 2 }, enter: 'rise' },
+  6: { sig: { spikeRhythm: 4, pearlWave: 2, zigzag: 2 }, enter: 'pop' },
+  7: { sig: { duck: 3, duckJump: 4 }, enter: 'drop' },
+  8: { sig: { highRoad: 3, eggs: 2 }, enter: 'rise' },
+  9: { sig: { highRoad: 4, stairs: 3, zigzag: 2 }, enter: 'swoop' },
+  10: { sig: { duckLong: 3, duck: 2 }, enter: 'drop' },
+  11: { sig: { stairs: 3, kelpSteps: 3, zigzag: 3 }, enter: 'swoop' },
+  12: { sig: { jellyField: 3, spikeRhythm: 2 }, enter: 'pop' },
+  13: { sig: { stomp: 5, jellyField: 4 }, enter: 'pop' },
+  14: { sig: { angler: 2, highRoad: 2 }, enter: 'rise' },
+  15: { sig: { duckJump: 3 }, enter: 'rise' },
+  16: { sig: { ray: 2, duckLong: 2, lowCeil: 2 }, enter: 'swoop' },
+  17: { sig: { rockRow: 3, chest: 3, treasure: 3 }, enter: 'drop' },
+  18: { sig: { ray: 1.5, spikeRhythm: 3 }, tempo: 0.88, enter: 'swoop' },
+  19: { sig: { duckJump: 3, lowCeil: 3 }, enter: 'pop' },
+  20: { sig: { hop2: 2, spikeRhythm: 2 }, enter: 'swoop' },
+  21: { sig: { crab: 2, kelpSteps: 3 }, enter: 'drop' },
+  22: { sig: { spikeRhythm: 3, hop2: 3 }, tempo: 0.85, enter: 'pop' },
+  23: { sig: { shortHop: 5, lowCeil: 3 }, enter: 'pop' },
+  24: { sig: { duckLong: 3, duckJump: 3 }, enter: 'rise' },
+  25: { sig: { stomp: 3, jellyField: 2 }, enter: 'pop' },
+  26: { sig: { gauntlet: 4, spikeRhythm: 2 }, tempo: 0.88, enter: 'rise' },
+  27: { sig: { lowCeil: 3, duck: 3 }, enter: 'drop' },
+  28: { sig: { shortHop: 3, rockRow: 2 }, enter: 'drop' },
+  29: { sig: { gauntlet: 3, stairs: 2 }, enter: 'swoop' },
+  30: { sig: { duckJump: 2, rockRow: 2 }, enter: 'drop' },
+  31: { sig: { pearlWave: 4, hop: 2 }, enter: 'rise' },
+  32: { sig: { sword: 2, duckJump: 2 }, enter: 'swoop' },
+  33: { sig: { qblock: 4, treasure: 4, chest: 3 }, enter: 'drop' },
+  34: { sig: { highRoad: 4, treasure: 3 }, enter: 'pop' },
+  35: { sig: { duckJump: 2, octo: 2 }, enter: 'drop' },
+  36: { sig: { shortHop: 3, sword: 2 }, enter: 'drop' },
+  37: { sig: { zigzag: 4, jellyField: 2 }, enter: 'pop' },
+  38: { sig: { duckJump: 4, lowCeil: 3 }, tempo: 0.9, enter: 'rise' },
+  39: { sig: { angler: 2, treasure: 2 }, enter: 'rise' },
+  40: { sig: { highRoad: 2, treasure: 2 }, enter: 'pop' },
+  41: { sig: { stairs: 3, kelpSteps: 3 }, enter: 'swoop' },
+  42: { sig: { phantom: 2, stomp: 2 }, enter: 'pop' },
+  43: { sig: { duck: 3, duckLong: 3, rockRow: 2 }, enter: 'drop' },
+  44: { sig: { duckJump: 3, lowCeil: 3 }, enter: 'rise' },
+  45: { sig: { rockRow: 3, spikeRhythm: 2 }, enter: 'rise' },
+  46: { sig: { jellyField: 3, spikeRhythm: 3 }, enter: 'pop' },
+  47: { sig: { zigzag: 3, highRoad: 3 }, tempo: 1.1, enter: 'swoop' },
+  48: { sig: { gauntlet: 5 }, tempo: 0.85, enter: 'drop' },
+  49: { sig: { stairs: 3, treasure: 2, pearlWave: 2 }, enter: 'swoop' },
+  50: { sig: { gauntlet: 2, duckJump: 2, spikeRhythm: 2 }, enter: 'drop' },
+};
+const NEW_PATS = new Set(['kelpSteps', 'duckJump', 'jellyField', 'rockRow', 'zigzag', 'treasure', 'pearlWave', 'spikeRhythm', 'lowCeil']);
+const styleOf = () => (G.cfg.endless ? {} : STAGE_STYLE[G.n] || {});
+function setPiece() { // 대표 패턴 둘을 A·B·A 로
+  const sig = Object.entries(styleOf().sig || {}).filter(([k]) => PAT_BY[k] && (PAT_BY[k][1] <= G.n || NEW_PATS.has(k)) && (!PAT_BY[k][4] || has(PAT_BY[k][4]))).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  if (!sig.length) return [];
+  const a = sig[0], b = sig[1] || sig[0];
+  return [a, b, a];
+}
 function choosePat() {
   const n = G.cfg.endless ? Math.min(50, 8 + Math.floor(G.dist / 1500)) : G.n;
-  const list = PATS.filter(([id, from, , , need]) => from <= n && id !== G.lastPat && (!need || has(need)));
-  // 새 몬스터 판이면 그 몬스터 패턴을 자주
+  const sig = styleOf().sig || {};
+  const list = PATS.filter(([id, from, , , need]) => (from <= n || sig[id] || (G.cfg.endless && NEW_PATS.has(id) && n >= 15)) && id !== G.lastPat && (!need || has(need)));
+  // 새 몬스터 판이면 그 몬스터 패턴을 자주 · 그 판 대표 패턴도 자주
   const fresh = !G.cfg.endless && STAGES[G.n].fresh;
   let sum = 0;
-  const ws = list.map((p) => { const w = p[2] * (fresh && p[4] === fresh ? 4 : 1) * (p[1] > n - 4 && p[1] > 1 ? 1.4 : 1); sum += w; return w; });
+  const ws = list.map((p) => { const w = p[2] * (fresh && p[4] === fresh ? 4 : 1) * (p[1] > n - 4 && p[1] > 1 && p[1] < 99 ? 1.4 : 1) * (sig[p[0]] || 1); sum += w; return w; });
   let r = Math.random() * sum;
   for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
   return list[0];
@@ -317,7 +414,9 @@ function runCourse() {
     const x = G.courseAt - G.dist;
     let pat;
     if (G.tut && G.tut.seq.length) pat = PAT_BY[G.tut.seq.shift()];
+    else if (G.setQ && G.setQ.length) pat = PAT_BY[G.setQ.shift()];
     else pat = choosePat();
+    if (!G.tut && !G.setDone && !cfg.endless && G.dist + x >= cfg.length * 0.5) { G.setDone = true; G.setQ = setPiece(); } // 판 한가운데: 그 판만의 연속 구간
     const before = { e: G.enemies.length, o: G.obs.length, b: G.breaks.length, g: G.eggsArr.length, x: G.boxes.length, w: G.warns.length };
     let len = pat[3](x);
     len += snapToBeat(before); // 누를 때가 음악 박에 오게
@@ -326,7 +425,7 @@ function runCourse() {
     if (!cfg.endless && G.letterAt.length && G.dist + x >= G.letterAt[0]) { G.letterAt.shift(); letter(x + len * 0.5, GROUND - 230 - rand(0, 30)); }
     if (cfg.endless && Math.random() < 0.06) letter(x + len * 0.5, GROUND - 240);
     const n = cfg.endless ? Math.min(50, 8 + G.dist / 1500) : G.n;
-    const gapSec = clamp(0.75 - n * 0.006, 0.45, 0.75) * G.D.gap * (G.tut ? 2.2 : 1); // 패턴 사이도 최소 0.45초(착지+반응) — 실험실에서 잰 값
+    const gapSec = Math.max(0.45 * Math.min(1, G.D.gap), clamp(0.75 - n * 0.006, 0.45, 0.75) * G.D.gap * (G.tut ? 2.2 : 1) * (styleOf().tempo || 1) * (G.setQ && G.setQ.length ? 0.85 : 1)); // 패턴 사이도 최소 0.45초(착지+반응) — 실험실에서 잰 값
     G.courseAt += len + runSpd() * gapSec * rand(0.8, 1.25);
   }
 }

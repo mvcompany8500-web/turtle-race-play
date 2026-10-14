@@ -217,7 +217,7 @@ function drawNode(s, x, y, scale = 1) {
     else drawImg(IMG.spr_ui_lock, x, y + r * 0.15, r * 1.2);
     if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 16), y + Math.sin(a) * (r + 16) - 4, 9, k < stars); }
     if (save.crown[s]) icon('e_crown', x + r * 0.95, y - r * 0.95, 24);
-    if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 12, w2, 24, 12); ctx.fill(); text(nm, x, y + r + 24, 13, '#fff', { stroke: false }); }
+    if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; if (x - w2 / 2 > 0 && x + w2 / 2 < W) { ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 12, w2, 24, 12); ctx.fill(); text(nm, x, y + r + 24, 13, '#fff', { stroke: false }); } }
     return;
   }
   const nodeImg = open ? IMG.spr_node : IMG.spr_node_lock;
@@ -229,7 +229,7 @@ function drawNode(s, x, y, scale = 1) {
     if (open) text(String(s), x, y + 2, boss ? 24 : 21, stars ? C.blue : '#7a4a10', { stroke: '#ffffff', lw: 5 });
     if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 14), y + Math.sin(a) * (r + 14) + 2, 9, k < stars); }
     if (save.crown[s]) icon('e_crown', x + r * 0.95, y - r * 0.95, 24);
-    if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 10, w2, fs(13) + 8, (fs(13) + 8) / 2); ctx.fill(); text(nm, x, y + r + 14 + fs(13) / 2, 13, '#fff', { stroke: false, weight: 700 }); }
+    if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; if (x - w2 / 2 > 0 && x + w2 / 2 < W) { ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 10, w2, fs(13) + 8, (fs(13) + 8) / 2); ctx.fill(); text(nm, x, y + r + 14 + fs(13) / 2, 13, '#fff', { stroke: false, weight: 700 }); } }
     return;
   }
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(x, y + r * 0.7, r * 0.95, r * 0.35, 0, 0, Math.PI * 2); ctx.fill();
@@ -245,7 +245,7 @@ function drawNode(s, x, y, scale = 1) {
   else icon('e_lock', x, y, r * 1.05);
   if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 12), y + Math.sin(a) * (r + 12) + 2, 8, k < stars); }
   if (save.crown[s]) icon('e_crown', x + r * 0.9, y - r * 0.9, 22);
-  if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 8, w2, fs(13) + 8, (fs(13) + 8) / 2); ctx.fill(); text(nm, x, y + r + 12 + fs(13) / 2, 13, '#fff', { stroke: false, weight: 700 }); }
+  if (boss && open) { const nm = (BOSS_DEF[st.boss] || {}).name || ''; ctx.font = `700 ${fs(13)}px ${FONT}`; const w2 = ctx.measureText(nm).width + 18; if (x - w2 / 2 > 0 && x + w2 / 2 < W) { ctx.fillStyle = 'rgba(240,68,82,.92)'; rr(x - w2 / 2, y + r + 8, w2, fs(13) + 8, (fs(13) + 8) / 2); ctx.fill(); text(nm, x, y + r + 12 + fs(13) / 2, 13, '#fff', { stroke: false, weight: 700 }); } }
 }
 // 지도 그림 왼쪽 끝 14%를 투명하게 풀어 둔 판(뒤집은 것도 따로) — 이음새 없애기
 const featherCache = new Map();
@@ -337,7 +337,7 @@ function drawMap() {
     const e = nodePos(0), ex = e.x - cam;
     for (let k = 1; k < 6; k++) { const t = k / 6; drawPearl(lerp(ex, pts[0].x - cam, t), lerp(e.y, pts[0].y, t), 11); } // 진주 길로 1번 바다와 이음
     if (!drawImg(IMG.spr_endless_portal, ex, e.y, 96, Math.sin(T * 1.5) * 0.05)) { ctx.save(); ctx.translate(ex, e.y); ctx.rotate(T * 2); for (let i = 0; i < 3; i++) { ctx.strokeStyle = ['#7cf0ff', '#b48bff', '#ffffff'][i]; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, 16 + i * 9, i, i + 4.2); ctx.stroke(); } ctx.restore(); }
-    text('끝없는 바다', ex, e.y + 52, 15, '#fff', { body: true });
+    if (ex > 56) text('끝없는 바다', ex, e.y + 52, 15, '#fff', { body: true }); // 화면 끝에 걸리면 이름표는 숨김
     if (save.endlessBest) text(`${save.endlessBest}미터`, ex, e.y + 74, 13, C.yellow, { body: true });
   }
   // 칸

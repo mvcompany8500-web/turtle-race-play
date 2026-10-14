@@ -184,10 +184,22 @@ function dexKill(type) {
 }
 
 // ───────── 적 ─────────
+// 등장 모습(그리기만 움직임): drop 위에서 쿵 · rise 모래에서 쑥 · pop 뽕 커짐 · swoop 오른쪽 위에서 사선으로
+function entOff(e) {
+  const o = { dx: 0, dy: 0, sx: 1, sy: 1, a: 1, rot: 0 }; if (!e.ent) return o;
+  const t = e.ent.t; if (t < 0) { o.a = 0; return o; }
+  const k = Math.min(1, t / 0.38), ob = easeOutBack(k), out = 1 - Math.pow(1 - k, 3);
+  if (e.ent.k === 'drop') { o.dy = -(1 - k * k) * 420; if (t > 0.38) { const q = Math.min(1, (t - 0.38) / 0.2); o.sy = 1 - 0.28 * Math.sin(q * Math.PI); o.sx = 1 + 0.22 * Math.sin(q * Math.PI); } }
+  else if (e.ent.k === 'rise') { o.dy = (1 - ob) * 80; o.a = Math.min(1, k * 2.5); o.sy = 0.7 + 0.3 * ob; }
+  else if (e.ent.k === 'pop') { o.sx = o.sy = Math.max(0.01, ob); }
+  else if (e.ent.k === 'swoop') { o.dx = (1 - out) * 180; o.dy = -(1 - out) * 200; o.rot = -(1 - out) * 0.6; o.a = Math.min(1, k * 3); }
+  return o;
+}
 function addEnemy(e) {
   const base = (ENEMIES[e.type] || {}).hp || 2;
   e.hp = e.maxHp = base * (e.elite ? 2 : 1) * (G.n > 30 ? 1.5 : 1);
   e.hitT = 0;
+  if (G.run && typeof styleOf === 'function' && !G.tut) { const en = styleOf().enter; if (en) e.ent = { k: en === 'rise' && e.y < GROUND - 100 ? 'drop' : en, t: -1 }; } // 판마다 다른 등장
   G.enemies.push(e);
   return e;
 }
@@ -1048,6 +1060,17 @@ function updatePlay(dt) {
   if (G.run) { updateObs(dt, scroll); updateTutor(); }
   updateShooting(dt, scroll);
   for (const e of G.enemies) {
+    if (e.ent) { // 판마다 다른 등장: 거북이 앞 1.5초 거리에서 시작, 0.38초
+      if (e.ent.t < 0 && e.x - p.x < Math.max(560, runSpd() * 1.5)) {
+        e.ent.t = 0;
+        if (e.ent.k === 'rise') { for (let i = 0; i < 10; i++) fx.push({ k: 'spark', x: e.x + rand(-18, 18), y: GROUND - 2, vx: rand(-120, 120), vy: rand(-260, -80), life: 0.4, max: 0.4, size: rand(3, 5), color: '#e9d9a8' }); }
+        else if (e.ent.k === 'pop') ring(e.x, e.y, '#ffffff', 50, 0.3, 4);
+      } else if (e.ent.t >= 0) {
+        const was = e.ent.t; e.ent.t += dt;
+        if (e.ent.k === 'drop' && was < 0.38 && e.ent.t >= 0.38) { shake = Math.max(shake, 3); for (let i = 0; i < 8; i++) fx.push({ k: 'bub', x: e.x + rand(-20, 20), y: e.y + e.r, vx: rand(-140, 140), vy: rand(-90, -20), life: 0.4, max: 0.4, size: rand(2, 4) }); }
+        if (e.ent.t > 0.7) e.ent = null;
+      }
+    }
     e.frozen = E.freeze > 0;
     if (e.x < W) dexSee(e.type);
     if (e.stun > 0) { e.stun -= dt; e.x -= scroll * dt; continue; }
@@ -1381,7 +1404,8 @@ function drawWorld() {
       }
     }
     const jx = winding ? rand(-4, 4) * (0.4 + k) : 0, sc = ES * (winding ? 1 + k * 0.25 : 1) * (e.type === 'whirlpool' && e.big > 0 ? 1.9 : 1);
-    ctx.save(); ctx.translate(e.x + jx, e.y); ctx.scale(sc, sc); if (e.spin > 0) ctx.rotate(e.spin * 12); ctx.translate(-e.x, -e.y);
+    const en = entOff(e); if (en.a <= 0) continue;
+    ctx.save(); ctx.globalAlpha *= en.a; ctx.translate(e.x + jx + en.dx, e.y + en.dy); ctx.scale(sc * en.sx, sc * en.sy); if (e.spin > 0 || en.rot) ctx.rotate(e.spin > 0 ? e.spin * 12 : en.rot); ctx.translate(-e.x, -e.y);
     drawEnemy(e, p.x, p.y);
     ctx.restore();
     if (e.rage > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(255,40,60,.9)'; ctx.beginPath(); ctx.arc(e.x - 30, e.y - 8, 6 + Math.sin(T * 30) * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
