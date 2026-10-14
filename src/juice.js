@@ -174,7 +174,9 @@ function drawTaunt() {
 }
 // 체력바: 잔상(흰) → 빨강 그라데이션, 10칸, 30% 아래 맥동, 맞으면 떨림, 왼쪽 얼굴
 function drawBossBar(b) {
-  const w = Math.min(520, W - 2 * (300 + SAFE)), x = W / 2 - w / 2, y = 22, h = 22; // 왼쪽 기운 막대와 안 겹치게
+  // 왼쪽 기운 막대(+방패·난이도 표시) 끝과 오른쪽 점수 칸 사이에 14씩 띄워 넣음, 가운데 높이는 첫 줄(30)
+  const left = 22 + SAFE + 272 + (G.shield || 0) * 28 + (save.diff !== 1 ? 56 : 0) + 14 + 30, right = W - SAFE - 78 - 200 - 14;
+  const w = Math.min(520, right - left), x = left + Math.max(0, (right - left - w) / 2), y = 19, h = 22;
   const jolt = T - (b.barT || -9) < 0.24 ? 5 * (1 - (T - b.barT) / 0.24) : 0, jx = jolt ? rand(-jolt, jolt) : 0, jy = jolt ? rand(-jolt, jolt) * 0.5 : 0;
   ctx.save(); ctx.translate(jx, jy);
   ctx.fillStyle = 'rgba(8,10,30,.82)'; rr(x, y, w, h, 10); ctx.fill();
