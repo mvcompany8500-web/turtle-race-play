@@ -653,7 +653,7 @@ function updateTutor() {
   const p = G.p;
   // 이단 점프 안내: 긴 가시밭 위 꼭대기에서 멈춤
   if (tu.dbl && !p.onG && !p.dead && p.jumps === 1 && p.vy > -140 && G.enemies.some((e) => !e.dead && e.type === 'urchin' && e.x - p.x > -20 && e.x - p.x < 200))
-    coachOnce('double', { text: '공중에서 한 번 더 톡!', sub: '이단 점프로 긴 가시밭을 넘어요', spot: { x: SAFE + 66, y: H - 62, r: 62 }, wait: 'jump', state: 'play' });
+    coachOnce('double', { text: '공중에서 한 번 더 톡!', sub: '이단 점프로 긴 가시밭을 넘어요', spot: { x: SAFE + 66, y: H - 80, r: 62 }, wait: 'jump', state: 'play' });
   // 기운 안내: 물약이 보이면
   const pot = G.eggsArr.find((e) => e.tut && !e.got && e.x - p.x < 330);
   if (pot) coachOnce('potion', { text: '기운은 조금씩 줄어요', sub: '분홍 물약을 먹으면 다시 차요 · 부딪히면 크게 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 59, w: 270, h: 46 }, state: 'play' });
@@ -932,13 +932,25 @@ function drawRunHeroOld(face, blink, alpha) {
 function drawRunPads() {
   if (!isTouch) return;
   const tu = G.tut, jh = tu && (tu.hint === 'jump' || tu.hint === 'stomp'), sh = tu && tu.hint === 'slide';
-  const pads = [[SAFE + 66, H - 62, '점프', 'e_rocket', jh, !!G.touch.j], [W - SAFE - 66, H - 62, '숙이기', null, sh, !!G.touch.s]];
+  const pads = [[SAFE + 66, H - 80, '점프', 'e_rocket', jh, !!G.touch.j], [W - SAFE - 66, H - 80, '숙이기', null, sh, !!G.touch.s]];
   for (const [x, y, label, , hi, on] of pads) {
     const pim = IMG[label === '점프' ? 'spr_ui_pad_jump' : 'spr_ui_pad_slide'];
     if (pim && ready(pim)) { // 시안: 비눗방울 단추(코덱스)
       const sz = (hi ? 136 + Math.sin(T * 10) * 10 : 112) * (on ? 0.92 : 1);
       if (hi) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 20, x, y, sz * 0.75); g.addColorStop(0, 'rgba(255,213,74,.55)'); g.addColorStop(1, 'rgba(255,213,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, sz * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-      drawImg(pim, x, y - 8, sz, 0, hi ? 1 : on ? 0.95 : save.runs <= 6 ? 0.8 : 0.55);
+      const al = hi ? 1 : on ? 0.95 : save.runs <= 6 ? 0.85 : 0.65;
+      if (label === '점프') drawImg(pim, x, y - 8, sz, 0, al);
+      else { // 숙이기: 무늬 대신 「등딱지에 쏙 들어간 터틀이」 그림 + 아래 화살표 — 누르면 어떻게 되는지 바로 보이게
+        const r = sz * 0.4; ctx.save(); ctx.globalAlpha = al;
+        const g = ctx.createRadialGradient(x - r * 0.3, y - 8 - r * 0.35, r * 0.1, x, y - 8, r); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(0.7, 'rgba(150,215,255,.28)'); g.addColorStop(1, 'rgba(120,200,255,.45)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 8, r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3; ctx.stroke();
+        const sc = pose('hero_shell', (SIDE_STYLE[save.skin] || {}).cap); if (sc) { const hh = r * 0.95, ww = hh * sc.width / sc.height; ctx.drawImage(sc, x - ww / 2, y - 8 + r * 0.05 - hh / 2 + (on ? 3 : 0), ww, hh); }
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(x, y - 8 + r * 0.72); ctx.lineTo(x - 11, y - 8 + r * 0.46); ctx.lineTo(x + 11, y - 8 + r * 0.46); ctx.fill();
+        ctx.restore();
+      }
+      // 이름표(인기 게임처럼 단추 아래 「점프」「숙이기」) — 처음엔 또렷하게
+      ctx.save(); ctx.globalAlpha = save.runs <= 10 || hi ? 1 : 0.7; ctx.font = `800 ${fs(14)}px ${FONT}`; const lw = ctx.measureText(label).width + 22;
+      ctx.fillStyle = hi ? C.yellow : 'rgba(8,30,70,.7)'; rr(x - lw / 2, y + sz * 0.3, lw, 24, 12); ctx.fill(); text(label, x, y + sz * 0.3 + 12, 14, hi ? '#5a3000' : '#ffffff', { stroke: false }); ctx.restore();
       continue;
     }
     ctx.save();
