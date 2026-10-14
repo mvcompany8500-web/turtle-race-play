@@ -947,7 +947,7 @@ function drawShop() {
       }
       // 왼쪽: 아이콘 동그라미
       ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); ctx.arc(x + 46, y + 50, 32, 0, Math.PI * 2); ctx.fill();
-      icon(icons[u.k], x + 46, y + 50 - fl * 8, 48 * (1 + fl * 0.25), Math.sin(T * 2 + i) * 0.08);
+      if (!drawImg(IMG['spr_up_' + u.k], x + 46, y + 50 - fl * 8, 74 * (1 + fl * 0.25), Math.sin(T * 2 + i) * 0.06)) icon(icons[u.k], x + 46, y + 50 - fl * 8, 48 * (1 + fl * 0.25), Math.sin(T * 2 + i) * 0.08); // 코덱스 카드 그림(없으면 이모지)
       // 위: 이름 + 단계 배지
       const badgeTxt = save.up[u.k] >= u.max ? 'MAX' : `Lv ${save.up[u.k]}/${u.max}`; ctx.font = `800 ${fs(13)}px ${FONT}`; const bwN = ctx.measureText(badgeTxt).width + 16;
       let nsz = 18; ctx.font = `800 ${fs(nsz)}px ${FONT}`; while (nsz > 13 && ctx.measureText(u.name).width > w - 90 - 14 - bwN - 8) { nsz--; ctx.font = `800 ${fs(nsz)}px ${FONT}`; } // 긴 이름은 배지와 안 겹치게 줄임
