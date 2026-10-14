@@ -400,10 +400,15 @@ function drawMap() {
     pill(L + 160, 132, (x, y) => icon('e_gem', x, y, 26), String(save.gems), () => { openShop(map.cur === 0 ? ENDLESS : map.cur); shop.tab = 'gem'; }, null, 'gem');
     const cr = chestReady();
     pill(L + 302, 120, (x, y) => drawStar(x, y, 13, true), `${totalStars()}`, null, openChest);
-    if (cr) { const bx = L + 402, by = 14; ctx.fillStyle = C.danger; rr(bx - 26, by - 4, 52, 22, 11); ctx.fill(); text('상자!', bx, by + 7, 13, '#fff', { stroke: false }); }
-    drawLvBadge(L + 6, 62);
-    if (save.cleared) { const nc = Object.keys(save.crown || {}).length; ctx.fillStyle = 'rgba(16,30,60,.55)'; rr(L + 6, 104, 150, 30, 15); ctx.fill(); icon('e_crown', L + 26, 119, 22); text(`왕관 ${nc}/50`, L + 44, 119, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
-    if (save.streak.day) { const st2 = `출석 ${save.streak.day}일째`; ctx.font = `600 ${fs(14)}px ${FONT}`; const sw = ctx.measureText(st2).width; ctx.fillStyle = 'rgba(16,30,60,.55)'; rr(L + 164, 66, sw + 24, 30, 15); ctx.fill(); text(st2, L + 176, 81, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
+    if (cr) { // 알림 딱지: 칸 오른쪽 위 모서리에 걸침(칸 글자는 안 가림) + 살짝 통통
+      const bx = L + 302 + 120 - 8, by = 12 + Math.max(0, Math.sin(T * 6)) * -3; ctx.font = `800 ${fs(12)}px ${FONT}`; const bw = ctx.measureText('상자!').width + 14;
+      ctx.fillStyle = '#ffffff'; rr(bx - bw / 2 - 2, by - 11, bw + 4, 22, 11); ctx.fill(); ctx.fillStyle = C.danger; rr(bx - bw / 2, by - 9, bw, 18, 9); ctx.fill(); text('상자!', bx, by, 12, '#fff', { stroke: false });
+    }
+    // 둘째 줄: 레벨·출석·왕관을 같은 높이(36)·같은 남색 알약으로, 칸 사이 8
+    const chip = (x, y, w) => { ctx.fillStyle = 'rgba(8,30,70,.66)'; rr(x, y, w, 36, 18); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1.5; rr(x, y, w, 36, 18); ctx.stroke(); };
+    chip(L, 62, 150); drawLvBadge(L, 62, true);
+    if (save.streak.day) { const st2 = `출석 ${save.streak.day}일째`; ctx.font = `600 ${fs(14)}px ${FONT}`; const sw = ctx.measureText(st2).width; chip(L + 158, 62, sw + 28); text(st2, L + 172, 80, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
+    if (save.cleared) { const nc = Object.keys(save.crown || {}).length, ct = `왕관 ${nc}/50`; ctx.font = `600 ${fs(14)}px ${FONT}`; chip(L, 106, ctx.measureText(ct).width + 54); icon('e_crown', L + 20, 124, 22); text(ct, L + 38, 124, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
   } else {
   eggBadge(L + 34, 34, save.eggs, 30 * (1 + hudPulse * 1.6));
   drawLvBadge(L + 6, 62);
@@ -436,7 +441,7 @@ function drawMap() {
   ];
   const ICON_ART = ['spr_ui_ic_set', 'spr_ui_ic_shop', 'spr_ui_ic_dex', 'spr_ui_ic_mission', 'spr_ui_ic_gift', 'spr_ui_ic_pass', 'spr_ui_ic_ach'];
   if (NEWUI) btns.forEach(([label, on], i) => { // 시안대로: 동그란 유리 아이콘(코덱스) + 아래 작은 이름
-    const bx = R - 58 - i * 66, by = 8, cx = bx + 29, cy = by + 28, bob = i === 4 && gr ? Math.sin(T * 8) * 3 : 0;
+    const bx = R - 58 - i * 66, by = 5, cx = bx + 29, cy = by + 28, bob = i === 4 && gr ? Math.sin(T * 8) * 3 : 0;
     drawImg(IMG[ICON_ART[i]], cx, cy + bob, 58);
     ctx.save(); ctx.globalAlpha = 0; button(bx, by, 58, 64, '', on, {}); ctx.restore();
     if (i === 1) markSpot('shopBtn', cx, cy, 44);
@@ -1362,9 +1367,9 @@ function drawToasts() {
 }
 
 // ───────── 거북 레벨 · 결과 위에 뜨는 창(공주님 편지 → 레벨 업) ─────────
-function drawLvBadge(x, y) {
+function drawLvBadge(x, y, noBg) {
   const need = xpNeed(save.lv), k = clamp(save.xp / need, 0, 1);
-  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(x, y, 150, 36, 18); ctx.fill();
+  if (!noBg) { ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(x, y, 150, 36, 18); ctx.fill(); }
   ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x + 18, y + 18, 15, 0, Math.PI * 2); ctx.fill();
   text(String(save.lv), x + 18, y + 18, 14, '#fff', { stroke: false });
   text('거북 레벨', x + 40, y + 13, 13, '#d6dbe6', { align: 'left', body: true, stroke: false });
