@@ -99,7 +99,7 @@ function load(key, src) { const im = new Image(); im.src = src; IMG[key] = im; r
 SKINS.forEach((s) => { load('skin_' + s.k, `assets/skins/${s.k}.webp`); load('skinf_' + s.k, `assets/skins_f/${s.k}.webp`); });
 PETS.forEach((p) => load('pet_' + p.k, `assets/pets/${p.k}.webp`));
 SPRITES.forEach((k) => load('spr_' + k, `assets/sprites/${k}.webp`));
-['princess:princess.webp', 'egg:egg.png', 'comfort:comfort.png', 'cheer:cheer.png', 'hello:hello.png', 'side:side.webp', 'back:back.webp',
+['princess:sprites/amelia.webp', 'egg:egg.png', 'comfort:comfort.png', 'cheer:cheer.png', 'hello:hello.png', 'side:side.webp', 'back:back.webp',
   'e_shield:emoji/shield.png', 'e_fire:emoji/fire.png', 'e_rocket:emoji/rocket.png', 'e_trophy:emoji/trophy.png', 'e_crown:emoji/crown.png',
   'e_sparkles:emoji/sparkles.png', 'e_gem:emoji/gem_stone.png', 'e_party:emoji/party_popper.png', 'e_target:emoji/bullseye.png',
   'e_medal:emoji/1st_place_medal.png', 'e_lock:emoji/locked.png', 'e_check:emoji/check_mark_button.png', 'e_gift:emoji/gift.webp',

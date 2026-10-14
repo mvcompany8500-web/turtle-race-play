@@ -236,7 +236,7 @@ const ACH = [
   { k: 'w2', name: '깊은 바다 정복', test: () => save.unlocked > 20 || save.cleared, gems: 30 },
   { k: 'w3', name: '얼음 불꽃 바다 정복', test: () => save.unlocked > 30 || save.cleared, gems: 40 },
   { k: 'w4', name: '노을 보물섬 정복', test: () => save.unlocked > 40 || save.cleared, gems: 50 },
-  { k: 'w5', name: '공주님 구출!', test: () => save.cleared, gems: 100 },
+  { k: 'w5', name: '아멜리아 공주 구출!', test: () => save.cleared, gems: 100 },
   { k: 's30', name: '별 30개', test: () => totalStars() >= 30, gems: 20 },
   { k: 's90', name: '별 90개', test: () => totalStars() >= 90, gems: 40 },
   { k: 's150', name: '별 150개(전부)', test: () => totalStars() >= 150, gems: 100 },
@@ -329,7 +329,7 @@ const CHAPTERS = {
   4: [['hero', '상어왕이 공주님을 데리고 노을 바다로…!'], ['fish', '해적선 무덤을 지나야 해. 보물보다 공주님이 먼저지?'], ['hero', '당연하지! 느려도 끝까지 쫓아갈 거야.']],
   5: [['princess', '터틀! 여기야, 심연의 왕궁! 이번엔 진짜 가까워!'], ['king', '마지막 바다다. 여기서 포기하면 편할 텐데?'], ['hero', '포기 안 해. 한 번도 안 했어. 이번에도!']],
 };
-const STORY_WHO = { hero: '터틀이', princess: '공주 거북', king: '상어왕', fish: '반짝이' };
+const STORY_WHO = { hero: '터틀이', princess: '아멜리아 공주', king: '상어왕', fish: '반짝이' };
 let story = null;
 function chapterFor(n) { if (n === ENDLESS || n % 10 !== 1 || n === 1) return null; const w = (n - 1) / 10 + 1; return save.chapters[w] ? null : w; }
 function playStory(w, after) { story = { w, i: 0, shown: 0, t: 0, after }; state = 'story'; setMusic('title'); sfx.harp(); }

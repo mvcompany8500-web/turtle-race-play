@@ -126,7 +126,7 @@ function mapGo(target) {
   sfx.click();
 }
 function updateMap(dt) {
-  if (save.cleared && !map.overlay && stateT > 0.5) coachOnce('afterEnd', { text: '공주님을 구했어요! 다음 목표는', sub: '「어려움」으로 바다마다 왕관 모으기(50개) · 끝없는 바다 최고 기록 · 펫 키우기 · 바다 패스', spot: null, pass: true, state: 'map' });
+  if (save.cleared && !map.overlay && stateT > 0.5) coachOnce('afterEnd', { text: '아멜리아 공주를 구했어요! 다음 목표는', sub: '「어려움」으로 바다마다 왕관 모으기(50개) · 끝없는 바다 최고 기록 · 펫 키우기 · 바다 패스', spot: null, pass: true, state: 'map' });
   // 지도 초보 안내: 처음엔 「달리기!」, 첫 성공 뒤 진주가 모이면 상점
   if (!map.overlay && !map.unlock && !map.path.length && stateT > 0.8) {
     if (marks.play && !save.runs) coachOnce('map', { text: '「달리기!」를 눌러 출발해요', sub: '왼쪽 = 점프 · 오른쪽 꾹 = 숙이기', spot: marks.play, pass: true, state: 'map' });
@@ -665,20 +665,22 @@ function drawSettings() {
 // ───────── 첫 이야기: 공주 납치 ─────────
 const INTRO = [
   { who: 'princess', text: '오늘은 바다 축제 날이에요! 다 같이 신나게 놀아요~' },
-  { who: 'hero', text: '공주님! 오늘 레이스에서 꼭 1등 할게요!' },
+  { who: 'hero', text: '아멜리아 공주님! 오늘 레이스에서 꼭 1등 할게요!' },
   { who: 'shark', text: '크하하하! 축제는 끝났다!!', ev: 'sharkIn' },
-  { who: 'shark', text: '공주는 깊은 바다 끝 내 성으로 데려간다! 느림보 거북이가 따라올 수 있을까?', ev: 'grab' },
+  { who: 'shark', text: '아멜리아 공주는 깊은 바다 끝 내 성으로 데려간다! 느림보 거북이가 따라올 수 있을까?', ev: 'grab' },
   { who: 'princess', text: '꺄악! 터틀아, 살려줘요!!', ev: 'leave' },
-  { who: 'hero', text: '공주님!!! 느려도 괜찮아... 절대 포기 안 해! 다섯 바다를 건너서라도 꼭 구하러 갈게요!', ev: 'resolve' },
+  { who: null, text: '', ev: 'kidnap' }, // 큰 알림: 아멜리아 공주가 납치되었어요!
+  { who: 'hero', text: '아멜리아 공주님!!! 느려도 괜찮아... 절대 포기 안 해! 다섯 바다를 건너서라도 꼭 구하러 갈게요!', ev: 'resolve' },
   { who: null, text: '', ev: 'title' },
 ];
-const WHO = { princess: '공주 거북', hero: '터틀이', shark: '상어왕' };
+const WHO = { princess: '아멜리아 공주', hero: '터틀이', shark: '상어왕' };
 const cut = { i: 0, t: 0, shown: 0 };
 function startIntro() { state = 'intro'; cut.i = 0; cut.t = 0; cut.shown = 0; setMusic('title'); map.overlay = null; }
 function introStep(s) {
   if (s.ev === 'sharkIn') { shake = 24; flash = 0.6; flashColor = '#ff3355'; sfx.roar(); haptic([60, 40, 120]); setMusic('boss'); }
   if (s.ev === 'grab') { sfx.bubble(); shake = 8; }
   if (s.ev === 'leave') { snd('swoosh', 1, 0.7); }
+  if (s.ev === 'kidnap') { shake = 18; flash = 0.5; flashColor = '#ff3355'; sfx.warn(); snd('react', 0.9, 0.7); haptic([80, 40, 80]); }
   if (s.ev === 'resolve') { setMusic('w1'); sfx.boost(); flash = 0.3; flashColor = '#b48bff'; }
   if (s.ev === 'title') { sfx.clear(); confetti(40); }
 }
@@ -697,6 +699,7 @@ function updateIntro(dt) {
   cut.shown = Math.min(s.text.length, cut.shown + dt * 24);
   if (s.text && Math.floor(cut.shown) > before && Math.floor(cut.shown) % 2 === 0) sfx.blip(s.who);
   if (s.ev === 'title') { if (cut.t > 3.4) endIntro(); }
+  else if (s.ev === 'kidnap') { if (cut.t > 3.2) introAdvance(); }
   else if (cut.shown >= s.text.length && cut.t > s.text.length / 24 + 2.2) introAdvance();
 }
 function drawIntro() {
@@ -710,16 +713,42 @@ function drawIntro() {
     }
     ctx.globalAlpha = 1;
   }
-  let sx = 960 + 320, px = 600, py = 300, caged = false;
-  if (i >= 2) sx = i === 2 ? lerp(960 + 320, 790, easeOutBack(Math.min(1, t / 0.7))) : 790;
-  if (i >= 3) { caged = true; const k = i === 3 ? Math.min(1, t / 0.6) : 1; px = lerp(600, 660, k); py = lerp(300, 270, k); }
-  if (i >= 4) { const k = i === 4 ? t : 99; sx = 790 + Math.max(0, k - 0.8) * 560; px = sx - 130; }
-  if (px < 960 + 120) {
-    drawImg(IMG.princess, px, py + Math.sin(T * 3) * 5, 150, caged ? Math.sin(T * 8) * 0.08 : 0, 1, true);
-    if (caged && !drawImg(IMG.spr_bubble_cage, px, py, 200 + Math.sin(T * 4) * 4)) { ctx.strokeStyle = 'rgba(200,240,255,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, 88, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(200,240,255,.12)'; ctx.fill(); } // 코덱스 그림 거품 감옥
+  // 아멜리아(코덱스 표정 3가지)와 상어왕: 축제 → 등장 → 거품에 갇힘 → 끌려감
+  const pImg = (k) => { const im = IMG['spr_amelia' + (k ? '_' + k : '')]; return im && ready(im) ? im : IMG.princess; };
+  const ev = INTRO[i].ev, idx = (e) => INTRO.findIndex((x) => x.ev === e), iIn = idx('sharkIn'), iGrab = idx('grab'), iLeave = idx('leave');
+  let sx = 960 + 320, sy = 175, px = 620, py = 300, cageK = 0, pose = '', shakeP = 0;
+  if (i < iIn) { pose = i === 0 ? '' : 'cheer'; py = 300 - (i === 1 ? Math.abs(Math.sin(T * 5)) * 16 : 0); }
+  if (i >= iIn) { pose = 'scared'; shakeP = 2; sx = i === iIn ? lerp(960 + 320, 790, easeOutBack(Math.min(1, t / 0.7))) : 790; }
+  if (i === iIn) { ctx.fillStyle = `rgba(40,0,20,${Math.min(0.35, t * 0.6)})`; ctx.fillRect(-OX(), 0, W, H); } // 등장: 어두워짐
+  if (i >= iGrab) { cageK = i === iGrab ? easeOutBack(Math.min(1, t / 0.5)) : 1; const k = i === iGrab ? Math.min(1, t / 0.8) : 1; px = lerp(620, 670, k); py = lerp(300, 250, k); }
+  if (i >= iLeave) { const k = i === iLeave ? Math.max(0, t - 0.35) : 9; sx = 790 + k * 620; sy = 175 - k * 90; px = sx - 150; py = sy + 90 + Math.sin(T * 6) * 8; }
+  if (i > iLeave) { sx = 2000; px = 2000; }
+  const bob = Math.sin(T * 3) * 5, jx = shakeP ? rand(-shakeP, shakeP) : 0;
+  if (i < iIn) for (let k = 0; k < 5; k++) { const h = ((T * 0.6 + k * 0.2) % 1); ctx.globalAlpha = 1 - h; text('♥', px + 60 + Math.sin(T * 2 + k) * 14 - k * 22, py - 70 - h * 90, 18 + k * 2, '#ff8fc8', { stroke: false }); } // 하트가 떠오름
+  ctx.globalAlpha = 1;
+  if (i >= iLeave && i === iLeave && sx < 1400) { ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.moveTo(sx + 10, sy + 40); ctx.quadraticCurveTo((sx + px) / 2, sy + 140, px + 60, py - 40); ctx.stroke(); ctx.setLineDash([]); // 거품을 끄는 줄
+    for (let k = 0; k < 6; k++) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(px - 120 - k * 40 - ((T * 600) % 40), py - 40 + k * 16, 60, 2); } } // 물살 줄
+  if (px < 960 + 160) {
+    if (!cageK) { const gl = ctx.createRadialGradient(px, py + bob, 10, px, py + bob, 110); gl.addColorStop(0, 'rgba(255,255,255,.55)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(px, py + bob, 110, 0, Math.PI * 2); ctx.fill(); } // 분홍 궁전 앞에서도 또렷하게: 뒤에 흰 빛
+    drawImg(pImg(pose), px + jx, py + bob, cageK ? 160 : 185, cageK ? Math.sin(T * 8) * 0.08 : 0, 1, true);
+    if (pose === 'scared' && Math.sin(T * 5) > 0.3) { ctx.fillStyle = 'rgba(160,220,255,.9)'; ctx.beginPath(); ctx.ellipse(px + 30, py - 20 + ((T * 80) % 30), 4, 6, 0, 0, Math.PI * 2); ctx.fill(); } // 눈물
+    if (cageK > 0.02 && !drawImg(IMG.spr_bubble_cage, px, py, (200 + Math.sin(T * 4) * 4) * cageK)) { ctx.strokeStyle = 'rgba(200,240,255,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, 88 * cageK, 0, Math.PI * 2); ctx.stroke(); }
   }
-  if (i >= 2 && sx < 960 + 260 && !drawImg(IMG.spr_boss_king, sx + 60, 175 + Math.sin(T * 3) * 6, 200, Math.sin(T * 8) * 0.05)) drawShark(sx, 250, 2.7, '#8a6bd6', '#3f2a7a', true, false, true, Math.sin(T * 8) * 0.28, i === 2 || i === 3 ? 0.6 + 0.4 * Math.sin(T * 10) : 0.2); // 상어왕은 코덱스 그림으로
-  if (i <= 1) drawImg(IMG.hello, 230, 320 + Math.sin(T * 3) * 4, 200);
+  if (i >= iIn && sx < 960 + 260 && !drawImg(IMG.spr_boss_king, sx + 60, sy + Math.sin(T * 3) * 6, 200, Math.sin(T * 8) * 0.05)) drawShark(sx, 250, 2.7, '#8a6bd6', '#3f2a7a', true, false, true, Math.sin(T * 8) * 0.28, 0.6);
+  if (ev === 'kidnap') { // 큰 알림: 아멜리아 공주가 납치되었어요!
+    const a = Math.min(1, t / 0.3), z = 0.6 + 0.4 * easeOutBack(Math.min(1, t / 0.5));
+    ctx.fillStyle = `rgba(20,0,10,${0.72 * a})`; ctx.fillRect(-OX(), 0, W, H);
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(480, 250); ctx.scale(z, z);
+    const g = ctx.createRadialGradient(0, 0, 10, 0, 0, 150); g.addColorStop(0, 'rgba(255,120,160,.35)'); g.addColorStop(1, 'rgba(255,120,160,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 150, 0, Math.PI * 2); ctx.fill();
+    drawImg(pImg('scared'), Math.sin(T * 9) * 3, 6, 150, Math.sin(T * 6) * 0.06, 1, true); drawImg(IMG.spr_bubble_cage, 0, 0, 200 + Math.sin(T * 4) * 5);
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha = a;
+    if (!ribbon(480, 92, 560, '아멜리아 공주가 납치되었어요!', 26, true)) text('아멜리아 공주가 납치되었어요!', 480, 92, 34, '#ff9aa8', { lw: 8 });
+    text('상어왕이 깊은 바다 끝 성으로 데려갔어요', 480, 410, 20, '#ffffff', { lw: 5 });
+    if (t > 1.2 && Math.sin(T * 6) > -0.3) text('구하러 가요!', 480, 450, 24, C.yellow, { lw: 6 });
+    ctx.restore();
+  }
+  if (ev === 'kidnap') { /* 알림 장면: 터틀이는 숨김 */ } else if (i <= 1) drawImg(IMG.hello, 230, 320 + Math.sin(T * 3) * 4, 200);
   else if (i <= 4) drawHero(230, 330, 170, Math.sin(T * 20) * 0.03, { stand: true, face: 'scared', ph: T * 6 });
   else {
     const run = INTRO[i].ev === 'title' ? t * 520 : 0;
@@ -734,15 +763,15 @@ function drawIntro() {
     const s = 0.7 + 0.3 * easeOutBack(Math.min(1, t / 0.6));
     ctx.translate(480, 200); ctx.scale(s, s); text('터틀 레이스', 0, 0, 86, C.yellow, { lw: 12 }); ctx.restore();
     ctx.save(); ctx.globalAlpha = a;
-    text('공주 거북 구출 대작전', 480, 270, 30, '#ffffff');
+    text('아멜리아 공주 구출 대작전', 480, 270, 30, '#ffffff');
     text('느려도 괜찮아요. 포기만 하지 마세요', 480, 318, 20, C.text, { body: true });
     ctx.restore();
   }
   const s = INTRO[i];
   if (s.text) {
-    panel(40, 394, 880, 124, { fill: 'rgba(27,28,31,.94)' });
-    ctx.save(); ctx.beginPath(); ctx.arc(116, 456, 48, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.clip();
-    if (s.who === 'princess') drawImg(IMG.princess, 116, 470, 120);
+    panel(40, 394, 880, 124);
+    ctx.save(); ctx.beginPath(); ctx.arc(116, 456, 48, 0, Math.PI * 2); ctx.fillStyle = s.who === 'princess' ? '#ffe3f1' : '#ffffff'; ctx.fill(); ctx.clip();
+    if (s.who === 'princess') drawImg(pImg(INTRO[i].ev ? 'scared' : ''), 116, 478, 128);
     else if (s.who === 'hero') drawImg(IMG.hello, 116, 470, 120);
     else { ctx.fillStyle = '#e9e0ff'; ctx.fillRect(60, 400, 112, 112); drawShark(132, 462, 1.2, '#8a6bd6', '#3f2a7a', true, false, true, 0, 0.5); }
     ctx.restore();
@@ -797,7 +826,7 @@ function drawLoadBar() {
 function drawTitle() {
   drawLoadBar();
   // 인기 게임식 첫 화면: 화면 가득 키 아트(코덱스) + 로고 그림 + 크게 빛나는 시작 단추
-  const bg = IMG.spr_title_bg;
+  const bg = ready(IMG.spr_title_bg2) ? IMG.spr_title_bg2 : IMG.spr_title_bg; // 옛 공주를 뺀 배경(아멜리아는 따로 크게)
   if (bg && ready(bg)) { // 화면을 덮게(cover) + 아주 천천히 다가오는 느낌
     const z = 1.04 + Math.sin(T * 0.25) * 0.02, sc = Math.max(W / bg.naturalWidth, H / bg.naturalHeight) * z;
     const dw = bg.naturalWidth * sc, dh = bg.naturalHeight * sc;
@@ -808,9 +837,21 @@ function drawTitle() {
     const b = obox(lg), lw = 470, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
     ctx.save(); ctx.translate(650, ly); ctx.scale(ls, ls); ctx.drawImage(lg, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
   } else text('터틀 레이스', 650, ly, 76, C.yellow, { lw: 12 });
-  ctx.font = `800 ${fs(20)}px ${FONT}`; const sw = ctx.measureText('공주 거북 구출 대작전').width + 36;
+  ctx.font = `800 ${fs(20)}px ${FONT}`; const sw = ctx.measureText('아멜리아 공주 구출 대작전').width + 36;
   ctx.fillStyle = 'rgba(8,30,70,.55)'; rr(650 - sw / 2, 168, sw, 36, 18); ctx.fill();
-  text('공주 거북 구출 대작전', 650, 186, 20, '#ffffff', { stroke: false });
+  text('아멜리아 공주 구출 대작전', 650, 186, 20, '#ffffff', { stroke: false });
+  // 아멜리아 공주: 첫 화면부터 잘 보이게(시작 단추 오른쪽, 반짝이는 거품 속에서 손 흔듦 + 이름표)
+  { const am = IMG.spr_amelia, ax = 862, ay = 286 + Math.sin(T * 2.2) * 8;
+    if (am && ready(am)) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(ax, ay, 10, ax, ay, 105); g.addColorStop(0, 'rgba(255,170,215,.45)'); g.addColorStop(1, 'rgba(255,170,215,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ax, ay, 105, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      drawImg(am, ax, ay + 4, 150, Math.sin(T * 1.6) * 0.05, 1, true);
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, ay, 88, 0, Math.PI * 2); ctx.stroke(); // 거품
+      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(ax - 44, ay - 52, 18, 9, -0.6, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 4; k++) { const h = (T * 0.5 + k * 0.25) % 1; ctx.globalAlpha = 1 - h; text('♥', ax + 50 - k * 30, ay - 80 - h * 50, 16, '#ff8fc8', { stroke: false }); } ctx.globalAlpha = 1;
+      ctx.font = `800 ${fs(15)}px ${FONT}`; const nw = ctx.measureText('아멜리아 공주').width + 28;
+      ctx.fillStyle = '#ff6fae'; rr(ax - nw / 2, ay + 92, nw, 30, 15); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; rr(ax - nw / 2, ay + 92, nw, 30, 15); ctx.stroke();
+      text('아멜리아 공주', ax, ay + 107, 15, '#ffffff', { stroke: false, weight: 800 });
+    } }
   // 시작 단추: 노랑→주황, 아래 그림자, 맥박, 빛줄
   const bx0 = 530, by0 = 372, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(pulse, pulse); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
@@ -1244,7 +1285,7 @@ function drawDead() {
   bottomButtons('다시 하기 ▶', () => startLevel(G.n), [['상점', () => openShop(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
-const CLEAR_LINES = ['공주님 왕관 조각을 찾았어요!', '상어왕의 발자국이 이어져요...', '바다 친구들이 응원해요!', '조금씩, 그래도 앞으로!', '공주님 목소리가 들려요!', '거의 다 왔어요!', '상어왕의 성이 보여요!'];
+const CLEAR_LINES = ['아멜리아 공주의 왕관 조각을 찾았어요!', '상어왕의 발자국이 이어져요...', '바다 친구들이 응원해요!', '조금씩, 그래도 앞으로!', '공주님 목소리가 들려요!', '거의 다 왔어요!', '상어왕의 성이 보여요!'];
 const BOSS_LINES = {
   5: '앗, 여긴 상어 대장 집이었어요! 공주님은 더 깊은 곳에!',
   10: '대왕 문어가 그러는데... 공주님은 깊은 바다로 갔대요!',
@@ -1337,12 +1378,12 @@ function drawEnding() {
   drawConfetti();
   const meet = Math.min(1, endT / 1.6);
   drawTurtle(lerp(120, 380, meet), 300 + Math.sin(T * 3) * 5, 200, 0);
-  drawImg(IMG.princess, lerp(840, 590, meet), 300 + Math.sin(T * 3 + 1) * 5, 200, 0, 1, true);
+  drawImg(meet >= 1 && ready(IMG.spr_amelia_cheer) ? IMG.spr_amelia_cheer : IMG.princess, lerp(840, 590, meet), 300 + Math.sin(T * 3 + 1) * 5 - (meet >= 1 ? Math.abs(Math.sin(T * 4)) * 10 : 0), 200, 0, 1, true); // 다시 만나면 기뻐서 콩콩
   if (meet >= 1) for (let i = 0; i < 5; i++) {
     const t = (T * 0.6 + i / 5) % 1;
     ctx.globalAlpha = 1 - t; text('♥', 485 + Math.sin(t * 9 + i) * 40, 255 - t * 90, 24 + i * 2, '#ff6fa8', { stroke: '#fff', lw: 3 }); ctx.globalAlpha = 1;
   }
-  text('공주 거북이 구출 성공!', 480, 60, 48, C.yellow, { lw: 8 });
+  text('아멜리아 공주 구출 성공!', 480, 60, 48, C.yellow, { lw: 8 });
   const ti = G.talkI || 0;
   if (endT > 1.8 && ti < ENDING_TALK.length) { // 대화 상자
     const ln = ENDING_TALK[ti];
@@ -1470,11 +1511,11 @@ function drawResultOverlay() {
     ctx.strokeStyle = '#e9cfa0'; ctx.lineWidth = 3; rr(-286, -186, 572, 372, 12); ctx.stroke();
     for (let i = 0; i < 6; i++) { ctx.strokeStyle = 'rgba(200,170,120,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-250, -60 + i * 40); ctx.lineTo(250, -60 + i * 40); ctx.stroke(); }
     drawImg(IMG.princess, -220, -130, 110);
-    text('공주님의 편지', -150, -150, 26, '#b24a7a', { align: 'left', stroke: false });
+    text('아멜리아의 편지', -150, -150, 26, '#b24a7a', { align: 'left', stroke: false });
     text('유리병에 담겨 떠내려왔어요', -150, -118, 14, '#a08a6a', { align: 'left', body: true, stroke: false });
     const lh = fs(19) * 1.55;
     wrapText(full.slice(0, Math.floor(G.letterShow.shown)), 500, 19).forEach((l, i) => text(l, -250, -64 + i * lh, 19, '#4a3a2a', { align: 'left', body: true, stroke: false }));
-    if (G.letterShow.shown >= full.length) text('— 공주 거북', 250, 150, 17, '#b24a7a', { align: 'right', stroke: false });
+    if (G.letterShow.shown >= full.length) text('— 아멜리아', 250, 150, 17, '#b24a7a', { align: 'right', stroke: false });
     ctx.restore();
     if (G.letterShow.shown >= full.length && t > 0.8) button(380, 486, 200, 44, '편지 접기', closeResultOverlay, { size: 16, kind: 'yellow' });
     return;

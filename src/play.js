@@ -1251,7 +1251,7 @@ function levelClear() {
   setFace('happy', 9);
   for (const e of G.enemies) { burst(e.x, e.y, (ENEMIES[e.type] || {}).color || '#fff', 10); e.dead = true; }
   G.enemies = []; G.shots = []; G.warns = []; G.sweeps = [];
-  pop(W / 2, H / 2 - 60, G.n === LAST ? '공주님!' : '도착!', C.yellow, 60, true);
+  pop(W / 2, H / 2 - 60, G.n === LAST ? '아멜리아 공주님!' : '도착!', C.yellow, 60, true);
   shake = 6; sfx.ready(); say('clear', true); haptic([30, 40, 60]);
   fireworks(5); burstRays(G.p.x, G.p.y, C.yellow, 1.2, 24);
 }

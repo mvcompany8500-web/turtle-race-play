@@ -1,5 +1,5 @@
 {
-  "name": "터틀 레이스 — 공주 거북 구출 대작전",
+  "name": "터틀 레이스 — 아멜리아 공주 구출 대작전",
   "short_name": "터틀 레이스",
   "start_url": "./index.html",
   "display": "fullscreen",
@@ -36,5 +36,5 @@
   "categories": [
     "games"
   ],
-  "description": "터틀이가 바다를 달려 공주 거북을 구하는 달리기 게임"
+  "description": "터틀이가 바다를 달려 아멜리아 공주를 구하는 달리기 게임"
 }
