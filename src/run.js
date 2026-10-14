@@ -232,6 +232,7 @@ function mon(type, x, y, extra = {}) {
   if (elite) { e.r *= 1.15; }
   return addEnemy(e);
 }
+function jar(x) { const d = BREAK.jar; G.breaks.push({ k: 'jar', x, y: GROUND - d.r, r: d.r, hp: 1, maxHp: 1, t: 0, hitT: 0, wob: 0, run: true }); }
 function pillar(x, w = 64) { G.obs.push({ k: 'pillar', x, w, y1: GROUND - 46, t: 0 }); }
 function plat(x, w, y) { G.obs.push({ k: 'plat', x, w, y, t: 0 }); }
 function qblock(x, y = GROUND - 180) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
@@ -328,6 +329,14 @@ const PATS = [
     const w = jumpW() * 0.62; spike(x + w * 0.5); for (let i = 0; i < 4; i++) spike(x + w * 0.05 + i * w * 0.3, GROUND - 212);
     eggArc(x, w, 60, 5); return w + 60;
   }],
+  ['ultWall', 99, 1, (x) => { // 앞은 벽, 뒤에선 상어 — 필살기로 부수고 나가기(바로 앞에 필살 조개로 게이지를 채워 줌)
+    G.eggsArr.push({ x: x + 40, y: GC(), ult: true, t: 0 }); eggLine(x + 110, 4, GC());
+    const wx = x + 40 + runSpd() * 1.8; G.obs.push({ k: 'wall', x: wx, w: 96, t: 0 });
+    for (let i = 0; i < 6; i++) pearl(wx + 140 + i * 44, GC()); // 부수고 나가면 진주 길
+    return wx - x + 96 + 140 + 6 * 44 + REACT();
+  }],
+  ['jarRow', 99, 1, (x) => { G.jarCombo = 0; for (let i = 0; i < 3; i++) jar(x + 90 + i * 96); eggLine(x + 40, 6, GROUND - 120, 52); return 90 + 3 * 96 + 60; }], // 숙여서 와르르(뛰어 넘어도 됨)
+  ['slideTunnel', 99, 1, (x) => { G.jarCombo = 0; pillar(x + 50, 400); for (let i = 0; i < 3; i++) jar(x + 130 + i * 120); eggLine(x + 40, 9, GROUND - 16, 46); return 520; }], // 낮은 굴: 숙인 채 끝까지 — 안의 항아리도 와르르
   ['box', 1, 1, (x) => { G.boxes.push({ x: x + 140, y: GROUND - 150, t: 0 }); eggArc(x + 20, jumpW(), 150, 5); return 260; }],
 ];
 const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
@@ -336,13 +345,13 @@ const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
 const STAGE_STYLE = {
   1: { sig: { eggs: 2, hop: 1.5, pearlWave: 3 }, tempo: 1.1 },
   2: { sig: { kelpSteps: 4, shark: 1.5 }, enter: 'rise' },
-  3: { sig: { treasure: 2, chest: 2, rockRow: 1 }, enter: 'drop', tempo: 1.12 }, // 초반: 바위 위주는 서툰 실력 성공률이 절반으로 떨어져서 보물 위주(봇 9/12)
+  3: { sig: { treasure: 2, chest: 2, rockRow: 1, jarRow: 2 }, enter: 'drop', tempo: 1.12 }, // 초반: 바위 위주는 서툰 실력 성공률이 절반으로 떨어져서 보물 위주(봇 9/12)
   4: { sig: { stomp: 4, jellyField: 3 }, enter: 'pop' },
   5: { sig: { rockRow: 3, hop2: 2 }, enter: 'rise' },
-  6: { sig: { spikeRhythm: 4, pearlWave: 2, zigzag: 2 }, enter: 'pop' },
-  7: { sig: { duck: 3, duckJump: 4 }, enter: 'drop' },
+  6: { sig: { spikeRhythm: 4, pearlWave: 2, zigzag: 2 }, enter: 'pop', wall: 1 },
+  7: { sig: { duck: 2, duckJump: 3, slideTunnel: 3 }, enter: 'drop' },
   8: { sig: { highRoad: 3, eggs: 2 }, enter: 'rise' },
-  9: { sig: { highRoad: 4, stairs: 3, zigzag: 2 }, enter: 'swoop' },
+  9: { sig: { highRoad: 4, stairs: 3, zigzag: 2 }, enter: 'swoop', wall: 2 },
   10: { sig: { duckLong: 3, duck: 2 }, enter: 'drop' },
   11: { sig: { stairs: 3, kelpSteps: 3, zigzag: 3 }, enter: 'swoop' },
   12: { sig: { jellyField: 3, spikeRhythm: 2 }, enter: 'pop' },
@@ -350,42 +359,42 @@ const STAGE_STYLE = {
   14: { sig: { angler: 2, highRoad: 2 }, enter: 'rise' },
   15: { sig: { duckJump: 3 }, enter: 'rise' },
   16: { sig: { ray: 2, duckLong: 2, lowCeil: 2 }, enter: 'swoop' },
-  17: { sig: { rockRow: 3, chest: 3, treasure: 3 }, enter: 'drop' },
+  17: { sig: { rockRow: 2, chest: 3, treasure: 3, jarRow: 3 }, enter: 'drop' },
   18: { sig: { ray: 1.5, spikeRhythm: 3 }, tempo: 0.88, enter: 'swoop' },
-  19: { sig: { duckJump: 3, lowCeil: 3 }, enter: 'pop' },
+  19: { sig: { duckJump: 3, lowCeil: 3, slideTunnel: 2 }, enter: 'pop', wall: 2 },
   20: { sig: { hop2: 2, spikeRhythm: 2 }, enter: 'swoop' },
   21: { sig: { crab: 2, kelpSteps: 3 }, enter: 'drop' },
   22: { sig: { spikeRhythm: 3, hop2: 3 }, tempo: 0.85, enter: 'pop' },
   23: { sig: { shortHop: 5, lowCeil: 3 }, enter: 'pop' },
-  24: { sig: { duckLong: 3, duckJump: 3 }, enter: 'rise' },
+  24: { sig: { duckLong: 2, duckJump: 3, slideTunnel: 3 }, enter: 'rise' },
   25: { sig: { stomp: 3, jellyField: 2 }, enter: 'pop' },
   26: { sig: { gauntlet: 4, spikeRhythm: 2 }, tempo: 0.88, enter: 'rise' },
   27: { sig: { lowCeil: 3, duck: 3 }, enter: 'drop' },
   28: { sig: { shortHop: 3, rockRow: 2 }, enter: 'drop' },
-  29: { sig: { gauntlet: 3, stairs: 2 }, enter: 'swoop' },
+  29: { sig: { gauntlet: 3, stairs: 2 }, enter: 'swoop', wall: 2 },
   30: { sig: { duckJump: 2, rockRow: 2 }, enter: 'drop' },
   31: { sig: { pearlWave: 4, hop: 2 }, enter: 'rise' },
   32: { sig: { sword: 2, duckJump: 2 }, enter: 'swoop' },
-  33: { sig: { qblock: 4, treasure: 4, chest: 3 }, enter: 'drop' },
+  33: { sig: { qblock: 3, treasure: 4, chest: 3, jarRow: 3 }, enter: 'drop' },
   34: { sig: { highRoad: 4, treasure: 3 }, enter: 'pop' },
   35: { sig: { duckJump: 2, octo: 2 }, enter: 'drop' },
   36: { sig: { shortHop: 3, sword: 2 }, enter: 'drop' },
   37: { sig: { zigzag: 4, jellyField: 2 }, enter: 'pop' },
-  38: { sig: { duckJump: 4, lowCeil: 3 }, tempo: 0.9, enter: 'rise' },
-  39: { sig: { angler: 2, treasure: 2 }, enter: 'rise' },
+  38: { sig: { duckJump: 3, lowCeil: 3, slideTunnel: 3 }, tempo: 0.9, enter: 'rise' },
+  39: { sig: { angler: 2, treasure: 2, jarRow: 2 }, enter: 'rise', wall: 2 },
   40: { sig: { highRoad: 2, treasure: 2 }, enter: 'pop' },
   41: { sig: { stairs: 3, kelpSteps: 3 }, enter: 'swoop' },
   42: { sig: { phantom: 2, stomp: 2 }, enter: 'pop' },
-  43: { sig: { duck: 3, duckLong: 3, rockRow: 2 }, enter: 'drop' },
+  43: { sig: { duck: 3, duckLong: 3, rockRow: 2, slideTunnel: 2 }, enter: 'drop', wall: 1 },
   44: { sig: { duckJump: 3, lowCeil: 3 }, enter: 'rise' },
   45: { sig: { rockRow: 3, spikeRhythm: 2 }, enter: 'rise' },
   46: { sig: { jellyField: 3, spikeRhythm: 3 }, enter: 'pop' },
   47: { sig: { zigzag: 3, highRoad: 3 }, tempo: 1.1, enter: 'swoop' },
   48: { sig: { gauntlet: 5 }, tempo: 0.85, enter: 'drop' },
-  49: { sig: { stairs: 3, treasure: 2, pearlWave: 2 }, enter: 'swoop' },
+  49: { sig: { stairs: 3, treasure: 2, pearlWave: 2, jarRow: 2 }, enter: 'swoop', wall: 2 },
   50: { sig: { gauntlet: 2, duckJump: 2, spikeRhythm: 2 }, enter: 'drop' },
 };
-const NEW_PATS = new Set(['kelpSteps', 'duckJump', 'jellyField', 'rockRow', 'zigzag', 'treasure', 'pearlWave', 'spikeRhythm', 'lowCeil']);
+const NEW_PATS = new Set(['kelpSteps', 'duckJump', 'jellyField', 'rockRow', 'zigzag', 'treasure', 'pearlWave', 'spikeRhythm', 'lowCeil', 'jarRow', 'slideTunnel']); // ultWall 은 벽 판에만(끝없는 바다에도 가끔)
 const styleOf = () => (G.cfg.endless ? {} : STAGE_STYLE[G.n] || {});
 function setPiece() { // 대표 패턴 둘을 A·B·A 로
   const sig = Object.entries(styleOf().sig || {}).filter(([k]) => PAT_BY[k] && (PAT_BY[k][1] <= G.n || NEW_PATS.has(k)) && (!PAT_BY[k][4] || has(PAT_BY[k][4]))).sort((a, b) => b[1] - a[1]).map(([k]) => k);
@@ -417,6 +426,9 @@ function runCourse() {
     else if (G.setQ && G.setQ.length) pat = PAT_BY[G.setQ.shift()];
     else pat = choosePat();
     if (!G.tut && !G.setDone && !cfg.endless && G.dist + x >= cfg.length * 0.5) { G.setDone = true; G.setQ = setPiece(); } // 판 한가운데: 그 판만의 연속 구간
+    const wn = styleOf().wall || 0; G.wallDone = G.wallDone || 0;
+    if (!G.tut && !cfg.endless && G.wallDone < wn && G.dist + x >= cfg.length * (wn === 1 ? 0.62 : [0.35, 0.75][G.wallDone])) { G.wallDone++; (G.setQ = G.setQ || []).unshift('ultWall'); } // 벽 판: 정해진 자리에 벽
+    if (cfg.endless && Math.random() < 0.02 && G.dist > 3000) (G.setQ = G.setQ || []).unshift('ultWall');
     const before = { e: G.enemies.length, o: G.obs.length, b: G.breaks.length, g: G.eggsArr.length, x: G.boxes.length, w: G.warns.length };
     let len = pat[3](x);
     len += snapToBeat(before); // 누를 때가 음악 박에 오게
@@ -431,6 +443,16 @@ function runCourse() {
 }
 
 // ───────── 코스 물건 (기둥·발판·? 조개·글자) ─────────
+const mightyNow = () => G.boosting > 0 || G.eff.giant > 0 || G.eff.whirl > 0;
+function smashWall(o, soft) {
+  o.dead = true; G.wallStop = false;
+  shake = Math.max(shake, soft ? 10 : 18); freeze = Math.max(freeze, soft ? 0.03 : 0.08); zoomTo(1.05);
+  for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, sp = rand(220, 720); fx.push({ k: 'chunk', x: o.x + o.w / 2, y: rand(CEIL + 40, GROUND - 20), vx: Math.cos(a) * sp + 200, vy: Math.sin(a) * sp - 200, life: 1, max: 1, size: rand(10, 22), color: i % 3 ? '#ff9a76' : '#ffd1b8', rot: rand(0, 6), vr: rand(-8, 8) }); }
+  snd('break', 1, 0.8); haptic([40, 30, 90]);
+  if (!soft) { pop(o.x, GROUND - 200, '벽 돌파!!', C.yellow, 44, true); addScore(500); if (typeof reaction === 'function') reaction(2, '와장창!!'); }
+  else pop(o.x, GROUND - 180, '아야… 그래도 뚫었다!', '#ffffff', 26, true);
+  if (G.chaser) G.chaser.flee = 1; // 상어는 무너진 벽에 막혀 도망
+}
 function smashPillar(o) {
   o.dead = true;
   for (let i = 0; i < 12; i++) fx.push({ k: 'chunk', x: o.x + rand(0, o.w), y: rand(CEIL, o.y1), vx: rand(100, 500), vy: rand(-300, 100), life: 0.8, max: 0.8, size: rand(8, 16), color: i % 2 ? '#c06a9a' : '#5a3a6a', rot: rand(0, 6), vr: rand(-12, 12) });
@@ -540,7 +562,13 @@ function updateObs(dt, scroll) {
       const cx = clamp(p.x, o.x, o.x + o.w), cy = clamp(p.y, CEIL, o.y1);
       if ((p.x - cx) ** 2 + (p.y - cy) ** 2 < (p.r * p.scale) ** 2) { if (mighty) smashPillar(o); else hitPlayer({ type: 'rock' }); }
       else if (!o.near && p.x > o.x + o.w && G.boosting <= 0) { o.near = true; if (p.slide && T - (G.hurtAt || -9) > 1.2) { G.boost = Math.min(BMAX(), G.boost + 6); G.near++; pop(p.x, p.y - 40, pick(['쓱~', '슬라이딩!', '나이스!']), '#7cf0ff', 20); } }  // 방금 맞았으면 칭찬 안 함
-    } else if (o.k === 'qb') {
+    } else if (o.k === 'wall') { // 앞을 꽉 막은 산호 벽: 필살기로만 부서짐, 아니면 막혀 멈추고 뒤에서 상어
+      if (!o.seen && o.x < W - 60) { o.seen = true; G.chaser = { x: -160, flee: 0 }; sfx.warn(); pop(W / 2, 150, '앞은 벽! 뒤에선 상어가 와요!', '#ff9aa8', 30, true); }
+      const pr = p.r * p.scale;
+      if (p.x + pr > o.x && p.x - pr < o.x + o.w) {
+        if (mighty) smashWall(o, false);
+        else { G.wallStop = true; p.x = Math.min(p.x, o.x - pr); o.stopT = (o.stopT || 0) + dt; if (o.stopT > 1.5) { hitPlayer({ type: 'shark' }); smashWall(o, true); } }
+      }
       // 넉넉한 판정: 몸(원)이 블록(48×48)에 14px 안으로 닿기만 하면 열림 — 밑에서·옆에서·위에서 모두
       if (!o.hit) {
         const cx = clamp(p.x, o.x - 24, o.x + 24), cy = clamp(p.y, o.y - 24, o.y + 24), R = p.r * p.scale + 14;
@@ -556,6 +584,8 @@ function updateObs(dt, scroll) {
     }
   }
   G.obs = G.obs.filter((o) => !o.dead && o.x + (o.w || 0) > -120);
+  const ch = G.chaser; // 쫓아오는 상어(그림만 — 벽에서 멈추면 다가와 물고, 벽을 부수면 도망)
+  if (ch) { if (ch.flee) { ch.x -= 520 * dt; if (ch.x < -260) G.chaser = null; } else ch.x = lerp(ch.x, G.wallStop ? p.x - 70 : -40, dt * (G.wallStop ? 1.4 : 0.8)); }
   // 지난 기록 깃발
   const f = G.bestFlag;
   if (f && !f.passed) {
@@ -631,7 +661,16 @@ function drawPillarArt(o) {
   return true;
 }
 function drawRunObs() {
+  for (const o of G.obs) if (o.k === 'wall') { // 산호 벽(코덱스 그림, 없으면 무늬 판)
+    const hgt = GROUND - CEIL + 40, im = IMG.spr_coral_wall, wob = o.stopT ? Math.sin(T * 40) * 2 * Math.min(1, o.stopT) : 0;
+    if (im && ready(im)) { const b = obox(im); o.w = Math.round(hgt * b.w / b.h * 0.86); } // 판정 폭 = 그림 폭(투명 여백 빼고) — 그림이 거북이를 덮지 않게
+    if (!(im && ready(im) && (() => { const b = obox(im), wd = hgt * b.w / b.h; ctx.drawImage(im, b.x, b.y, b.w, b.h, o.x - wd * 0.07 + wob, CEIL - 20, wd, hgt); return true; })())) { const g = ctx.createLinearGradient(o.x, 0, o.x + o.w, 0); g.addColorStop(0, '#c45a4a'); g.addColorStop(0.5, '#ff9a76'); g.addColorStop(1, '#c45a4a'); ctx.fillStyle = g; rr(o.x + wob, CEIL - 20, o.w, hgt, 18); ctx.fill(); }
+    if (o.x < W && !mightyNow() && Math.sin(T * 8) > -0.2) text(isTouch ? '필살!' : 'Shift!', o.x + o.w / 2, 150, 28, C.yellow, { lw: 6 }); // 벽 위에 깜빡
+  }
+  const ch = G.chaser;
+  if (ch && ch.x > -200) { const y = GROUND - 60 + Math.sin(T * 6) * 4; drawImg(IMG.spr_shark, ch.x, y, 120, 0, 1, !ch.flee); if (!ch.flee) text('!', ch.x + 30, y - 56, 30, '#ff4d6a', { lw: 6 }); }
   for (const o of G.obs) {
+    if (o.k === 'wall') continue;
     if (o.k === 'pillar' && drawPillarArt(o)) { /* 코덱스 그림 */ } else if (o.k === 'pillar') {
       const x = o.x, w = o.w, y1 = o.y1;
       const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, '#3a2350'); g.addColorStop(0.5, '#6a3f86'); g.addColorStop(1, '#3a2350');
