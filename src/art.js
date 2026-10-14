@@ -633,7 +633,7 @@ function rollNum(key, str, x, y, size, color) {
   else if (r.d.length !== n) { const o = r.d; r.d = tgt.map((v, i) => { const p = o[o.length - (n - i)]; return v < 0 ? -1 : p >= 0 ? p : 0; }); }
   const k = 1 - Math.exp(-Math.max(0, T - r.t) * 12); r.t = T;
   ctx.save(); ctx.font = `800 ${fs(size)}px ${FONT}`; ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const dw = ctx.measureText('0').width, h = fs(size) * 1.2;
+  const dw = ctx.measureText('0').width, h = fs(size) * 1.2; y += inkDy(); // 다른 글자와 같은 눈높이 가운데
   ctx.beginPath(); ctx.rect(x - 2, y - h / 2, dw * n + 40, h); ctx.clip();
   let cx = x;
   ch.forEach((c, i) => {

@@ -61,11 +61,20 @@ const C = {
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches; // 기기의 「동작 줄이기」
 // 실제 화면에서 13px 아래로 작아지지 않게 (폰 가로 화면은 논리 크기를 키운다)
 const fs = (size) => Math.max(size, Math.min(13 / CSS_S, size * 1.45));
+// 위아래 가운데: 글꼴의 'middle' 기준선은 한글 잉크(실제 글자 모양)의 가운데와 조금 어긋남 → 「가」의 잉크 위·아래 끝으로 눈에 보이는 가운데를 y 에 맞춤(글꼴·크기마다 한 번 재서 기억)
+const INK = new Map();
+function inkDy() {
+  const f = ctx.font; let v = INK.get(f);
+  if (v == null) { const m = ctx.measureText('가'); v = (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2; if (!isFinite(v)) v = 0; INK.set(f, v); }
+  return v;
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => INK.clear()); // 글꼴이 늦게 오면 다시 잼
 function text(s, x, y, size, color = '#fff', o = {}) {
   size = fs(Math.max(13, size));
   ctx.font = `${o.weight || (o.body ? 600 : 800)} ${size}px ${FONT}`;
   ctx.textAlign = o.align || 'center';
   ctx.textBaseline = 'middle';
+  y += inkDy();
   if (o.stroke !== false) {
     ctx.lineJoin = 'round';
     ctx.lineWidth = o.lw || Math.max(2.5, size * 0.13);

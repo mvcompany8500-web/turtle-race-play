@@ -891,10 +891,10 @@ function drawBye() { // 못 닫는 기기: 저장됐다는 인사 화면
   buttons.length = 0;
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0e2a5a'); g.addColorStop(1, '#06132e'); ctx.fillStyle = g; ctx.fillRect(-OX(), 0, W, H);
   const b = Math.sin(T * 3) * 6;
-  drawImg(IMG.hello, 400, 250 + b, 190); drawImg(ready(IMG.spr_amelia) ? IMG.spr_amelia : IMG.princess, 560, 252 - b, 180, 0, 1, true);
-  text('또 만나요!', 480, 92, 44, C.yellow, { lw: 8 });
-  text('기록은 저장됐어요 · 이제 앱을 닫아도 돼요', 480, 400, 17, '#ffffff', { body: true, stroke: false });
-  button(380, 438, 200, 50, '다시 하기', () => { state = 'title'; try { if (ac) ac.resume(); } catch (e) { /* 무시 */ } sfx.click(); }, { size: 19, kind: 'yellow' });
+  drawImg(IMG.hello, 400, 241 + b, 190); drawImg(ready(IMG.spr_amelia) ? IMG.spr_amelia : IMG.princess, 560, 243 - b, 180, 0, 1, true); // 내용 위끝 62 ~ 아래끝 479 → 가운데 270
+  text('또 만나요!', 480, 84, 44, C.yellow, { lw: 8 });
+  text('기록은 저장됐어요 · 이제 앱을 닫아도 돼요', 480, 391, 17, '#ffffff', { body: true, stroke: false });
+  button(380, 429, 200, 50, '다시 하기', () => { state = 'title'; try { if (ac) ac.resume(); } catch (e) { /* 무시 */ } sfx.click(); }, { size: 19, kind: 'yellow' });
 }
 function drawTitle() {
   drawLoadBar();
