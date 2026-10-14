@@ -263,7 +263,7 @@ const PATS = [
     spike(x + 120); spike(x + 330); spike(x + 380);
     return 560;
   }],
-  ['qblock', 2, 2, (x) => { const w = jumpW(); qblock(x + w * 0.5); for (let i = 0; i < 4; i++) pearl(x + w * 0.5 - 60 + i * 40, GC()); return w + 80; }], // 밑에서 박거나 위에서 밟으면 열림
+  ['qblock', 2, 2, (x) => { const w = jumpW(); eggArc(x + 20, w, 170, 7); return w + 80; }], // ? 상자 뺌(대표: 쓸모없음) → 진주 무지개만
   ['jumpDuck', 3, 3, (x) => { const w = jumpW(), px = x + w + REACT(); spike(x + w * 0.5); eggArc(x, w); pillar(px, 70); eggLine(px - 30, 3, GROUND - 16, 40); return px - x + 120; }],
   ['shortHop', 4, 2, (x) => { const w = jumpW() * 0.62; spike(x + w * 0.5); mon('mine', x + w * 0.5, GROUND - 212, { r: 16, noSp: true }); eggArc(x, w, 60, 5); return w + 60; }],
   ['duckLong', 5, 2, (x) => { pillar(x + 30, 260); eggLine(x + 10, 7, GROUND - 16, 44); return 340; }],
@@ -340,7 +340,7 @@ const PATS = [
     if (k > 0.3) spike(x + pw + (st - pw) / 2);
     return 2 * st + pw + 120;
   }],
-  ['treasure', 99, 1, (x) => { const w = jumpW(); qblock(x + w * 0.4); qblock(x + w * 0.4 + 96); rockAt(x + w * 0.4 + 260, 'chest'); for (let i = 0; i < 3; i++) pearl(x + w * 0.4 - 40 + i * 48, GC()); return w * 0.4 + 380; }], // 보물: ? 조개 두 개 + 상자
+  ['treasure', 99, 1, (x) => { const w = jumpW(); eggArc(x + 10, w * 0.8, 150, 6); rockAt(x + w * 0.4 + 260, 'chest'); for (let i = 0; i < 3; i++) pearl(x + w * 0.4 - 40 + i * 48, GC()); return w * 0.4 + 380; }], // 보물: ? 조개 두 개 + 상자
   ['pearlWave', 99, 1, (x) => { for (let i = 0; i < 11; i++) pearl(x + i * 46, GROUND - 34 - Math.sin(i / 10 * Math.PI) * 150); return 520; }], // 쉬어 가는 진주 물결(뛰면서 줍기)
   ['spikeRhythm', 99, 1, (x) => { // 하나·둘·셋·넷 — 착지하자마자 다시 뛰는 박자 가시
     const w = jumpW(), step = w + REACT() * 0.7; for (let i = 0; i < 4; i++) { spike(x + w * 0.5 + i * step); eggArc(x + i * step, w, 130, 5); } return w + 3 * step;
@@ -357,7 +357,7 @@ const PATS = [
   }],
   ['jarRow', 99, 1, (x) => { G.jarCombo = 0; for (let i = 0; i < 3; i++) jar(x + 90 + i * 96); eggLine(x + 40, 6, GROUND - 120, 52); return 90 + 3 * 96 + 60; }], // 숙여서 와르르(뛰어 넘어도 됨)
   ['slideTunnel', 99, 1, (x) => { G.jarCombo = 0; pillar(x + 50, 400); for (let i = 0; i < 3; i++) jar(x + 130 + i * 120); eggLine(x + 40, 9, GROUND - 16, 46); return 520; }], // 낮은 굴: 숙인 채 끝까지 — 안의 항아리도 와르르
-  ['box', 1, 1, (x) => { G.boxes.push({ x: x + 140, y: GROUND - 150, t: 0 }); eggArc(x + 20, jumpW(), 150, 5); return 260; }],
+  ['box', 1, 1, (x) => { eggArc(x + 20, jumpW(), 150, 7); return 260; }],
 ];
 const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
 // 판마다 다른 코스(인기 게임 에피소드·인기 게임 판처럼 「그 판만의 장치」): sig = 대표 패턴 배수, enter = 몹이 나타나는 모습, tempo = 패턴 사이 간격
@@ -838,7 +838,7 @@ function drawRunHero(face, blink, alpha) {
   const p = G.p, cap = (SIDE_STYLE[save.skin] || {}).cap; let key = heroPose(), c = pose(key, cap);
   if (!c && key === 'hero_fall') { key = 'hero_jump'; c = pose(key, cap); } // 그림이 없으면 점프 그림으로
   if (!c) return drawRunHeroOld(face, blink, alpha);
-  const base = HERO_H * 0.96 * p.scale; let h = base * POSE_H[key] * (outfitPose(key) && !gearEq('form') ? OUTFIT_H[save.skin] || 1 : 1) * (gearLook('giant') || 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
+  const base = HERO_H * 1.1 * p.scale; /* 그림은 판정보다 조금 크게(요즘 러너처럼 캐릭터가 화면을 채움) */ let h = base * POSE_H[key] * (outfitPose(key) && !gearEq('form') ? OUTFIT_H[save.skin] || 1 : 1) * (gearLook('giant') || 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
   if (key === 'hero_ball') { rot = Math.PI * 2 * easeInOutCubic(1 - p.spin); feet = p.fy - base * 0.12; }
   else if (key === 'hero_shell') { rot = Math.sin(T * 30) * 0.03; x += Math.sin(T * 20) * 1.5; }
   else if (key === 'hero_hurt') { rot = -0.18 + Math.sin(T * 25) * 0.05; if (p.dead) { feet = p.y + base * 0.5; rot = p.rot; } }

@@ -1039,7 +1039,7 @@ function updatePlay(dt) {
       if (G.eggT <= 0) { G.eggT = rand(2.2, 3.2); spawnEggs(); }
     }
     G.boxT -= dt * (petIs('puppy') ? 1 + petLv() * 0.15 : 1) * (bossFight ? 1.6 : 1);
-    if (G.boxT <= 0 && !finishing && (!G.run || bossFight)) { G.boxT = rand(9, 13); G.boxes.push({ x: W + 40, y: G.run ? GROUND - rand(60, 200) : rand(CEIL + 70, SEABED - 70), t: 0 }); }
+    if (G.boxT <= 0 && !finishing && !G.run) { G.boxT = rand(9, 13); G.boxes.push({ x: W + 40, y: G.run ? GROUND - rand(60, 200) : rand(CEIL + 70, SEABED - 70), t: 0 }); }
     if (finishing && cfg.boss && !G.boss && !G.bossDone) {
       if (G.bossWarnT == null) { G.bossWarnT = 2.4; sfx.siren(); haptic([60, 60, 60, 60, 60]); }
       else { G.bossWarnT -= dt; if (G.bossWarnT <= 0) spawnBoss(); }
@@ -1747,8 +1747,8 @@ function drawHUD() {
     ctx.restore();
     if (idle && save.runs <= 3) text('끌어서 이동', bx, by - JR - 22, 15, C.text, { body: true });
   }
-  // 아이템 칸
-  const ib = isTouch ? ITEM_BTN() : G.run ? { x: L + 240, y: 124, r: 24 } : { x: L + 420, y: H - 44, r: 30 }; // 키보드 달리기: 축제 알약 오른쪽(가운데 글자 동그라미와 안 닿게)
+  // 아이템 칸(달리기에선 ? 상자를 뺐으니 아이템이 없으면 칸을 화면 밖으로 — 아래 필살 단추는 그대로 그림)
+  const ib = G.run && !G.item ? { x: -999, y: -999, r: 1 } : isTouch ? ITEM_BTN() : G.run ? { x: L + 240, y: 124, r: 24 } : { x: L + 420, y: H - 44, r: 30 }; // 키보드 달리기: 축제 알약 오른쪽(가운데 글자 동그라미와 안 닿게)
   ctx.save();
   const pulse = G.itemPop > 0 ? 1 + G.itemPop * 0.5 : 1;
   const slot = IMG.spr_ui_slot;
@@ -2014,7 +2014,7 @@ function smashBreak(o, byRam) {
   burst(o.x, o.y, d.col, 30, 520); ring(o.x, o.y, '#ffffff', 140, 0.4, 12);
   pop(o.x, o.y - 50, o.k === 'chest' ? '보물이다!' : o.k === 'jar' ? '쨍그랑!' : pick(['와장창!', '콰직!', '깨부숴!']), o.k === 'chest' ? C.yellow : '#ffffff', o.k === 'jar' ? 26 : 36, true);
   for (let i = 0; i < (G.run ? Math.ceil(d.eggs * 0.4) : d.eggs); i++) G.eggsArr.push({ x: o.x, y: o.y, vx: rand(-260, 260), vy: rand(-300, 200), loose: true, gold: o.k === 'chest' && i < 2, t: 0 });
-  if (o.k === 'chest' && Math.random() < 0.4) G.boxes.push({ x: o.x + 30, y: o.y, t: 0 });
+  if (o.k === 'chest' && Math.random() < 0.4 && !G.run) G.boxes.push({ x: o.x + 30, y: o.y, t: 0 });
   if (o.k === 'ice') sfx.freeze(); else if (o.k === 'chest') { snd('break', 0.6, 1.2); sfx.gold(); } else snd('break', 0.9, rand(0.9, 1.1));
   haptic([30, 20, 50]);
   if (byRam) chainKill(o);

@@ -58,19 +58,29 @@ function drawStageAmb(n, d) {
   }
   ctx.restore();
 }
+// 배경 깊이(요즘 러너: 뒤는 살짝 흐리고 어둡게 → 앞의 캐릭터·적·진주가 튀어나옴). 한 번만 만들어 둠
+const bgDepthCache = new Map();
+function bgDepth(im, bh) {
+  const key = im.src + '|' + Math.round(bh); let c = bgDepthCache.get(key); if (c) return c;
+  const bw = Math.round(bh * im.naturalWidth / im.naturalHeight); c = document.createElement('canvas'); c.width = bw; c.height = Math.round(bh);
+  const g = c.getContext('2d'); g.filter = 'blur(1.2px) saturate(1.12) contrast(1.04)'; g.drawImage(im, -4, -4, bw + 8, c.height + 8); g.filter = 'none';
+  bgDepthCache.set(key, c); return c;
+}
 function drawBackground(n, d) {
   const th = theme(n);
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.top); g.addColorStop(1, th.bot);
   ctx.fillStyle = g; ctx.fillRect(-30, -30, W + 60, H + 60);
-  const bgi = IMG['spr_bg' + th.world];
+  const inRun = typeof G !== 'undefined' && G && G.run && (state === 'play' || state === 'pause' || state === 'bless' || state === 'revive' || state === 'dead' || state === 'clear');
+  const v2 = IMG['spr_bgv2_' + th.world], bgi = inRun && v2 && ready(v2) ? v2 : IMG['spr_bg' + th.world]; // 판 배경은 첫 화면과 같은 화풍(있으면)
   if (ready(bgi)) {
     const bh = H + 40, bw = bh * bgi.naturalWidth / bgi.naturalHeight, off = (d * 0.22) % (bw * 2);
+    const src = inRun ? bgDepth(bgi, bh) : bgi; // 판 중엔 살짝 흐리고 또렷한 색(앞이 튀어나오게)
     for (let x = -off, i = 0; x < W + bw; x += bw, i++) {
-      ctx.save(); ctx.translate(x + bw / 2, H / 2); if (i % 2) ctx.scale(-1, 1); ctx.drawImage(bgi, -bw / 2, -bh / 2, bw, bh); ctx.restore();
+      ctx.save(); ctx.translate(x + bw / 2, H / 2); if (i % 2) ctx.scale(-1, 1); ctx.drawImage(src, -bw / 2 - 1, -bh / 2, bw + 2, bh); ctx.restore(); // 이음새 1px 겹침
     }
     const depth = n === ENDLESS ? 0.2 : ((n - 1) % 10) / 9;
-    ctx.fillStyle = `rgba(4,10,30,${0.08 + depth * 0.32})`; ctx.fillRect(-30, -30, W + 60, H + 60); // 같은 세계 안에서 깊어질수록 어둡게
+    ctx.fillStyle = `rgba(4,10,30,${(inRun ? 0.03 : 0.08) + depth * (inRun ? 0.12 : 0.32)})`; ctx.fillRect(-30, -30, W + 60, H + 60); // 같은 세계 안에서 깊어질수록 조금 어둡게(판 중엔 아주 조금)
   }
   // 빛줄기
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -91,7 +101,7 @@ function drawBackground(n, d) {
     ctx.lineTo(W + 20, H); ctx.fill(); ctx.globalAlpha = 1;
   };
   if (!ready(bgi)) ridge(0.12, SEABED - 40, 170, 190, th.rock, 0.5);
-  ridge(0.3, SEABED - 6, 90, 120, th.rock2, ready(bgi) ? 0.35 : 0.75);
+  if (!ready(bgi)) ridge(0.3, SEABED - 6, 90, 120, th.rock2, 0.75); // 그림 배경 위엔 코드 언덕을 안 그림(옛날 느낌)
   const painted = ready(bgi); // Codex 배경이면 코드로 그린 장식·해초·모래는 생략
   // 장식: 난파선(3·17), 열수구(24·26·얼음불꽃 후반), 얼음 기둥(얼음불꽃 초반)
   if (!painted && (n === 3 || n === 17)) {
@@ -164,6 +174,12 @@ function drawBackground(n, d) {
     else { ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(b.x + Math.sin(b.ph) * 3, b.y, b.r, 0, Math.PI * 2); ctx.stroke(); }
   }
   drawStageAmb(n, d);
+  // 달리는 바닥 길(러너 히트작 공통: 캐릭터가 서는 또렷하고 밝은 길) — 세계마다 코덱스 그림, 세상과 같은 빠르기로 흐름
+  const gi = inRun && IMG['spr_ground' + th.world];
+  if (gi && ready(gi) && typeof obox === 'function') {
+    const b = obox(gi), y0 = GROUND - 12, gh = H - y0 + 6, gw = gh * b.w / b.h, off = d % gw;
+    for (let x = -off; x < W + gw; x += gw) ctx.drawImage(gi, b.x, b.y, b.w, b.h, Math.floor(x) - 1, y0, Math.ceil(gw) + 2, gh);
+  }
   // 수면 물결
   ctx.strokeStyle = `rgba(255,255,255,${th.ray * 1.4 + 0.04})`; ctx.lineWidth = 2;
   ctx.beginPath();
