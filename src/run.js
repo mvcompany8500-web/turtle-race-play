@@ -83,7 +83,7 @@ function releaseRunInput() { if (G && G.run) { G.p.holdJ = false; G.p.slideHold 
 function doJump(first) {
   const p = G.p; G.lastJumpT = G.t;
   const k = (G.grabT > 0 ? 0.72 : 1) * (G.eff.giant > 0 ? 1.06 : 1) * (1 + abStar('jump') * 0.06);
-  if (first && p.onG) beatJudge(); // 땅에서 뛸 때 박자 판정
+  if (first && p.onG) { beatJudge(); fxImg('spr_fx_dust', p.x - 14, p.fy - 10, 36, 90, 0.26); } // 땅에서 뛸 때 박자 판정 + 발밑 흙먼지
   p.vy = -(first ? JUMP_V : JUMP2_V) * k * (p.holdJ ? 1 : 0.62) * Math.sqrt(flo());
   p.jumps = first ? 1 : Math.max(2, p.jumps + 1); // 발판에서 떨어진 뒤 공중 점프는 두 번째로 셈
   p.onG = false; p.coyote = 0; p.buf = 0; p.slide = false; p.bounced = false;
@@ -102,6 +102,7 @@ function land(vy) {
   p.land = 0.14; p.jumps = 0; p.bounced = false;
   if (G.stompChain >= 3) snd('mission', 0.7); // 연속 밟기 끝: 짧은 칭찬음(진주는 밟을 때마다 이미 줌)
   G.stompChain = 0;
+  if (vy > 420) fxImg('spr_fx_dust', p.x - 6, p.fy - 12, 50, 120, 0.32);
   if (vy > 500) {
     shake = Math.max(shake, p.dive > 0 ? 8 : 3); // 착지 소리 없음(인기 게임처럼 — 잦은 소리 줄임)
     for (let i = 0; i < 8; i++) fx.push({ k: 'spark', x: p.x + rand(-26, 26), y: p.fy - 2, vx: rand(-200, 200), vy: rand(-140, -30), life: 0.35, max: 0.35, size: rand(2, 4), color: '#e9d9a8' });
@@ -566,7 +567,7 @@ function bonusUpdate(dt) {
 }
 function bonusMoveLane(d) { const b = G.bonus; if (!b) return false; const n = clamp(b.lane + d, 0, 2); if (n !== b.lane) { b.lane = n; snd('swoosh', 0.5, d > 0 ? 1.3 : 1); } return true; }
 function getLetter(o) {
-  o.dead = true; G.letters[o.i] = 1; addScore(3000);
+  o.dead = true; G.letters[o.i] = 1; (G.letterPopAt = G.letterPopAt || [])[o.i] = T; addScore(3000);
   sfx.letter(); haptic([10, 20, 30]);
   burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
   pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
@@ -790,6 +791,7 @@ function drawRunShadow() {
 }
 // ───────── 주인공 동작 그림: Codex 가 같은 캐릭터로 그린 7장(달리기 2·점프·떨어짐·등껍질 미끄럼·등껍질 공·맞음) ─────────
 const POSE_KEYS = ['hero_run1', 'hero_run2', 'hero_jump', 'hero_fall', 'hero_shell', 'hero_ball', 'hero_hurt'];
+['hero_dash', 'hero_win'].forEach((k) => load('pose_' + k, `assets/sprites/${k}.webp`)); // 기본 터틀이만 있는 동작(옷·변신 땐 원래 동작)
 POSE_KEYS.forEach((k) => load('pose_' + k, `assets/sprites/${k}.webp`));
 const poseCache = {};
 // 투명 여백을 잘라 둔 그림(발끝 = 그림 아래 끝) + 옷의 모자 색
@@ -827,12 +829,13 @@ function pose(key, cap) {
 // 동작별 키(서 있는 키 = 1): 등껍질에 쏙 들어가면 낮고 납작하게
 // 모자 꼭대기의 가로 자리(잘라 둔 그림 폭 기준 0~1) — 등껍질 공·미끄럼은 숨김
 const HAT_AT = { hero_run1: 0.6, hero_run2: 0.62, hero_jump: 0.5, hero_fall: 0.5, hero_hurt: 0.35 };
-const POSE_H = { hero_run1: 0.98, hero_run2: 0.98, hero_jump: 1.02, hero_fall: 1.02, hero_shell: 0.43, hero_ball: 0.66, hero_hurt: 0.98 };
+const POSE_H = { hero_run1: 0.98, hero_run2: 0.98, hero_jump: 1.02, hero_fall: 1.02, hero_shell: 0.43, hero_ball: 0.66, hero_hurt: 0.98, hero_dash: 0.78, hero_win: 1.05 };
 function heroPose() {
   const p = G.p;
   if (p.dead || T - (G.hurtAt || -9) < 0.45) return 'hero_hurt';
   if (p.slide) return 'hero_shell';
   if (G.bonus || G.eff.rocket > 0) return 'hero_jump';
+  if (G.boosting > 0 && (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')) && ready(IMG.pose_hero_dash)) return 'hero_dash'; // 필살 질주: 앞으로 쭉 뻗은 동작
   if (!p.onG) { if (p.spin > 0) return 'hero_ball'; return p.vy > 160 ? 'hero_fall' : 'hero_jump'; }
   return Math.floor(G.dist / (G.boosting > 0 ? 70 : 52)) % 2 ? 'hero_run2' : 'hero_run1';
 }
@@ -976,8 +979,9 @@ function drawRunHud(L) {
   const lx = W / 2 - 66, ly = 62; // 진행 막대(23~37)·막대 위 거북이 아래 여백
   if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => {
     const on = G.letters[i];
-    ctx.fillStyle = on ? C.yellow : 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(lx + i * 44, ly, 16, 0, Math.PI * 2); ctx.fill();
-    if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+    const lim = IMG[on ? 'spr_ui_letter_on' : 'spr_ui_letter_off'], pop = on && G.letterPopAt && G.letterPopAt[i] ? Math.max(0, 1 - (T - G.letterPopAt[i]) / 0.4) : 0;
+    if (lim && ready(lim)) drawImg(lim, lx + i * 44, ly, 40 * (1 + pop * 0.5), 0, on ? 1 : 0.85); // 코덱스 유리 방울(모으면 금빛 사탕)
+    else { ctx.fillStyle = on ? C.yellow : 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(lx + i * 44, ly, 16, 0, Math.PI * 2); ctx.fill(); if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); } }
     text(c, lx + i * 44, ly + 1, 15, on ? '#7a3a00' : 'rgba(255,255,255,.5)', { stroke: false });
   });
   // 연습 안내

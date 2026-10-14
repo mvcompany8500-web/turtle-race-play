@@ -149,6 +149,8 @@ function popDots(x, y, d = 30) {
 }
 function fountain(x, y, n) { for (let i = 0; i < Math.min(n, 16); i++) fx.push({ k: 'eggfly', sx: x + rand(-30, 30), sy: y + rand(-20, 20), life: 0.6 + i * 0.05, max: 0.6 }); }
 const zoomTo = (v) => { zoom = Math.max(zoom, v); };
+// 코덱스 효과 그림 한 장을 커지며 사라지게(펑 구름·흙먼지·반짝)
+function fxImg(im, x, y, s0, s1, life, o = {}) { if (REDUCE && !o.must) return; if (fx.length > 260) return; fx.push(Object.assign({ k: 'img', im, x, y, s0, s1, life, max: life, rot: rand(-0.3, 0.3) }, o)); }
 function updateFx(dt) {
   for (const f of fx) {
     f.life -= dt;
@@ -250,7 +252,7 @@ function weakHit(e, item) {
 }
 function killEnemy(e, cause = 'boost') {
   if (e.dead) return;
-  e.dead = true;
+  e.dead = true; fxImg('spr_fx_poof', e.x, e.y, 50, 150, 0.45, { must: true });
   if (cause === 'shot') shake = Math.max(shake, e.elite ? 10 : 5);
   else { freeze = Math.max(freeze, 0.06); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035); }
   const col = (ENEMIES[e.type] || {}).color || '#fff';
@@ -578,7 +580,7 @@ function collectEgg(e) {
     if (G.boosting <= 0) addBoost(1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
     snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
-    burst(e.x, e.y, '#dff6ff', 3, 120);
+    fxImg('spr_fx_spark', e.x, e.y, 18, 52, 0.28, { add: true, spin: 2 });
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
     if (CM[G.combo] != null) { reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`); ameliaSay(pick(['우와, 최고야!', '반짝반짝 멋져!', '그대로 쭉 가자!']), 'cheer', true); }
     return;
@@ -1333,6 +1335,9 @@ function drawEgg(e) {
   }
   if (e.pearl) {
     const y = e.y + Math.sin(e.t * 4) * 2;
+    if (e.jv == null) e.jv = 'abc'[(G.pats || 0) % 3]; // 줄마다 젤리 모양이 바뀜(물방울·하트·별)
+    const jim = IMG['spr_pk_jelly_' + e.jv];
+    if (jim && ready(jim)) { const sq = 1 + Math.sin(e.t * 6 + e.x * 0.05) * 0.06; ctx.save(); ctx.translate(e.x, y); ctx.scale(1 / sq, sq); drawImg(jim, 0, 0, 30); ctx.restore(); return; }
     ctx.fillStyle = 'rgba(190,240,255,.85)'; ctx.beginPath(); ctx.arc(e.x, y, 8, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(e.x - 3, y - 3, 2.5, 0, Math.PI * 2); ctx.fill();
@@ -1556,6 +1561,7 @@ function drawWorld() {
   // 파편·번개·레이저
   for (const f of fx) {
     const a = Math.max(0, f.life / f.max);
+    if (f.k === 'img') { const t = 1 - a, e = 1 - Math.pow(1 - t, 3); ctx.globalAlpha = Math.min(1, a * 1.8); if (f.add) ctx.globalCompositeOperation = 'lighter'; drawImg(IMG[f.im], f.x, f.y, f.s0 + (f.s1 - f.s0) * e, f.rot + t * (f.spin || 0)); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; continue; }
     if (f.k === 'spark') { ctx.globalAlpha = a; ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x, f.y, f.size * (0.4 + a * 0.6), 0, Math.PI * 2); ctx.fill(); }
     else if (f.k === 'chunk') { ctx.globalAlpha = a; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.fillStyle = f.color; ctx.fillRect(-f.size / 2, -f.size / 2, f.size, f.size); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.strokeRect(-f.size / 2, -f.size / 2, f.size, f.size); ctx.restore(); }
     else if (f.k === 'ring') { ctx.globalAlpha = a; ctx.strokeStyle = f.color; ctx.lineWidth = f.lw * a + 1; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.stroke(); }
@@ -1647,9 +1653,10 @@ function drawHUD() {
     text(`${meters()}미터`, W / 2, by + 8, 28, '#ffffff');
     if (save.endlessBest) text(`최고 ${save.endlessBest}미터`, W / 2, by + 34, 14, C.yellow, { body: true });
   } else {
-    const pr = progress(), best = (save.best[n] || 0) / 100;
-    ctx.fillStyle = 'rgba(0,0,0,.4)'; rr(bx, by, bw, bh, 7); ctx.fill();
-    const g = ctx.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, C.blueD); g.addColorStop(1, C.blue);
+    const pr = progress(), best = (save.best[n] || 0) / 100, gfp = IMG.spr_ui_glass_b;
+    ctx.fillStyle = 'rgba(8,30,70,.5)'; rr(bx, by, bw, bh, 7); ctx.fill();
+    if (gfp && ready(gfp)) slice3(gfp, bx - 10, by - 8, bw + 20, bh + 16); // 기운 막대와 같은 유리 틀
+    const g = ctx.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#5fd4ff'); g.addColorStop(1, '#3d7bff');
     ctx.fillStyle = g; rr(bx, by, Math.max(bh, bw * pr), bh, 7); ctx.fill();
     if (!G.cfg.boss) { ctx.fillStyle = G.blessDone ? C.ok : '#ffffff'; ctx.beginPath(); ctx.arc(bx + bw * 0.5, by + bh / 2, 5, 0, Math.PI * 2); ctx.fill(); }
     if (best > 0 && best < 1) {
@@ -1683,7 +1690,7 @@ function drawHUD() {
   if (isTouch || G.run) { const pz = IMG.spr_ui_pause; if (G.run && pz && ready(pz)) { drawImg(pz, W - SAFE - 40, 30, 52); ctx.save(); ctx.globalAlpha = 0; button(W - SAFE - 68, 4, 56, 56, 'II', () => { if (!G.p.dead) state = 'pause'; }, {}); ctx.restore(); } else if (isTouch) button(W - SAFE - 60, 52, 46, 40, 'II', () => { if (!G.p.dead) state = 'pause'; }, { size: 17, color: '#cfd8ff' }); }
   const full = G.boost >= 100;
   if (G.run) { // 달리기 화면 위쪽(정리): 둘째 줄은 남색 알약 하나씩 — 터치는 질주를 오른쪽 아래 필살 메달이 보여 주니 여기선 축제 게이지만
-    const chip = (x, y, w, h) => { ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(x, y, w, h, h / 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5; rr(x, y, w, h, h / 2); ctx.stroke(); };
+    const chip = (x, y, w, h) => { const gf = IMG.spr_ui_glass_b; ctx.fillStyle = 'rgba(8,30,70,.5)'; rr(x, y, w, h, h / 2); ctx.fill(); if (gf && ready(gf)) slice3(gf, x - 8, y - 7, w + 16, h + 14); else { ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5; rr(x, y, w, h, h / 2); ctx.stroke(); } }; // 기운 막대와 같은 유리 틀
     let ry = 64;
     if (!isTouch) {
       chip(L, ry, 262, 28); icon('e_rocket', L + 16, ry + 14, 20);
