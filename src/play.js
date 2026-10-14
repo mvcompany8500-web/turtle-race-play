@@ -21,7 +21,7 @@ function levelCfg(n) {
   }
   // 점프 달리기: 처음 480 → 50번 바다 330 (타이밍을 맞출 수 있는 빠르기) / 자유 헤엄: 600 → 220
   const speed = (runMode() ? Math.max(330, 480 - (n - 1) * 3) : Math.max(220, 600 - (n - 1) * 8)) * slow * D.speed;
-  return { n, speed, pool, endless: false, length: speed * (46 + n * 0.6), gap: Math.max(0.34, 1.1 - n * 0.015) * D.gap, boostRate: (5 + n * 0.35) * boostMul, boss: st.boss || null, dark: !!st.dark, D };
+  return { n, speed, pool, endless: false, length: speed * (n === 1 ? 30 : n === 2 ? 36 : n <= 4 ? 42 : 46 + n * 0.6), /* 첫 판은 짧게(히트작 공통: 짧은 판·바로 다시) */ gap: Math.max(0.34, 1.1 - n * 0.015) * D.gap, boostRate: (5 + n * 0.35) * boostMul, boss: st.boss || null, dark: !!st.dark, D };
 }
 const stageMusic = (n) => (n === ENDLESS ? 'w3' : worldOf(n).music);
 const boostDur = () => 3.2 + (petIs('penguin') ? petLv() * 0.3 : 0);
@@ -323,7 +323,7 @@ function hitPlayer(src) {
   }
   const hitE = Math.max(10, (hasTr('flute') ? 18 : HIT_E) - gearSum('guard'));
   if (G.run && G.en - hitE > 0.5) { // 점프 달리기는 기운: 부딪히면 25 줄고 깜빡이며 버팀
-    G.en -= hitE; G.enLagT = 0.4; G.hurtAt = T; p.inv = 1.6; shake = 16; freeze = 0.08; flash = 0.3; flashColor = '#ff3355'; setFace('ouch', 0.8);
+    G.en -= hitE; G.enLagT = 0.4; G.hurtAt = T; if (!G.chaser && !(G.boss && !G.boss.dead)) G.chaser = { x: -200, flee: 0, until: G.t + 2.5 }; ameliaSay('조심해, 터틀!', 'scared'); /* 맞으면 상어가 바짝(템플 런식 긴장) */ p.inv = 1.6; shake = 16; freeze = 0.08; flash = 0.3; flashColor = '#ff3355'; setFace('ouch', 0.8);
     burst(p.x - 10, p.y, '#ffb3c0', 10, 300); ring(p.x, p.y, '#ff5470', 70, 0.3, 5); hitStar(p.x + 24, p.y - 10, false, false); // 몸을 가리지 않게 작게
     pop(p.x, p.y - 64, G.en <= HIT_E ? '기운이 얼마 안 남았어요!' : '아야!', '#ff9aa8', 26, G.en <= HIT_E);
     // 맞은 몸짓: 뒤로 밀리며 살짝 튀어오름(알 합치기 넉백처럼) — 무적 1.6초라 다시 맞지 않음
@@ -580,7 +580,7 @@ function collectEgg(e) {
     snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     burst(e.x, e.y, '#dff6ff', 3, 120);
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
-    if (CM[G.combo] != null) reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`);
+    if (CM[G.combo] != null) { reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`); ameliaSay(pick(['우와, 최고야!', '반짝반짝 멋져!', '그대로 쭉 가자!']), 'cheer', true); }
     return;
   }
   setFace('happy', 0.35); runXp(3);

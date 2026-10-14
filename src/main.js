@@ -208,7 +208,7 @@ function update(dt) {
     const step = kidMode() ? 1800 : 3600, n = Math.floor(playSec / step), mins = Math.round(n * step / 60); restAt = (n + 1) * step;
     coach = { id: 'rest' + n, t: 0, wait: 'tap', pass: true, state, text: mins >= 60 && mins % 60 === 0 ? `${mins / 60}시간째 달리고 있어요` : `${mins}분째 달리고 있어요`, sub: '눈과 손가락을 잠깐 쉬어 주세요 · 오늘 판은 그대로 남아요', spot: null }; snd('ready', 0.6);
   }
-  if (updateCoach(dt)) return; // 안내 중엔 세계 멈춤
+  if (updateCoach(dt)) { if (state !== 'play' || !G || G.tut) return; dt *= 0.12; } // 판 중 안내는 멈추지 않고 아주 느리게(러너 히트작처럼 흐름이 안 끊김) · 첫 연습판은 그대로
   if (state === 'play') coachRunTriggers();
   if (freeze > 0) { freeze -= dt; return; }
   const sdt = dt * timeScale;
@@ -248,7 +248,7 @@ function render() {
     drawBoostOverlay();
     drawScreenFxBack();
     drawUltCine(); if (!cine) drawSprFx(); drawTaunt();
-    if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawSweepLabels(); drawHUD(); }
+    if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawSweepLabels(); drawHUD(); drawAmeliaSay(); }
     if (state === 'play') drawCutin();
   } else if (state === 'map' || state === 'intro') {
     if (state === 'intro') drawBackground(1, T * 20);

@@ -746,7 +746,7 @@ function introAdvance() {
   if (cut.i >= INTRO.length) { endIntro(); return; }
   introStep(INTRO[cut.i]);
 }
-function endIntro() { save.introSeen = true; persist(); placeHero(Math.min(save.unlocked, LAST)); enterMap(); }
+function endIntro() { const first = !save.introSeen && !save.runs; save.introSeen = true; persist(); placeHero(Math.min(save.unlocked, LAST)); if (first) { startLevel(1); return; } enterMap(); } // 처음엔 이야기 → 바로 달리기(히트작 공통: 첫 탭부터 몇 초 안에 달림)
 function updateIntro(dt) {
   cut.t += dt;
   const s = INTRO[cut.i];

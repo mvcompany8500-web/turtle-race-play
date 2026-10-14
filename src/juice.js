@@ -590,3 +590,24 @@ function drawAppEgg(x, y) {
   else t = a.server ? `거북알 +${a.eggs} · 오늘 ${a.runs}/${a.max}판` : `앱에서 하면 거북알 +${a.eggs} · 오늘 ${a.runs}/${a.max}`;
   text(t, x - 128, y + 1, 15, a.eggs ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
 }
+
+// ───────── 아멜리아 한마디(판 중): 위 가운데 동그란 얼굴 + 말풍선, 4초에 한 번까지(러너 히트작의 귀여운 동료 반응) ─────────
+let amSay = null, amSayAt = -9;
+function ameliaSay(line, mood = 'cheer', force = false) {
+  if (!G || !G.run || (!force && T - amSayAt < 4)) return;
+  amSay = { line, mood, t0: T }; amSayAt = T;
+}
+function drawAmeliaSay() {
+  if (!amSay || !G || !G.run) return;
+  const t = T - amSay.t0; if (t > 2.4) { amSay = null; return; }
+  const k = t < 0.25 ? easeOutBack(t / 0.25) : t > 2.1 ? 1 - (t - 2.1) / 0.3 : 1, cx = W / 2 - 96, cy = 134 - (1 - Math.min(1, k)) * 30;
+  ctx.save(); ctx.globalAlpha = clamp(k, 0, 1);
+  ctx.font = `800 ${fs(16)}px ${FONT}`; const tw = ctx.measureText(amSay.line).width + 32;
+  ctx.fillStyle = '#ffffff'; rr(cx + 30, cy - 19, tw, 38, 19); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx + 32, cy - 6); ctx.lineTo(cx + 20, cy + 2); ctx.lineTo(cx + 34, cy + 8); ctx.fill();
+  text(amSay.line, cx + 30 + tw / 2, cy, 16, '#e0457b', { stroke: false });
+  ctx.fillStyle = '#ffd1e6'; ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#ff6fae'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, 28, 0, Math.PI * 2); ctx.clip();
+  const im = amSay.mood === 'scared' ? IMG.spr_amelia_scared : IMG.spr_amelia_cheer; drawImg(im, cx, cy + 14 + Math.sin(t * 12) * (amSay.mood === 'scared' ? 1.5 : 0), 74, 0, 1, true);
+  ctx.restore(); ctx.restore();
+}
