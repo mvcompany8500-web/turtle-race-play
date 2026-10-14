@@ -1356,7 +1356,7 @@ function drawToasts() {
   if (!toastOK()) return;
   toasts.slice(0, 1).forEach((t, i) => {
     const age = 2.8 - t.t, a = Math.min(1, t.t / 0.3), slide = Math.min(1, age / 0.25);
-    const y = 132 + i * 48 - (1 - easeOutBack(slide)) * 40;
+    const y = 132 + i * 48 + (1 - easeOutBack(slide)) * 24; // 아래에서 떠오름(위 아이콘 이름을 덮지 않게)
     ctx.save(); ctx.globalAlpha = a;
     ctx.font = `600 ${fs(18)}px ${FONT}`; const w = ctx.measureText(t.s).width + 56;
     ctx.fillStyle = 'rgba(27,28,31,.94)'; rr(W / 2 - w / 2, y - 20, w, 40, 20); ctx.fill();
