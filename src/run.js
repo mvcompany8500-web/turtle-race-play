@@ -81,7 +81,7 @@ function slideUp() { if (G && G.run) G.p.slideHold = false; }
 function releaseRunInput() { if (G && G.run) { G.p.holdJ = false; G.p.slideHold = false; G.touch = { j: null, s: null }; } }
 
 function doJump(first) {
-  const p = G.p;
+  const p = G.p; G.lastJumpT = G.t;
   const k = (G.grabT > 0 ? 0.72 : 1) * (G.eff.giant > 0 ? 1.06 : 1) * (1 + abStar('jump') * 0.06);
   if (first && p.onG) beatJudge(); // 땅에서 뛸 때 박자 판정
   p.vy = -(first ? JUMP_V : JUMP2_V) * k * (p.holdJ ? 1 : 0.62) * Math.sqrt(flo());
@@ -146,7 +146,9 @@ function runMove(dt) {
   const sc = p.scale, topNow = p.fy - STAND_R * 2 * sc;
   if (topNow < CEIL + 4) { p.fy = CEIL + 4 + STAND_R * 2 * sc; if (p.vy < 0) p.vy = 0; }
   let onNow = false;
-  if (p.fy >= GROUND) { p.fy = GROUND; onNow = true; }
+  const pitHere = G.boosting <= 0 && !p.dead && overPit(p.x);
+  if (p.fy >= GROUND && prevF <= GROUND + 2 && !pitHere) { p.fy = GROUND; onNow = true; }
+  else if (p.fy > GROUND + 2 && !p.dead) { if (p.fy > H + 30) fallDeath(); } // 구멍 속으로 떨어지는 중: 다시 바닥에 서지 않음
   else if (p.vy >= 0) {
     for (const o of G.obs) {
       if (o.k !== 'plat' || o.dead) continue;
@@ -168,6 +170,11 @@ function runMove(dt) {
   p.ph += dt * (p.onG ? 14 : 6);
 }
 
+function fallDeath() {
+  const p = G.p; if (p.dead) return;
+  G.shield = 0; p.inv = 0; G.en = 0; pop(p.x + 40, GROUND - 80, '풍덩!', '#ffffff', 40, true); shake = 18; haptic([60, 40, 120]); snd('splash', 0.9, 0.9);
+  killPlayer(); G.fellPit = true; G.fellPat = G.lastPat; if (window.LAB) { const pt = G.obs.find((o) => o.k === 'pit' && p.x > o.x - 40 && p.x < o.x + o.w + 40); (window.LAB_FALLS = window.LAB_FALLS || []).push({ pat: G.lastPat, rel: pt ? Math.round(p.x - pt.x) : null, w: pt ? Math.round(pt.w) : null, sinceJump: +(G.t - (G.lastJumpT || 0)).toFixed(2), spd: Math.round(G.cfg.speed) }); }
+}
 // ───────── 밟기 ─────────
 function canStomp(e) {
   const p = G.p;
@@ -238,6 +245,9 @@ function mon(type, x, y, extra = {}) {
 }
 function jar(x) { const d = BREAK.jar; G.breaks.push({ k: 'jar', x, y: GROUND - d.r, r: d.r, hp: 1, maxHp: 1, t: 0, hitT: 0, wob: 0, run: true }); }
 function pillar(x, w = 64) { G.obs.push({ k: 'pillar', x, w, y1: GROUND - 46, t: 0 }); }
+// 구멍(러너 히트작 공통 긴장감): 바닥이 없는 곳 — 빠지면 바로 끝. 필살 질주 중엔 그냥 건너감
+function pit(x, w) { G.obs.push({ k: 'pit', x, w, t: 0 }); }
+const overPit = (x) => G.obs.some((o) => o.k === 'pit' && x > o.x + 14 && x < o.x + o.w - 14);
 function plat(x, w, y, amp = 0) { G.obs.push({ k: 'plat', x, w, y, y0: y, amp, ph: Math.random() * 6, t: 0 }); } // amp: 위아래로 오르내리는 발판(판 레벨 높을 때)
 function qblock(x, y = GROUND - 180) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
 function letter(x, y) {
@@ -303,8 +313,24 @@ const PATS = [
   }],
   ['tutPotion', 99, 0, (x) => { G.eggsArr.push({ x: x + 200, y: GROUND - 70, potion: 's', t: 0, tut: true }); eggLine(x, 4, GC()); return 320; }], // 튜토리얼: 기운 물약
   // ── 판마다 다른 맛: 대표 패턴(STAGE_STYLE 의 sig 로만 나옴) ──
+  // 구멍 지형(러너 히트작 공통): 한 번 뛰기 → 박자 맞춰 세 번 → 계단으로 위로위로 → 떠 있는 섬 건너기
+  ['pitHop', 1, 2.4, (x) => { const w = jumpW() * lerp(0.3, 0.52, diffK()); pit(x + 70, w); eggArc(x + 30, w + 90, 130, 6); return w + 230; }],
+  ['pitRun', 3, 2, (x) => { const k = diffK(), J = jumpW(), n = 3 + (k > 0.5 ? 1 : 0), w = J * lerp(0.26, 0.38, k), land = J * lerp(1.0, 0.82, k); let cx = x + 60; for (let i = 0; i < n; i++) { pit(cx, w); eggArc(cx - 30, w + 60, 100, 4); cx += w + land; } return cx - x + 120; }],
+  ['stairsUp', 4, 2, (x) => { // 점프·점프·점프로 올라가는 계단(아래는 구멍)
+    const k = diffK(), J = jumpW(), n = 4 + Math.round(k * 2), pw = J * lerp(0.95, 0.72, k), dy = lerp(56, 72, k), gap = J * lerp(0.2, 0.34, k), TOP = GROUND - 300; /* 길이는 한 번 점프 거리에 맞춤(빠른 판에서도 다음 발판에 내림) */
+    let cx = x + 90, lv = 0, dir = 1;
+    for (let i = 0; i < n; i++) { let y = GROUND - 66 - lv * dy; if (y < TOP) { dir = -1; lv -= 2; y = GROUND - 66 - lv * dy; } plat(cx, pw, y, k > 0.55 ? 14 * (i % 2 ? 1 : -1) : 0); eggLine(cx + 16, Math.max(2, Math.floor(pw / 46)), y - 30, 42); if (i === n - 1) egg(cx + pw - 14, y - 36, true); lv += dir; cx += pw + gap; }
+    pit(x + 90 + pw * 0.4, cx - gap - (x + 90 + pw * 0.4) + 30);
+    return cx - x + REACT() + 40;
+  }],
+  ['islands', 7, 1.6, (x) => { // 구멍 위 떠 있는 섬(뒤 판: 오르내림)
+    const k = diffK(), J = jumpW(), n = 3 + Math.round(k), pw = J * lerp(0.85, 0.66, k), gap = J * lerp(0.26, 0.4, k); let cx = x + 80;
+    for (let i = 0; i < n; i++) { const y = GROUND - 40 - (i % 2) * lerp(30, 70, k); plat(cx, pw, y, k > 0.4 ? lerp(10, 26, k) * (i % 2 ? 1 : -1) : 0); eggLine(cx + 14, Math.max(2, Math.floor(pw / 46)), y - 30, 42); cx += pw + gap; }
+    pit(x + 40, cx - gap - (x + 40) + 50);
+    return cx - x + 160;
+  }],
   ['climb', 10, 1.5, (x) => { // 오르기: 발판을 밟고 위로, 위로 — 바닥은 가시밭(떨어지면 아픔). 판 레벨이 오를수록 단수↑·폭↓·간격↑·높이차↑
-    const k = diffK(), tiers = 3 + Math.round(k * 2), pw = lerp(200, 128, k), dy = lerp(68, 90, k), gap = lerp(56, 112, k);
+    const k = diffK(), J = jumpW(), tiers = 3 + Math.round(k * 2), pw = J * lerp(0.95, 0.7, k), dy = lerp(68, 90, k), gap = J * lerp(0.18, 0.33, k);
     let cx = x + 60, lv = 0, dir = 1;
     const TOP = GROUND - 290; // 꼭대기 한계(더 높으면 천장에 머리를 박아 점프가 짧아짐) — 닿으면 내려가는 계단으로
     for (let i = 0; i < tiers; i++) {
@@ -313,7 +339,7 @@ const PATS = [
       eggLine(cx + 18, Math.max(2, Math.floor(pw / 48)), y - 30, 44); if (i === tiers - 1) { egg(cx + pw - 16, y - 36, true); G.eggsArr[G.eggsArr.length - 1].climbTop = true; } // 꼭대기엔 황금 진주
       cx += pw + gap;
     }
-    for (let sx = x + 60 + pw * 0.55; sx < cx - gap - 10; sx += 46) spike(sx); // 첫 발판 밑부터 마지막 발판 끝까지 가시
+    pit(x + 60 + pw * 0.5, cx - gap - (x + 60 + pw * 0.5) + 10); // 첫 발판 밑부터 마지막 발판 끝까지 구멍(떨어지면 끝 — 대표: 「바로 죽어도 된다」)
     return cx - gap - x + REACT() + 60;
   }],
   ['kelpSteps', 99, 1, (x) => { // 해초 계단: 세 칸 올라가며 진주, 아래는 가시 — 판 레벨에 따라 폭·간격
@@ -446,7 +472,7 @@ function runCourse() {
     let pat;
     if (G.tut && G.tut.seq.length) pat = PAT_BY[G.tut.seq.shift()];
     else if (G.setQ && G.setQ.length) pat = PAT_BY[G.setQ.shift()];
-    else pat = choosePat();
+    else pat = (window.LAB && window.LAB_PAT && PAT_BY[window.LAB_PAT]) || choosePat(); /* 실험실: 한 지형만 반복해 깰 수 있는지 잼 */
     if (!G.tut && !G.setDone && !cfg.endless && G.dist + x >= cfg.length * 0.5) { G.setDone = true; G.setQ = setPiece(); } // 판 한가운데: 그 판만의 연속 구간
     const wn = styleOf().wall || 0; G.wallDone = G.wallDone || 0;
     if (!G.tut && !cfg.endless && G.wallDone < wn && G.dist + x >= cfg.length * (wn === 1 ? 0.62 : [0.35, 0.75][G.wallDone])) { G.wallDone++; (G.setQ = G.setQ || []).unshift('ultWall'); } // 벽 판: 정해진 자리에 벽

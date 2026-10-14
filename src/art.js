@@ -178,7 +178,17 @@ function drawBackground(n, d) {
   const gi = inRun && IMG['spr_ground' + th.world];
   if (gi && ready(gi) && typeof obox === 'function') {
     const b = obox(gi), y0 = GROUND - 12, gh = H - y0 + 6, gw = gh * b.w / b.h, off = d % gw;
+    const pits = G.obs.filter((o) => o.k === 'pit' && o.x < W + 20 && o.x + o.w > -20);
+    ctx.save();
+    if (pits.length) { ctx.beginPath(); ctx.rect(-40, y0 - 4, W + 80, H); for (const o of pits) ctx.rect(o.x + o.w, y0 - 4, -o.w, H); ctx.clip('evenodd'); } // 구멍 자리만 바닥을 비움
     for (let x = -off; x < W + gw; x += gw) ctx.drawImage(gi, b.x, b.y, b.w, b.h, Math.floor(x) - 1, y0, Math.ceil(gw) + 2, gh);
+    ctx.restore();
+    for (const o of pits) { // 구멍 속: 깊은 바다 그라데이션 + 벼랑 그림자 + 올라오는 거품(위험이 한눈에)
+      const g = ctx.createLinearGradient(0, y0, 0, H); g.addColorStop(0, 'rgba(8,24,70,.9)'); g.addColorStop(1, 'rgba(2,6,24,1)');
+      ctx.fillStyle = g; ctx.fillRect(o.x, y0 + 2, o.w, H - y0);
+      for (const [ex, dir] of [[o.x, 1], [o.x + o.w, -1]]) { const eg = ctx.createLinearGradient(ex, 0, ex + dir * 22, 0); eg.addColorStop(0, 'rgba(0,0,0,.55)'); eg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = eg; ctx.fillRect(Math.min(ex, ex + dir * 22), y0, 22, H - y0); }
+      ctx.fillStyle = 'rgba(160,220,255,.5)'; for (let k = 0; k < 3; k++) { const bx = o.x + o.w * (0.25 + 0.25 * k), by = H - ((T * 40 + k * 23) % (H - y0)); ctx.beginPath(); ctx.arc(bx, by, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    }
   }
   // 수면 물결
   ctx.strokeStyle = `rgba(255,255,255,${th.ray * 1.4 + 0.04})`; ctx.lineWidth = 2;

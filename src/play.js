@@ -863,7 +863,7 @@ function doRevive() {
   G.revives++;
   const p = G.p;
   Object.assign(p, { dead: false, vy: 0, vx: 0, x: 170, y: H / 2, rot: 0, inv: 2.6, flip: 0 });
-  if (G.run) { Object.assign(p, { x: PX(), fy: GROUND, onG: true, jumps: 0, slide: false, r: STAND_R }); p.y = GROUND - STAND_R; G.en = G.enShow = G.maxEn; G.obs = G.obs.filter((o) => o.k !== 'pillar'); releaseRunInput(); }
+  if (G.run) { Object.assign(p, { x: PX(), fy: GROUND, onG: true, jumps: 0, slide: false, r: STAND_R }); p.y = GROUND - STAND_R; G.en = G.enShow = G.maxEn; G.obs = G.obs.filter((o) => o.k !== 'pillar' && !((o.k === 'pit' || o.k === 'plat') && o.x < W + 60)); releaseRunInput(); }
   setFace('boost', 1);
   for (const e of G.enemies) { burst(e.x, e.y, (ENEMIES[e.type] || {}).color || '#fff', 10); e.dead = true; }
   G.enemies = []; G.shots = []; G.warns = []; G.sweeps = []; G.inks.forEach((k) => { k.fade = true; });
