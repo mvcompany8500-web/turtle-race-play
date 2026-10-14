@@ -15,6 +15,49 @@ function theme(n) {
 
 
 // ───────── 그리기: 배경 ─────────
+// 판마다 다른 분위기(같은 세계 10판이 같은 배경이라): 판 이름에 맞는 떠다니는 것 + 옅은 색 덮기
+// [종류, 색, 개수, 덮는 색(없으면 null)] — 종류: snow 눈 · ember 불티 · sparkle 반짝 · ink 먹물 · petal 꽃잎/잎 · glow 빛 알갱이 · dust 모래먼지 · stream 물살 줄 · sun 햇빛 알갱이
+const STAGE_AMB = {
+  1: ['sun', '#fff6c8', 18, null], 2: ['petal', '#7fe08a', 22, 'rgba(60,200,120,.08)'], 3: ['dust', '#d9b98a', 26, 'rgba(150,100,40,.10)'], 4: ['glow', '#ff9ad8', 26, 'rgba(160,60,200,.10)'], 5: ['dust', '#e0a080', 24, 'rgba(180,60,40,.10)'],
+  6: ['sparkle', 'rainbow', 30, null], 7: ['ink', '#3a1f5a', 10, 'rgba(60,20,90,.14)'], 8: ['glow', '#7cf0ff', 26, null], 9: ['glow', '#8fb4ff', 22, null], 10: ['ink', '#2a1240', 10, 'rgba(50,10,70,.12)'],
+  11: ['dust', '#bfe0ff', 22, 'rgba(40,120,220,.08)'], 12: ['stream', '#bfe8ff', 18, null], 13: ['sparkle', '#e8f4ff', 40, 'rgba(70,40,160,.10)'], 14: ['glow', '#ffd86a', 24, null], 15: ['glow', '#ffd86a', 28, null],
+  16: ['sun', '#fff1b0', 22, 'rgba(255,230,150,.06)'], 17: ['dust', '#c8b090', 26, 'rgba(90,80,60,.10)'], 18: ['stream', '#d6f2ff', 22, null], 19: ['glow', '#9cffd0', 22, null], 20: ['dust', '#e0a0a0', 22, null],
+  21: ['snow', '#ffffff', 34, 'rgba(180,230,255,.08)'], 22: ['snow', '#ffffff', 56, 'rgba(200,240,255,.10)'], 23: ['dust', '#ff9a8a', 22, 'rgba(160,40,40,.08)'], 24: ['ember', '#ffb060', 30, 'rgba(255,90,30,.08)'], 25: ['sparkle', '#bfe8ff', 34, null],
+  26: ['ember', '#ff8040', 44, 'rgba(255,70,20,.12)'], 27: ['snow', '#dff4ff', 26, 'rgba(120,200,255,.10)'], 28: ['stream', '#e8f0ff', 26, 'rgba(60,70,110,.10)'], 29: ['ember', '#ffa050', 28, null], 30: ['ember', '#ffd060', 34, null],
+  31: ['sun', '#ffe6a0', 26, null], 32: ['stream', '#fff0d0', 22, null], 33: ['dust', '#ffd080', 26, null], 34: ['sparkle', '#ffd54a', 36, 'rgba(255,200,60,.08)'], 35: ['sparkle', '#ffd54a', 30, null],
+  36: ['stream', '#f0e8ff', 26, 'rgba(70,60,110,.10)'], 37: ['sun', '#ffb890', 26, 'rgba(255,120,80,.08)'], 38: ['petal', '#ff9ac0', 26, null], 39: ['glow', '#ffd86a', 24, null], 40: ['sparkle', '#ffd54a', 34, null],
+  41: ['glow', '#c8a0ff', 26, null], 42: ['glow', '#ffffff', 30, 'rgba(200,220,255,.06)'], 43: ['dust', '#b8a0d0', 26, null], 44: ['glow', '#9cffd0', 22, null], 45: ['dust', '#e0c090', 26, null],
+  46: ['stream', '#d8c8ff', 26, null], 47: ['snow', '#e8f4ff', 34, 'rgba(160,210,255,.10)'], 48: ['ember', '#ff7040', 44, 'rgba(255,60,30,.10)'], 49: ['sparkle', '#ffe6ff', 30, null], 50: ['ember', '#ffd060', 36, null],
+};
+function drawStageAmb(n, d) {
+  const a = STAGE_AMB[n]; if (!a) return;
+  const [k, col, cnt, tint] = a;
+  if (tint) { ctx.fillStyle = tint; ctx.fillRect(-30, -30, W + 60, H + 60); }
+  ctx.save();
+  if (k === 'ember' || k === 'glow' || k === 'sparkle' || k === 'sun') ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < cnt; i++) {
+    const h1 = hash(i * 3.1 + n), h2 = hash(i * 7.7 + n * 2), h3 = hash(i * 1.3 + n * 5), sp = 0.5 + h3, ww = W + 80, hh = H + 60;
+    const c = col === 'rainbow' ? `hsl(${(i * 47 + T * 60) % 360},95%,72%)` : col;
+    let x, y;
+    if (k === 'snow') { x = (h1 * ww - d * 0.3 + Math.sin(T * 0.8 + i) * 20) % ww; y = (h2 * hh + T * 40 * sp) % hh; }
+    else if (k === 'ember') { x = (h1 * ww - d * 0.25 + Math.sin(T * 1.6 + i) * 14) % ww; y = hh - (h2 * hh + T * 55 * sp) % hh; }
+    else if (k === 'petal') { x = (h1 * ww - d * 0.35 - T * 30 * sp) % ww; y = (h2 * hh + T * 28 * sp) % hh; }
+    else if (k === 'stream') { x = ww - (h1 * ww + T * 520 * sp + d * 0.2) % ww; y = 40 + h2 * (H - 140); }
+    else { x = (h1 * ww - d * (0.15 + h3 * 0.2)) % ww; y = (h2 * hh + Math.sin(T * 0.7 + i) * 18 - (k === 'dust' ? T * 6 : 0)) % hh; }
+    if (x < 0) x += ww; if (y < 0) y += hh; x -= 40; y -= 30;
+    const tw = 0.5 + 0.5 * Math.sin(T * (2 + h3 * 3) + i);
+    ctx.fillStyle = c;
+    if (k === 'snow') { ctx.globalAlpha = 0.55 + 0.35 * h3; ctx.beginPath(); ctx.arc(x, y, 1.5 + h3 * 2.5, 0, Math.PI * 2); ctx.fill(); }
+    else if (k === 'ember') { ctx.globalAlpha = 0.35 + 0.5 * tw; ctx.beginPath(); ctx.arc(x, y, 1.5 + h3 * 2.2, 0, Math.PI * 2); ctx.fill(); }
+    else if (k === 'sparkle') { ctx.globalAlpha = 0.2 + 0.8 * tw * tw; const r = 1.5 + h3 * 3; ctx.beginPath(); ctx.moveTo(x, y - r * 2); ctx.lineTo(x + r * 0.5, y); ctx.lineTo(x, y + r * 2); ctx.lineTo(x - r * 0.5, y); ctx.fill(); ctx.beginPath(); ctx.moveTo(x - r * 2, y); ctx.lineTo(x, y + r * 0.5); ctx.lineTo(x + r * 2, y); ctx.lineTo(x, y - r * 0.5); ctx.fill(); }
+    else if (k === 'glow' || k === 'sun') { ctx.globalAlpha = (k === 'sun' ? 0.18 : 0.25) + 0.45 * tw; ctx.beginPath(); ctx.arc(x, y, 1.8 + h3 * 2.4, 0, Math.PI * 2); ctx.fill(); }
+    else if (k === 'petal') { ctx.globalAlpha = 0.7; ctx.save(); ctx.translate(x, y); ctx.rotate(T * (1 + h3) + i); ctx.beginPath(); ctx.ellipse(0, 0, 5 + h3 * 3, 2.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    else if (k === 'ink') { const r = 50 + h3 * 60, gi = ctx.createRadialGradient(x, y, 0, x, y, r); gi.addColorStop(0, col); gi.addColorStop(1, 'rgba(20,8,40,0)'); ctx.fillStyle = gi; ctx.globalAlpha = 0.28 + 0.12 * tw; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); } // 먹물: 가장자리가 퍼지는 구름
+    else if (k === 'dust') { ctx.globalAlpha = 0.25 + 0.25 * tw; ctx.beginPath(); ctx.arc(x, y, 1.2 + h3 * 1.8, 0, Math.PI * 2); ctx.fill(); }
+    else if (k === 'stream') { ctx.globalAlpha = 0.16 + 0.16 * h3; ctx.fillRect(x, y, 60 + h3 * 90, 2); }
+  }
+  ctx.restore();
+}
 function drawBackground(n, d) {
   const th = theme(n);
   const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -120,6 +163,7 @@ function drawBackground(n, d) {
     if (th.glow) { ctx.fillStyle = `rgba(120,255,230,${0.35 + 0.3 * Math.sin(b.ph)})`; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.7, 0, Math.PI * 2); ctx.fill(); }
     else { ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(b.x + Math.sin(b.ph) * 3, b.y, b.r, 0, Math.PI * 2); ctx.stroke(); }
   }
+  drawStageAmb(n, d);
   // 수면 물결
   ctx.strokeStyle = `rgba(255,255,255,${th.ray * 1.4 + 0.04})`; ctx.lineWidth = 2;
   ctx.beginPath();
