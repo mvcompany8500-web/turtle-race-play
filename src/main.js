@@ -33,6 +33,8 @@ addEventListener('popstate', () => {
   if (gate) { gate = null; if (buying) buying = null; return stay(); }
   if (probOpen) { probOpen = false; return stay(); }
   if (buying) { buying = null; return stay(); }
+  if (spending) { spending = null; return stay(); } // 뒤로 = 보석 쓰기 취소
+  if (boxShow) { boxShow = null; fountain(W / 2, H / 2, 0); return stay(); } // 뒤로 = 상자 연출 닫기(진주는 이미 받음)
   if (coach && coach.pass) { coach = null; return stay(); }
   if (state === 'map' && map.overlay) { map.overlay = null; return stay(); }
   if (state === 'play') { if (G && !G.p.dead && !G.won) state = 'pause'; return stay(); }

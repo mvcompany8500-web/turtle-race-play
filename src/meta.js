@@ -50,8 +50,7 @@ function openGift() {
   if (!giftReady()) { sfx.no(); toast(`선물은 ${giftLeft()} 뒤에 와요`); return; }
   const n = 20 + Math.floor(Math.random() * 41); // 20~60 각 개수 같은 확률(확률 정보와 같게)
   save.eggs += n; save.giftAt = Date.now() + 3 * 3600e3; persist();
-  fountain(W / 2, 40, n); confetti(40); sfx.gift(); haptic([20, 30, 40]);
-  toast(`선물 상자! 진주 +${n}`, C.yellow);
+  if (!showBox('wood', '선물 상자', n)) { fountain(W / 2, 40, n); confetti(40); sfx.gift(); haptic([20, 30, 40]); toast(`선물 상자! 진주 +${n}`, C.yellow); }
 }
 function checkStreak() {
   const t = today();
@@ -75,8 +74,35 @@ const chestReady = () => totalStars() >= chestGoal();
 function openChest() {
   if (!chestReady()) { sfx.no(); toast(`별 ${chestGoal()}개를 모으면 열려요 (지금 ${totalStars()}개)`); return; }
   save.chests++; save.eggs += 80; persist();
-  fountain(W / 2, 40, 80); confetti(60); sfx.crack(); haptic([30, 30, 80]);
-  toast('별 상자! 진주 +80', C.yellow);
+  if (!showBox(save.chests % 5 === 0 ? 'gold' : 'silver', '별 상자', 80)) { fountain(W / 2, 40, 80); confetti(60); sfx.crack(); haptic([30, 30, 80]); toast('별 상자! 진주 +80', C.yellow); }
+}
+// 상자 열기 연출(알 합치기 게임의 나무·은·금 상자 그림): 떨어져 통통 → 흔들흔들 → 펑 열림 + 진주 숫자 굴러 오름 → 누르면 진주가 위 진주 칸으로
+let boxShow = null;
+function showBox(kind, label, n) {
+  if (!ready(IMG['spr_box_' + kind + '_c']) || !ready(IMG['spr_box_' + kind + '_o'])) return false;
+  boxShow = { kind, label, n, t: 0, t0: performance.now(), opened: false }; sfx.click(); return true;
+}
+function drawBoxShow() {
+  const b = boxShow; b.t = (performance.now() - b.t0) / 1000; // 실제 시계 기준(프레임이 빠져도 길이 같게)
+  buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => { if (b.t > 1.4) { boxShow = null; fountain(W / 2, H / 2, b.n); sfx.gift(); } else if (b.t < 0.95) b.t0 = performance.now() - 950; } }); // 누르면 바로 열기 → 한 번 더 누르면 받기
+  ctx.fillStyle = `rgba(6,14,34,${Math.min(0.82, b.t * 3)})`; ctx.fillRect(-OX(), 0, W, H);
+  const cx = 480, cy = 270, open = b.t >= 0.95;
+  if (open && !b.opened) { b.opened = true; sfx.crack(); haptic([30, 30, 80]); flash = 0.4; flashColor = '#fff6c8'; confettiBurst(cx + OX(), cy - 40, 60); popDots(cx + OX(), cy - 30, 70); }
+  if (open) { const k = Math.min(1, (b.t - 0.95) / 0.4); ctx.save(); ctx.translate(cx, cy - 20); ctx.rotate(T * 0.5); for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = b.kind === 'gold' ? `rgba(255,213,74,${0.2 * k})` : `rgba(190,232,255,${0.18 * k})`; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-34, -380); ctx.lineTo(34, -380); ctx.fill(); } ctx.restore(); } // 뒤에서 도는 빛살
+  let sx = 1, sy = 1, dy = 0, rot = 0;
+  if (b.t < 0.35) { const k = b.t / 0.35; dy = -(1 - k * k) * 320; } // 위에서 떨어짐
+  else if (b.t < 0.5) { const k = (b.t - 0.35) / 0.15; sy = 1 - 0.18 * Math.sin(k * Math.PI); sx = 1 + 0.14 * Math.sin(k * Math.PI); } // 쿵 찌그러짐
+  else if (!open) { const k = (b.t - 0.5) / 0.45; rot = Math.sin(b.t * 40) * 0.08 * k; sx = sy = 1 + 0.06 * k; } // 점점 세게 흔들
+  else { const k = Math.min(1, (b.t - 0.95) / 0.25); sx = sy = 1 + 0.25 * (1 - k) * Math.sin(k * Math.PI); }
+  ctx.save(); ctx.translate(cx, cy + 60 + dy); ctx.rotate(rot); ctx.scale(sx, sy);
+  drawImg(IMG['spr_box_' + b.kind + (open ? '_o' : '_c')], 0, -110, 240); ctx.restore();
+  text(b.label, cx, 92, 34, b.kind === 'gold' ? C.yellow : '#ffffff', { lw: 7 });
+  if (open) {
+    const k = Math.min(1, (b.t - 1.0) / 0.5), v = Math.round(b.n * (1 - Math.pow(1 - Math.max(0, k), 3)));
+    ctx.font = `800 ${fs(30)}px ${FONT}`; const tw = ctx.measureText(`+${v}`).width;
+    drawPearl(cx - tw / 2 - 10, 438, 32); text(`+${v}`, cx + 14, 440, 30, C.yellow, { lw: 6 });
+    if (b.t > 1.4) text('눌러서 받기', cx, 494, 16, '#ffffff', { body: true, stroke: false });
+  }
 }
 
 // ───────── 월드맵: 세계 5곳 × 바다 10칸 = 50판, 손가락으로 쭉 미는 긴 바다 지도 ─────────
@@ -502,6 +528,7 @@ function drawMap() {
   else if (map.overlay === 'settings') drawSettings();
   else if (map.overlay === 'pass') drawPass();
   else if (map.overlay === 'ach') drawAch();
+  if (boxShow) drawBoxShow(); // 상자 열기 연출은 맨 위
 }
 function overlayBase(x, y, w, h, title, ic) {
   ctx.fillStyle = 'rgba(16,16,18,.7)'; ctx.fillRect(-OX(), 0, W, H);
@@ -822,6 +849,7 @@ function buyUp(i) {
 function tapTreasure(t) {
   save.trs = save.trs || []; save.trEq = save.trEq || [];
   if (save.trEq.includes(t.k)) { save.trEq = save.trEq.filter((k) => k !== t.k); persist(); sfx.click(); shopSay(`${t.name} 뺐어요`); return; }
+  if (!save.trs.includes(t.k) && t.gems && !t._ok) { askSpend(t.gems, t.name, () => { t._ok = true; tapTreasure(t); t._ok = false; }); return; } // 보석 보물: 쓰기 확인 먼저
   if (!save.trs.includes(t.k)) {
     if (t.gems) { if (!spendGems(t.gems)) return; }
     else { if (save.eggs < t.cost) { sfx.no(); shopSay(`진주가 ${t.cost - save.eggs}개 부족해요`); return; } save.eggs -= t.cost; }
@@ -838,9 +866,9 @@ function wearSkin(k) {
 }
 function buySkin(s) {
   if (save.skins.includes(s.k)) { wearSkin(s.k); shopSay(`${s.name} 입었어요`); return; }
-  if (s.gems) { // 보석 옷: 사기 전에 한 번 묻기(결제 창 규칙)
-    if (!spendGems(s.gems)) return;
-    save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`); persist(); return;
+  if (s.gems) { // 보석 옷: 사기 전에 한 번 묻기
+    askSpend(s.gems, s.name, () => { if (!spendGems(s.gems)) return; save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`); persist(); });
+    return;
   }
   if (save.eggs < s.cost) { sfx.no(); shopSay(`진주가 ${s.cost - save.eggs}개 부족해요`); return; }
   save.eggs -= s.cost; save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`);

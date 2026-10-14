@@ -10,7 +10,7 @@ const GEM_PACKS = [
   { id: 'gem_m', name: '보석 주머니', gems: 500, bonus: 50, won: 5900, tag: '인기' },
   { id: 'gem_l', name: '보석 상자', gems: 1200, bonus: 200, won: 12000, tag: '+17%' },
 ];
-const STARTER = { id: 'starter', name: '첫 바다 스타터 팩', won: 3300, gems: 300, pearls: 2000, trail: 'gold', desc: '보석 300 · 진주 2천 · 황금 꼬리' };
+const STARTER = { id: 'starter', name: '첫 바다 스타터 팩', won: 3300, gems: 300, pearls: 2000, trail: 'gold', desc: '보석 300 · 진주 2천 · 황금 별가루 꼬리' };
 const PASS_PROD = { id: 'pass', name: '바다 패스 프리미엄', won: 6600, desc: '이번 달 패스의 프리미엄 줄 보상을 모두 받아요' };
 const TRAILS = [
   { k: 'none', name: '없음', gems: 0 },
@@ -99,18 +99,35 @@ function buyStarter() {
   askBuy(STARTER, () => { save.starter = true; save.gems += STARTER.gems; save.eggs += STARTER.pearls; if (!save.trails.includes('gold')) save.trails.push('gold'); save.trail = 'gold'; toast('스타터 팩! 보석 300 · 진주 2,000 · 황금 별가루', C.yellow); });
 }
 function buyPass() { passSeason(); if (save.pass.prem) return; askBuy(PASS_PROD, () => { save.pass.prem = true; toast('바다 패스 프리미엄이 열렸어요!', C.yellow); }); }
+// 보석 쓰기 확인(옷·꼬리·보물·진주 바꾸기): 한 번 눌러 바로 빠지지 않게 — 두 단추 같은 크기
+let spending = null;
+function askSpend(gems, name, then) { if (save.gems < gems) { spendGems(gems); return; } spending = { gems, name, then }; sfx.click(); }
+function drawSpend() {
+  const sp = spending;
+  buttons.length = 0; buttons.push({ x: 0, y: 0, w: W, h: H, on: () => {} });
+  ctx.save(); ctx.translate(OX(), 0);
+  ctx.fillStyle = 'rgba(8,8,12,.72)'; ctx.fillRect(-OX(), 0, W, H);
+  panel(280, 130, 400, 270, { fill: C.gray });
+  if (!ribbon(480, 134, 280, '보석 쓰기', 22)) text('보석 쓰기', 480, 166, 24, C.text, { stroke: false });
+  text(sp.name, 480, 196, 22, C.yellow, { stroke: false });
+  icon('e_gem', 438, 242, 30); text(`${sp.gems}개를 써요`, 458, 243, 22, '#ffffff', { align: 'left', stroke: false });
+  text(`남는 보석 ${(save.gems - sp.gems).toLocaleString()}개`, 480, 282, 14, C.sub, { body: true, stroke: false });
+  button(312, 316, 162, 54, '쓰기', () => { spending = null; sp.then(); }, { size: 19, kind: 'ok' });
+  button(486, 316, 162, 54, '취소', () => { spending = null; sfx.click(); }, { size: 17, kind: 'soft' });
+  ctx.restore();
+}
 function spendGems(n) { if (save.gems < n) { sfx.no(); toast(`보석이 ${n - save.gems}개 부족해요`, C.danger); return false; } save.gems -= n; persist(); return true; }
 function buyTrail(t) {
   if (save.trails.includes(t.k)) { save.trail = t.k; persist(); sfx.click(); return; }
   if (!t.gems) { sfx.no(); toast(t.how || '아직 못 얻어요'); return; }
-  if (!spendGems(t.gems)) return;
-  save.trails.push(t.k); save.trail = t.k; persist(); sfx.buy(); toast(`${t.name} 꼬리 효과!`, C.yellow);
+  askSpend(t.gems, `${t.name} 꼬리`, () => { if (!spendGems(t.gems)) return; save.trails.push(t.k); save.trail = t.k; persist(); sfx.buy(); toast(`${t.name} 꼬리 효과!`, C.yellow); });
 }
-function exchange(x) { if (!spendGems(x.gems)) return; save.eggs += x.pearls; persist(); sfx.gold(); toast(`진주 +${x.pearls.toLocaleString()}`, C.yellow); }
+function exchange(x) { askSpend(x.gems, `진주 ${x.pearls.toLocaleString()}개로 바꾸기`, () => { if (!spendGems(x.gems)) return; save.eggs += x.pearls; persist(); sfx.gold(); toast(`진주 +${x.pearls.toLocaleString()}`, C.yellow); }); }
 
 // 결제 확인 창 (모든 화면 위)
 function drawBuyConfirm() {
   if (drawGate()) return;
+  if (spending) { drawSpend(); return; }
   if (!buying) return;
   const p = buying.prod, test = !PAY.real();
   buttons.length = 0;
