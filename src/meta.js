@@ -912,9 +912,9 @@ function drawBye() { // 못 닫는 기기: 저장됐다는 인사 화면
 }
 // 첫 화면 오른쪽: 상어왕(보스) + 끈에 매달린 거품 속 아멜리아(크게). 번갈아 말풍선, 누르면 반응. 구출한 뒤엔 아멜리아가 거품 밖에서 응원
 const titleFx = { am: -9, king: -9 };
-function drawTitleBoss(R) {
+function drawTitleBoss(R, CX = 560) {
   const am = IMG.spr_amelia, amc = IMG.spr_amelia_cheer, king = IMG.spr_boss_king, freed = !!save.cleared;
-  const kx = R - 160, ky = 168 + Math.sin(T * 1.3) * 6, kh = 220, kr = T - titleFx.king < 0.6 ? Math.sin((T - titleFx.king) * 40) * 0.06 : Math.sin(T * 1.3) * 0.03;
+  const kh = 200, kx = Math.max(R - 140, CX + 170 + 14 + kh * 0.78), ky = 172 + Math.sin(T * 1.3) * 6, /* 상어왕 왼쪽 끝이 로고 오른쪽 끝(CX+170)보다 오른쪽 */ kr = T - titleFx.king < 0.6 ? Math.sin((T - titleFx.king) * 40) * 0.06 : Math.sin(T * 1.3) * 0.03;
   const swing = Math.sin(T * 1.6) * 0.14, hx = kx - 24, hy = ky + kh * 0.22, rope = 40, br = 96, bx = hx + Math.sin(swing) * (rope + br), by = hy + Math.cos(swing) * (rope + br);
   if (!freed && king && ready(king)) {
     drawImg(king, kx, ky, kh * (T - titleFx.king < 0.6 ? 1.06 : 1), kr);
@@ -944,23 +944,23 @@ function drawTitle() {
   // 인기 게임식 첫 화면: 화면 가득 키 아트(코덱스) + 로고 그림 + 크게 빛나는 시작 단추
   const bg = ready(IMG.spr_title_bg2) ? IMG.spr_title_bg2 : IMG.spr_title_bg; // 옛 공주를 뺀 배경(아멜리아는 따로 크게)
   if (bg && ready(bg)) { // 화면을 덮게(cover) + 아주 천천히 다가오는 느낌
-    const z = 1.04 + Math.sin(T * 0.25) * 0.02, sc = Math.max(W / bg.naturalWidth, H / bg.naturalHeight) * z;
+    const sh = Math.max(0, 64 - OX() * 0.6), z = 1.04 + Math.sin(T * 0.25) * 0.02 + sh / 520, sc = Math.max(W / bg.naturalWidth, H / bg.naturalHeight) * z; // 좁은 화면: 배경(터틀이)을 왼쪽으로 밀어 가운데 단추·로고와 안 겹치게
     const dw = bg.naturalWidth * sc, dh = bg.naturalHeight * sc;
-    ctx.drawImage(bg, -OX() + (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.drawImage(bg, -OX() + (W - dw) / 2 - sh, (H - dh) / 2, dw, dh);
   }
   // 가운데 열(560): 로고 → 부제 → 시작 단추 → 아래 줄 / 오른쪽: 상어왕이 아멜리아 거품을 끈으로 들고 있음(이야기가 한눈에)
-  const CX = 560, R = 960 + OX() - SAFE;
-  drawTitleBoss(R);
+  const CX = 456 + OX() * 0.5, R = 960 + OX() - SAFE; // 가운데 열은 화면 폭에 맞춰(좁으면 왼쪽으로)
+  drawTitleBoss(R, CX);
   const lg = ready(IMG.spr_title_logo_run) ? IMG.spr_title_logo_run : IMG.spr_title_logo, ly = 92 + Math.sin(T * 2) * 4;
   if (lg && ready(lg) && typeof obox === 'function') {
-    const b = obox(lg), lw = 380, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
+    const b = obox(lg), lw = 340, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
     ctx.save(); ctx.translate(CX, ly); ctx.scale(ls, ls); ctx.drawImage(lg, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
   } else text('터틀런', CX, ly, 76, C.yellow, { lw: 12 });
   ctx.font = `800 ${fs(18)}px ${FONT}`; const sw = ctx.measureText('아멜리아 공주 구출 대작전').width + 40;
   ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(CX - sw / 2, 172, sw, 34, 17); ctx.fill();
   text('아멜리아 공주 구출 대작전', CX, 189, 18, '#ffffff', { stroke: false });
   // 시작 단추: 노랑→주황, 아래 그림자, 맥박, 빛줄
-  const bx0 = 440, by0 = 360, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
+  const bx0 = 456 + OX() * 0.5 - 120, by0 = 360, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(pulse, pulse); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
   ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 7, bw0, bh0, 24); ctx.fill();
   const gg = ctx.createLinearGradient(0, by0, 0, by0 + bh0); gg.addColorStop(0, '#ffd84a'); gg.addColorStop(1, '#ff8a00');
@@ -976,7 +976,7 @@ function drawTitle() {
   if (save.introSeen) row.push(['첫 이야기', startIntro]);
   if (isTouch && !STANDALONE) row.push(['꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }]);
   row.push(['게임 끄기', () => { quitAsk = true; sfx.click(); }]);
-  const bwR = 116, gapR = 8, totR = row.length * bwR + (row.length - 1) * gapR, x0R = 560 - totR / 2;
+  const bwR = 116, gapR = 8, totR = row.length * bwR + (row.length - 1) * gapR, x0R = 456 + OX() * 0.5 - totR / 2;
   row.forEach(([lb, fn], i) => button(x0R + i * (bwR + gapR), 452, bwR, 40, lb, fn, { size: 14, kind: 'soft' }));
   if (iosGuide) drawIosGuide();
   eggBadge(36 - OX() + SAFE, 32, save.eggs, 30);

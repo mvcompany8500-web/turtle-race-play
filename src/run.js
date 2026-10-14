@@ -835,7 +835,7 @@ function heroPose() {
   if (p.dead || T - (G.hurtAt || -9) < 0.45) return 'hero_hurt';
   if (p.slide) return 'hero_shell';
   if (G.bonus || G.eff.rocket > 0) return 'hero_jump';
-  if (G.boosting > 0 && (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')) && ready(IMG.pose_hero_dash)) return 'hero_dash'; // 필살 질주: 앞으로 쭉 뻗은 동작
+  if (G.boosting > 0 && !p.dead) return 'hero_ball'; // 필살 질주: 등딱지에 쏙 들어가 뱅글뱅글(옷·변신 모두 있는 동작)
   if (!p.onG) { if (p.spin > 0) return 'hero_ball'; return p.vy > 160 ? 'hero_fall' : 'hero_jump'; }
   return Math.floor(G.dist / (G.boosting > 0 ? 70 : 52)) % 2 ? 'hero_run2' : 'hero_run1';
 }
@@ -868,7 +868,8 @@ function drawRunHero(face, blink, alpha) {
   if (!c && key === 'hero_fall') { key = 'hero_jump'; c = pose(key, cap); } // 그림이 없으면 점프 그림으로
   if (!c) return drawRunHeroOld(face, blink, alpha);
   const base = HERO_H * 1.1 * p.scale; /* 그림은 판정보다 조금 크게(요즘 러너처럼 캐릭터가 화면을 채움) */ let h = base * POSE_H[key] * (outfitPose(key) && !gearEq('form') ? OUTFIT_H[save.skin] || 1 : 1) * (gearLook('giant') || 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
-  if (key === 'hero_ball') { rot = Math.PI * 2 * easeInOutCubic(1 - p.spin); feet = p.fy - base * 0.12; }
+  if (key === 'hero_ball' && G.boosting > 0) { rot = T * 22; feet = p.fy - base * 0.06 + Math.sin(T * 30) * 2; h *= 1.3; } // 필살: 크게 빙글빙글
+  else if (key === 'hero_ball') { rot = Math.PI * 2 * easeInOutCubic(1 - p.spin); feet = p.fy - base * 0.12; }
   else if (key === 'hero_shell') { rot = Math.sin(T * 30) * 0.03; x += Math.sin(T * 20) * 1.5; }
   else if (key === 'hero_hurt') { rot = -0.18 + Math.sin(T * 25) * 0.05; if (p.dead) { feet = p.y + base * 0.5; rot = p.rot; } }
   else if (!p.onG) rot = clamp(p.vy * 0.00035, -0.2, 0.25);
@@ -885,7 +886,13 @@ function drawRunHero(face, blink, alpha) {
       ctx.translate(x + 40, my); ctx.scale(-1, 1); ctx.drawImage(tr, 0, -th / 2, tw, th); ctx.restore();
     }
     if (wv && ready(wv)) { const wh = h * 1.05, ww = (wh * wv.naturalWidth) / wv.naturalHeight; ctx.save(); ctx.globalAlpha = 0.92; ctx.drawImage(wv, x - ww * 0.72, feet - wh * 0.86 + Math.sin(T * 18) * 3, ww, wh); ctx.restore(); }
-    for (let i = 1; i <= 3; i++) drawPoseAt(c, x - i * 26, feet, h * sy, rot, 1 - i * 0.25, true);
+    for (let i = 1; i <= 3; i++) drawPoseAt(c, x - i * 26, feet, h * sy, rot - i * 0.5, 1 - i * 0.25, true);
+    // 뱅글뱅글 등딱지 둘레: 무지개 고리 + 도는 별 셋(귀엽고 화려하게)
+    const cy0 = feet - h * 0.5, R0 = h * 0.62;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 5;
+    for (let k = 0; k < 6; k++) { ctx.strokeStyle = `hsla(${(k * 60 + T * 360) % 360},95%,65%,.55)`; ctx.beginPath(); ctx.arc(x, cy0, R0 + Math.sin(T * 12 + k) * 4, T * 9 + k * 1.05, T * 9 + k * 1.05 + 0.8); ctx.stroke(); }
+    ctx.restore();
+    for (let k = 0; k < 3; k++) { const a2 = -T * 7 + k * 2.09; drawImg(IMG.spr_fx_spark, x + Math.cos(a2) * R0 * 1.15, cy0 + Math.sin(a2) * R0 * 0.75, 30 + Math.sin(T * 14 + k) * 6, a2); }
   }
   if (G.eff.rocket > 0) drawImg(IMG.spr_it_rocket, x - 4, feet + 6, 64, -Math.PI / 2 + 0.25 + Math.sin(T * 30) * 0.04); // 로켓 타고
   const aura = gearLook('aura'); if (aura && !p.dead) drawAura(x, feet - h * 0.5, h * 0.95, aura, alpha == null ? 1 : alpha); // 유물·전설 장비: 몸 둘레 빛

@@ -150,13 +150,21 @@ function popDots(x, y, d = 30) {
 function fountain(x, y, n) { for (let i = 0; i < Math.min(n, 16); i++) fx.push({ k: 'eggfly', sx: x + rand(-30, 30), sy: y + rand(-20, 20), life: 0.6 + i * 0.05, max: 0.6 }); }
 const zoomTo = (v) => { zoom = Math.max(zoom, v); };
 // 코덱스 효과 그림 한 장을 커지며 사라지게(펑 구름·흙먼지·반짝)
-function fxImg(im, x, y, s0, s1, life, o = {}) { if (REDUCE && !o.must) return; if (fx.length > 260) return; fx.push(Object.assign({ k: 'img', im, x, y, s0, s1, life, max: life, rot: rand(-0.3, 0.3) }, o)); }
+// 필살 질주 중: 하늘에서 젤리·별이 펑펑 쏟아짐(그림만 — 화면을 축제처럼)
+function ultRain(dt) {
+  if (!G || !G.run || G.boosting <= 0 || REDUCE) return;
+  G.rainT = (G.rainT || 0) - dt; if (G.rainT > 0) return; G.rainT = 0.035;
+  const im = pick(['spr_pk_jelly_a', 'spr_pk_jelly_b', 'spr_pk_jelly_c', 'spr_pk_jelly_c', 'spr_fx_spark']);
+  fxImg(im, rand(G.p.x + 40, W + 40), -30, im === 'spr_fx_spark' ? 30 : 34, im === 'spr_fx_spark' ? 40 : 30, rand(0.9, 1.3), { vx: rand(-260, -120), vy: rand(380, 620), g: 500, spin: rand(-6, 6), must: true });
+}
+function fxImg(im, x, y, s0, s1, life, o = {}) { if (REDUCE && !o.must) return; if (fx.length > 260) return; fx.push(Object.assign({ k: 'img', im, x, y, s0, s1, life, max: life, rot: rand(-0.3, 0.3), vx: 0, vy: 0, g: 0 }, o)); }
 function updateFx(dt) {
   for (const f of fx) {
     f.life -= dt;
     if (f.k === 'ring') f.r = lerp(f.r, f.maxR, dt * 9);
     else if (f.k === 'eggfly') { if (f.life <= 0) { hudPulse = 0.18; snd('count', 0.35, rand(0.95, 1.15), 0.06); } }
     else if (f.k === 'laser' || f.k === 'dot') { /* 그대로 */ }
+    else if (f.k === 'img') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += f.g * dt; }
     else {
       f.x += f.vx * dt; f.y += f.vy * dt;
       if (f.k === 'confetti' && f.burst) { f.vy += 900 * dt; f.vx *= Math.pow(0.985, dt * 60); f.vy *= Math.pow(0.985, dt * 60); f.rot += f.vr * dt; }
@@ -883,6 +891,7 @@ function giveUp() { bank(false); state = 'dead'; G.deadT = 0; }
 const RUN_BOOST = 0.65; // 약 11초에 1단(예전 7초) — 보스전은 그대로(보스는 필살기로 들이받아야 아파서)
 function addBoost(v) { G.boost = Math.min(BMAX(), G.boost + v * (1 + gearSum('boostRate')) * (G.run && !(G.boss && !G.boss.dead) ? RUN_BOOST : 1)); }
 function updatePlay(dt) {
+  ultRain(dt);
   const p = G.p, cfg = G.cfg, E = G.eff;
   G.t += dt;
   juiceUpdate(dt); trailTick(dt);
