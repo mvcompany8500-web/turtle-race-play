@@ -261,6 +261,7 @@ function weakHit(e, item) {
 function killEnemy(e, cause = 'boost') {
   if (e.dead) return;
   e.dead = true; fxImg('spr_fx_poof', e.x, e.y, 50, 150, 0.45, { must: true });
+  if (G.run && IMG['spr_' + e.type] && e.type !== 'eel') fxImg('spr_' + e.type, e.x, e.y, 70, 64, 0.9, { vx: rand(260, 420), vy: rand(-760, -560), g: 1900, spin: rand(8, 14) * (Math.random() < 0.5 ? -1 : 1), rot: 0, must: true }); // 만화처럼 빙글빙글 날아감
   if (cause === 'shot') shake = Math.max(shake, e.elite ? 10 : 5);
   else { freeze = Math.max(freeze, 0.06); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035); }
   const col = (ENEMIES[e.type] || {}).color || '#fff';
@@ -589,6 +590,7 @@ function collectEgg(e) {
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
     snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     fxImg('spr_fx_spark', e.x, e.y, 18, 52, 0.28, { add: true, spin: 2 });
+    if (e.jv && Math.random() < 0.5) { const tx = W - SAFE - 230, ty = 30, life = 0.45; fxImg('spr_pk_jelly_' + e.jv, e.x, e.y, 30, 14, life, { vx: (tx - e.x) / life, vy: (ty - e.y) / life - 300, g: 1333, must: true }); } // 먹은 젤리가 점수 칸으로 퐁
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
     if (CM[G.combo] != null) { reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`); ameliaSay(amLine('combo'), 'cheer', true); }
     return;
@@ -939,7 +941,9 @@ function updatePlay(dt) {
   // 골인 연출
   if (G.won) {
     G.winT -= dt;
-    p.x += 560 * dt; G.dist += 700 * dt; // 아멜리아의 빛 고리로 힘차게 돌진(통통 뛰지 않음)
+    const meet = G.run && G.goal && G.n !== LAST && G.winT > 1.0; // 앞 1.8초: 고리 앞에 멈춰서 아멜리아와 눈 맞춤(「기다리고 있을게~」) → 뒤 1초: 돌진
+    if (meet) { p.x = lerp(p.x, G.goal.x - 120, Math.min(1, dt * 4)); if (!G.meetSaid) { G.meetSaid = true; snd('levelup', 0.6, 1.3); haptic([20, 30, 20]); for (let i = 0; i < 6; i++) later(i * 120, () => G && fxImg('spr_fx_spark', G.goal.x + 40 + rand(-90, 90), GROUND - 140 + rand(-90, 90), 20, 44, 0.6, { add: true, must: true })); } }
+    else { p.x += 560 * dt; G.dist += 700 * dt; } // 아멜리아의 빛 고리로 힘차게 돌진(통통 뛰지 않음)
     if (G.run) { p.fy = lerp(p.fy, GROUND, Math.min(1, dt * 10)); p.y = p.fy - p.r; p.onG = true; const into = G.goal ? clamp((p.x - (G.goal.x + 30)) / 120, 0, 1) : 0; p.scale = 1 - into * 0.75; if (into > 0 && !G.warped) { G.warped = true; flash = 0.55; flashColor = '#ffd1ef'; snd('tada', 0.8, 1.2); haptic([30, 30, 60]); } }
     else { p.y = lerp(p.y, H / 2 - 30, dt * 3); p.flip = Math.min(Math.PI * 2, p.flip + dt * 11); }
     p.ph += dt * 16;
@@ -1250,8 +1254,8 @@ function updatePlay(dt) {
   // 골
   if (G.goal) {
     G.goal.x -= scroll * dt;
-    if (!G.won) { for (const e of G.enemies) if (!e.dead && e.x > p.x + 140 && e.x < G.goal.x + 260) { e.dead = true; fxImg('spr_fx_poof', e.x, e.y, 50, 130, 0.4, { must: true }); } G.obs = G.obs.filter((o) => !((o.k === 'pit' || o.k === 'wall' || o.k === 'pillar') && o.x < G.goal.x + 260 && o.x + (o.w || 0) > p.x + 120)); } // 빛 고리 앞길은 깨끗하게(마지막에 억울하게 막히지 않게)
-    if (!p.dead && p.x > G.goal.x + 20) levelClear(); // 문 한가운데를 지나갈 때
+    if (!G.won) { for (const e of G.enemies) if (!e.dead && e.x > p.x + 140 && e.x < G.goal.x + 260) { e.dead = true; fxImg('spr_fx_poof', e.x, e.y, 50, 130, 0.4, { must: true }); } G.obs = G.obs.filter((o) => !((o.k === 'pit' || o.k === 'wall' || o.k === 'pillar' || o.k === 'plat') && o.x < G.goal.x + 260 && o.x + (o.w || 0) > G.goal.x - 200)); G.eggsArr = G.eggsArr.filter((e) => !(e.x > G.goal.x - 160 && e.x < G.goal.x + 220)); } // 빛 고리 앞길은 깨끗하게(마지막에 억울하게 막히지 않게)
+    if (!p.dead && p.x > G.goal.x + (G.run && G.n !== LAST ? -150 : 20)) levelClear(); // 달리기: 빛 고리 바로 앞에서 멈춰 아멜리아와 만남 → 돌진
   }
 }
 // 도착 문 높이 보너스(인기 게임 깃대처럼): 문 한가운데를 지날 때의 높이로 1~5단계
@@ -1261,15 +1265,16 @@ function levelClear() {
   if (G.run && G.goal && G.n !== LAST) {
     const band = goalBand(), gb = GOAL_BAND[band - 1]; G.goalBand = band;
     earn('goal', gb.pearl); addScore(gb.score);
-    later(350, () => pop(W / 2, H / 2 + 10, band === 5 ? `완벽!! 진주 +${gb.pearl}` : `높이 ${band}단계 · 진주 +${gb.pearl}`, band === 5 ? '#ffe14a' : '#ffffff', band === 5 ? 44 : 32, true));
+    later(350, () => G && pop(G.p.x, G.p.y - 110, band === 5 ? `완벽!! 진주 +${gb.pearl}` : `진주 +${gb.pearl}`, band === 5 ? '#ffe14a' : '#ffffff', band === 5 ? 34 : 24, true)); // 터틀이 머리 위(아멜리아 말풍선과 안 겹치게)
     for (let i = 0; i < band; i++) later(500 + i * 220, () => { fireworks(1); snd('firework', 0.7, 1 + i * 0.1); });
   }
   addScore(10000 + (G.run ? Math.round(G.en) * 100 : 0)); // 도착 보너스 + 남은 기운
-  G.won = true; G.winT = 1.0; G.p.inv = 99; G.p.flip = 0; G.warped = false;
+  G.won = true; G.winT = G.run && G.goal && G.n !== LAST ? 2.8 : 1.0; G.p.inv = 99; G.p.flip = 0; G.warped = false; G.meetSaid = false;
   setFace('happy', 9);
   for (const e of G.enemies) { burst(e.x, e.y, (ENEMIES[e.type] || {}).color || '#fff', 10); e.dead = true; }
   G.enemies = []; G.shots = []; G.warns = []; G.sweeps = [];
-  pop(W / 2, H / 2 - 60, G.n === LAST ? '아멜리아 공주님!' : LAST - G.n <= 5 ? '거의 다 왔어!' : '한 바다 더 가까이!', C.yellow, 54, true);
+  if (!(G.run && G.goal && G.n !== LAST)) pop(W / 2, H / 2 - 60, G.n === LAST ? '아멜리아 공주님!' : '도착!', C.yellow, 54, true); // 달리기는 고리 속 아멜리아가 말함
+  if (typeof amSay !== 'undefined') amSay = null;
   shake = 6; sfx.ready(); say('clear', true); haptic([30, 40, 60]);
   fireworks(3);
 }
@@ -1300,11 +1305,13 @@ function drawGoal(gx) {
   const cx = gx + 40, R = 118, cy = GROUND - R - 26 + Math.sin(T * 2) * 3, rem = LAST - G.n;
   celebrateGlow(cx, cy, 250, '255,170,215', 0.75);
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; const ig = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R); ig.addColorStop(0, 'rgba(255,220,240,.35)'); ig.addColorStop(1, 'rgba(255,150,210,.12)'); ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  drawImg(IMG.spr_amelia_scared || IMG.spr_amelia, cx + 6, cy + 14 + Math.sin(T * 3) * 4, 150, Math.sin(T * 1.8) * 0.05, 0.92, true);
+  const meeting = G.won && G.winT > 1.0, cheer = meeting && ready(IMG.spr_amelia_cheer);
+  drawImg(cheer ? IMG.spr_amelia_cheer : IMG.spr_amelia_scared || IMG.spr_amelia, cx + 6, cy + 14 + (cheer ? -Math.abs(Math.sin(T * 7)) * 12 : Math.sin(T * 3) * 4), cheer ? 168 : 150, cheer ? Math.sin(T * 7) * 0.06 : Math.sin(T * 1.8) * 0.05, 1, true); // 만나면 만세하며 폴짝
   for (let k = 0; k < 3; k++) { ctx.strokeStyle = k === 0 ? 'rgba(255,255,255,.95)' : k === 1 ? 'rgba(255,170,220,.8)' : 'rgba(150,230,255,.6)'; ctx.lineWidth = k === 0 ? 7 : 4; ctx.beginPath(); ctx.arc(cx, cy, R - k * 7, T * (k % 2 ? -1.2 : 0.9), T * (k % 2 ? -1.2 : 0.9) + Math.PI * (k === 0 ? 2 : 1.4)); ctx.stroke(); }
   ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(cx - R * 0.5, cy - R * 0.6, 22, 9, -0.6, 0, Math.PI * 2); ctx.fill();
   for (let i = 0; i < 6; i++) { const h = (T * 0.45 + i / 6) % 1; ctx.globalAlpha = 1 - h; text('♥', cx + Math.cos(i * 1.7) * (R + 14), cy + Math.sin(i * 1.7) * R * 0.6 - h * 60, 16 + (i % 3) * 3, '#ff8fc8', { stroke: false }); } ctx.globalAlpha = 1;
-  if (G.goal.x - G.p.x < 520 && !G.won) { ctx.font = `800 ${fs(15)}px ${FONT}`; const ln = rem <= 5 ? '바로 앞이야! 조금만 더!' : '터틀아, 여기야! 와 줘!', tw = ctx.measureText(ln).width + 26; ctx.fillStyle = '#ffffff'; rr(cx - tw / 2, cy - R - 46, tw, 32, 16); ctx.fill(); text(ln, cx, cy - R - 30, 15, '#e0457b', { stroke: false }); }
+  if (meeting) { const ln = rem <= 5 ? '거의 다 왔어! 기다리고 있을게~' : '고마워, 터틀! 기다리고 있을게~'; ctx.font = `800 ${fs(17)}px ${FONT}`; const tw = ctx.measureText(ln).width + 30, k = clamp((2.8 - G.winT) / 0.25, 0, 1); ctx.save(); ctx.globalAlpha = k; ctx.translate(cx, cy - R - 34); ctx.scale(0.8 + 0.2 * easeOutBack(k), 0.8 + 0.2 * easeOutBack(k)); flatPill(-tw / 2, -18, tw, 36, 18, '#ffffff'); text(ln, 0, 0, 17, '#e0457b', { stroke: false }); ctx.restore(); }
+  else if (G.goal.x - G.p.x < 520 && !G.won) { ctx.font = `800 ${fs(15)}px ${FONT}`; const ln = rem <= 5 ? '바로 앞이야! 조금만 더!' : '터틀아, 여기야! 와 줘!', tw = ctx.measureText(ln).width + 26; ctx.fillStyle = '#ffffff'; rr(cx - tw / 2, cy - R - 46, tw, 32, 16); ctx.fill(); text(ln, cx, cy - R - 30, 15, '#e0457b', { stroke: false }); }
   { ctx.font = `800 ${fs(15)}px ${FONT}`; const sg = rem > 0 ? `아멜리아까지 ${rem}바다` : '아멜리아에게!', sw = ctx.measureText(sg).width + 30; ctx.fillStyle = '#ff6fae'; rr(cx - sw / 2, GROUND - 22, sw, 30, 15); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; rr(cx - sw / 2, GROUND - 22, sw, 30, 15); ctx.stroke(); text(sg, cx, GROUND - 7, 15, '#ffffff', { stroke: false }); }
   // 높이 별 사다리(인기 게임 깃대처럼): 높이 지날수록 큰 보상 — 지나면 닿은 단계까지 불이 켜짐
   if (G.run) for (let i = 1; i <= 5; i++) {
@@ -1629,7 +1636,7 @@ function drawHUD() {
     const v = G.eff[k]; if (v <= 0) { if (G.effOn && G.effOn[k]) { G.effOn[k] = false; snd('bubble', 0.6, 1.3); } continue; }
     G.effOn = G.effOn || {}; G.effOn[k] = true;
     const max = Math.max(v, ITEMS[k].dur), blinkI = v < 2 && Math.sin(T * 18) < 0;
-    ctx.fillStyle = 'rgba(16,16,18,.55)'; rr(ix - 28, iy - 22, 56, 54, 14); ctx.fill();
+    flatPill(ix - 28, iy - 22, 56, 54, 14);
     if (!blinkI) drawItemIcon(k, ix, iy - 2, 30);
     ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(ix - 22, iy + 20, 44, 6, 3); ctx.fill();
     ctx.fillStyle = v < 2 ? '#ff5470' : C.yellow; rr(ix - 22, iy + 20, Math.max(4, 44 * Math.min(1, v / max)), 6, 3); ctx.fill();
@@ -1646,9 +1653,8 @@ function drawHUD() {
     if (save.endlessBest) text(`최고 ${save.endlessBest}미터`, W / 2, by + 34, 14, C.yellow, { body: true });
   } else {
     const pr = progress(), best = (save.best[n] || 0) / 100, gfp = IMG.spr_ui_glass_b;
-    ctx.fillStyle = 'rgba(8,30,70,.5)'; rr(bx, by, bw, bh, 7); ctx.fill();
-    if (gfp && ready(gfp)) slice3(gfp, bx - 10, by - 8, bw + 20, bh + 16); // 기운 막대와 같은 유리 틀
-    const g = ctx.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#5fd4ff'); g.addColorStop(1, '#3d7bff');
+    flatBar(bx, by, bw, bh, 0, '#5fd4ff');
+    const g = ctx.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#5fd4ff'); g.addColorStop(1, '#4f8dff');
     ctx.fillStyle = g; rr(bx, by, Math.max(bh, bw * pr), bh, 7); ctx.fill();
     if (!G.cfg.boss) { ctx.fillStyle = G.blessDone ? C.ok : '#ffffff'; ctx.beginPath(); ctx.arc(bx + bw * 0.5, by + bh / 2, 5, 0, Math.PI * 2); ctx.fill(); }
     if (best > 0 && best < 1) {
@@ -1682,8 +1688,8 @@ function drawHUD() {
   if (isTouch || G.run) { const pz = IMG.spr_ui_pause; if (G.run && pz && ready(pz)) { drawImg(pz, W - SAFE - 40, 30, 52); ctx.save(); ctx.globalAlpha = 0; button(W - SAFE - 68, 4, 56, 56, 'II', () => { if (!G.p.dead) state = 'pause'; }, {}); ctx.restore(); } else if (isTouch) button(W - SAFE - 60, 52, 46, 40, 'II', () => { if (!G.p.dead) state = 'pause'; }, { size: 17, color: '#cfd8ff' }); }
   const full = G.boost >= 100;
   if (G.run) { // 달리기 화면 위쪽(정리): 둘째 줄은 남색 알약 하나씩 — 터치는 질주를 오른쪽 아래 필살 메달이 보여 주니 여기선 축제 게이지만
-    const chip = (x, y, w, h) => { const gf = IMG.spr_ui_glass_b; ctx.fillStyle = 'rgba(8,30,70,.5)'; rr(x, y, w, h, h / 2); ctx.fill(); if (gf && ready(gf)) slice3(gf, x - 8, y - 7, w + 16, h + 14); else { ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5; rr(x, y, w, h, h / 2); ctx.stroke(); } }; // 기운 막대와 같은 유리 틀
-    let ry = 64;
+    const chip = (x, y, w, h) => { ctx.fillStyle = UI_INK; rr(x - 3, y - 3, w + 6, h + 6, h / 2 + 3); ctx.fill(); ctx.fillStyle = '#22356e'; rr(x, y, w, h, h / 2); ctx.fill(); }; // 평면 알약(남색 테)
+    let ry = 56; // 둘째 줄 가운데 y=65(기운 막대 30과 35 간격)
     if (!isTouch) {
       chip(L, ry, 262, 28); icon('e_rocket', L + 16, ry + 14, 20);
       const v = G.boosting > 0 ? G.boosting / boostDur() : (G.boost % 100) / 100;
@@ -1693,13 +1699,12 @@ function drawHUD() {
       if (full && G.boosting <= 0 && Math.sin(T * 8) > -0.3) text('Shift!', L + 274, ry + 14, 18, '#fff', { align: 'left' });
       ry += 34;
     }
-    chip(L, ry, 200, 26); icon('e_fire', L + 16, ry + 13, 18);
-    ctx.fillStyle = 'rgba(255,255,255,.16)'; rr(L + 32, ry + 9, 154, 8, 4); ctx.fill();
-    if (G.feverT > 0) {
-      const rg = ctx.createLinearGradient(L + 32, 0, L + 186, 0); ['#ff5470', '#ffd34d', '#7dffb0', '#5fd4ff', '#b48bff'].forEach((c, i) => rg.addColorStop(((i / 4) + T * 0.8) % 1, c));
-      ctx.fillStyle = rg; rr(L + 32, ry + 9, 154 * (G.feverT / 6), 8, 4); ctx.fill();
-      text('축제 2배!', L + 109, ry + 13, 14, '#ffffff', { lw: 4, stroke: '#7a2a00' }); // 알약 안 가운데(옆 아이템 칸과 안 겹치게)
-    } else { ctx.fillStyle = C.yellow; rr(L + 32, ry + 9, Math.max(8, 154 * G.fever / 100), 8, 4); ctx.fill(); }
+    { // 축제 게이지: 기운 막대와 같은 왼쪽 끝(L+30)·같은 폭(220), 아이콘도 같은 세로줄(L+24) — 평면 게이지
+      const fx2 = L + 30, fw = 220, fh = 14, fy = ry + 2, rem = G.feverT > 0 ? G.feverT / 6 : G.fever / 100;
+      if (G.feverT > 0) { flatBar(fx2, fy, fw, fh, rem, `hsl(${(T * 220) % 360},95%,62%)`, `hsl(${(T * 220 + 40) % 360},90%,52%)`); text('바다 축제 2배!', fx2 + fw / 2, fy + fh / 2, 13, '#ffffff', { lw: 4 }); }
+      else flatBar(fx2, fy, fw, fh, rem, '#ff8ad8', '#e25bb5');
+      icon('e_fire', L + 24, fy + fh / 2, 24, G.feverT > 0 ? Math.sin(T * 12) * 0.15 : 0);
+    }
   } else {
   // 질주 게이지 (폰은 왼쪽 아래가 조이스틱 자리라 위로)
   const top = isTouch || G.run; // 점프 달리기는 바닥이 길이라 게이지를 위로
@@ -1803,7 +1808,7 @@ function drawHUD() {
     const ttl = endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, pin = 0.85 + 0.15 * easeOutBack(Math.min(1, (4.4 - G.intro) / 0.5 || 1)); // 리본 띠가 톡 튀어나옴
     ctx.save(); ctx.translate(W / 2, H / 2 - 54); ctx.scale(pin, pin); if (!ribbon(0, 0, 560, ttl, 30, true)) text(ttl, 0, 0, 38, '#ffffff'); ctx.restore();
     const tl = wrapText(STAGES[n].tip, 680, 18); ctx.font = `600 ${fs(18)}px ${FONT}`; const tw2 = Math.min(720, Math.max(...tl.map((l) => ctx.measureText(l).width)) + 48), th2 = tl.length * fs(18) * 1.45 + 20;
-    ctx.fillStyle = 'rgba(8,30,70,.55)'; rr(W / 2 - tw2 / 2, H / 2 + 2, tw2, th2, 18); ctx.fill();
+    flatPill(W / 2 - tw2 / 2, H / 2 + 2, tw2, th2, 18);
     tl.forEach((l, i) => text(l, W / 2, H / 2 + 12 + fs(18) * 1.45 * (i + 0.5), 18, '#ffffff', { body: true, stroke: false }));
     const fresh = n !== ENDLESS && STAGES[n].fresh;
     if (fresh) { const it = ENEMIES[fresh].weak; drawItemIcon(it, W / 2 - 150, H / 2 + 70, 30); text(`새 몬스터 ${ENEMIES[fresh].name} · 약점 ${ITEMS[it].name}`, W / 2 + 10, H / 2 + 70, 17, C.yellow, { body: true }); }
@@ -1961,7 +1966,7 @@ function drawScreenFxTop() {
     const a = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1, size = 56 + r.tier * 7;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2 + (r.tier >= 3 ? rand(-3, 3) : 0), 128); ctx.rotate(r.rot); ctx.scale(s, s);
     ctx.font = `900 ${fs(size)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineJoin = 'round'; ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(16,16,18,.85)'; ctx.strokeText(r.s, 0, 6);
+    ctx.lineJoin = 'round'; ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(10,22,62,.85)'; ctx.strokeText(r.s, 0, 6);
     ctx.lineWidth = 7; ctx.strokeStyle = '#ffffff'; ctx.strokeText(r.s, 0, 0);
     const g = ctx.createLinearGradient(0, -size / 2, 0, size / 2); g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, r.c); g.addColorStop(1, mix(r.c, '#000000', 0.25));
     ctx.fillStyle = g; ctx.fillText(r.s, 0, 0);

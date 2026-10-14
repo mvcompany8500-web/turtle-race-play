@@ -578,36 +578,26 @@ function drawEnemy(e, px = 0, py = H / 2) {
 
 // ───────── 그리기: UI (디자인 키트: 버튼 모서리 16·높이 56/44, 회색 칸, 옅은 그림자) ─────────
 const BTN_KIND = { '#ffcf3a': 'primary', '#ffd34d': 'primary', '#7dffb0': 'ok', '#ff9ec0': 'yellow', '#cfd8ff': 'soft', '#9fd8ff': 'soft', '#6d7f99': 'soft', '#9fb6cc': 'soft', '#ff9aa8': 'soft' };
+// ───────── 평면 스티커 UI(2026-10-15 대표: 「10년 전 느낌 다 빼라」): 굵은 남색 테 + 단색 + 아래 진한 띠 + 작은 흰 하이라이트 ─────────
+const UI_INK = '#13204a';
+const FLAT_KIND = { primary: ['#4f8dff', '#2f63d8', '#ffffff'], yellow: ['#ffd23a', '#ff9f1c', '#5a3000'], ok: ['#43d17a', '#22a75a', '#ffffff'], danger: ['#ff5d6c', '#d93349', '#ffffff'], soft: ['#3b5296', '#2b3f7d', '#ffffff'], off: ['#7d87a8', '#69728f', '#ffffff'] };
+function flatShape(x, y, w, h, r, top, bot, dn = 0, ink = UI_INK, lw = 3.5, shine = true) {
+  ctx.fillStyle = ink; rr(x - lw, y - lw + 4, w + lw * 2, h + lw * 2, r + lw); ctx.fill(); // 아래 그림자 겸 테
+  ctx.fillStyle = ink; rr(x - lw, y - lw + dn, w + lw * 2, h + lw * 2, r + lw); ctx.fill();
+  ctx.save(); rr(x, y + dn, w, h, r); ctx.clip(); ctx.fillStyle = top; ctx.fillRect(x, y + dn, w, h); ctx.fillStyle = bot; ctx.fillRect(x, y + dn + h * 0.7, w, h); ctx.restore();
+  if (shine && h >= 26) { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.ellipse(x + Math.min(22, w * 0.12), y + dn + Math.min(11, h * 0.24), Math.min(10, w * 0.06), Math.min(4.5, h * 0.1), -0.4, 0, Math.PI * 2); ctx.fill(); }
+}
 function button(x, y, w, h, label, on, o = {}) {
   const mt = ctx.getTransform(), hx = (mt.a * x + mt.c * y + mt.e) / K, hy = (mt.b * x + mt.d * y + mt.f) / K, hw = w * mt.a / K, hh = h * mt.d / K;
   const kind = o.disabled ? 'off' : o.kind || BTN_KIND[o.color] || 'primary';
   const key = `${x | 0},${y | 0}`;
   const hover = !isTouch && mouse.x >= hx && mouse.x <= hx + hw && mouse.y >= hy && mouse.y <= hy + hh;
-  const sc = press.key === key ? press.sp.v : 1;
+  const pressed = press.key === key && press.down, dn = pressed ? 3 : 0, sc = press.key === key ? press.sp.v : 1;
+  const [top, bot, fg] = FLAT_KIND[kind] || FLAT_KIND.primary, r = Math.min(h / 2, 22);
   ctx.save();
   ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.translate(-(x + w / 2), -(y + h / 2));
-  ctx.shadowColor = 'rgba(0,0,0,.12)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3;
-  let fill, fg;
-  if (kind === 'primary') {
-    const g = ctx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, C.blue); g.addColorStop(1, C.deep);
-    fill = g; fg = '#ffffff';
-  } else if (kind === 'ok') { fill = C.ok; fg = '#ffffff'; }
-  else if (kind === 'yellow') { fill = C.yellow; fg = '#191F28'; }
-  else if (kind === 'off') { fill = C.line; fg = C.mute; }
-  else { fill = hover ? '#24365e' : C.soft; fg = C.text; }
-  const art = IMG[{ primary: 'spr_ui_btn_blue', ok: 'spr_ui_btn_green', yellow: 'spr_ui_btn_yellow', off: 'spr_ui_btn_soft', soft: 'spr_ui_btn_soft', danger: 'spr_ui_btn_red' }[kind] || 'spr_ui_btn_soft'];
-  if (art && ready(art) && typeof obox === 'function') { // 코덱스가 그린 사탕 단추(양 끝 둥근 부분은 그대로, 가운데만 늘림)
-    ctx.shadowColor = 'transparent';
-    ctx.save(); if (kind === 'off') ctx.globalAlpha *= 0.5; slice3(art, x, y, w, h); ctx.restore();
-    if (hover && kind !== 'off') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.12; slice3(art, x, y, w, h); ctx.restore(); }
-    const fg2 = kind === 'yellow' ? '#5a3000' : kind === 'off' ? 'rgba(255,255,255,.55)' : '#ffffff';
-    text(label, x + w / 2, y + h / 2 - h * 0.04, o.size || 20, fg2, kind === 'yellow' || kind === 'off' ? { stroke: false, weight: 800 } : { stroke: 'rgba(0,20,60,.45)', lw: 3, weight: 800 });
-  } else {
-  ctx.fillStyle = fill; rr(x, y, w, h, Math.min(16, h / 2)); ctx.fill();
-  ctx.shadowColor = 'transparent';
-  if (hover && kind !== 'off' && kind !== 'soft') { ctx.fillStyle = 'rgba(255,255,255,.1)'; rr(x, y, w, h, Math.min(16, h / 2)); ctx.fill(); }
-  text(label, x + w / 2, y + h / 2 + 1, o.size || 20, fg, { stroke: false, weight: 700 });
-  }
+  if (ctx.globalAlpha > 0.01) { flatShape(x, y, w, h, r, top, bot, dn, UI_INK, 3.5, !!label && kind !== 'off'); if (hover && kind !== 'off') { ctx.fillStyle = 'rgba(255,255,255,.12)'; rr(x, y + dn, w, h, r); ctx.fill(); } }
+  if (label) text(label, x + w / 2, y + h / 2 + dn, o.size || 20, fg, kind === 'yellow' || kind === 'off' ? { stroke: false, weight: 800 } : { stroke: UI_INK, lw: 3.5, weight: 800 });
   ctx.restore();
   buttons.push({ x: hx, y: hy, w: hw, h: hh, on, key });
 }
@@ -639,21 +629,26 @@ function ribbon(cx, cy, w, label, size = 24, red = false) {
   if (im && ready(im) && typeof obox === 'function') { const b = obox(im), h = w * b.h / b.w; ctx.drawImage(im, b.x, b.y, b.w, b.h, cx - w / 2, cy - h / 2, w, h); text(label, cx, cy - h * 0.06, size, '#ffffff', { stroke: red ? 'rgba(120,20,30,.8)' : 'rgba(10,40,100,.8)', lw: 6 }); return true; }
   return false;
 }
-function panel(x, y, w, h, o = {}) {
+function panel(x, y, w, h, o = {}) { // 평면 스티커 판: 남색 면 + 굵은 테 + 안쪽 얇은 밝은 줄(고른 칸은 노란 테)
   ctx.save();
-  const gl = IMG.spr_ui_glass_card, art = gl && ready(gl) ? gl : IMG.spr_ui_panel;
-  if (art && ready(art) && typeof obox === 'function' && !o.flat) { // 코덱스 유리 카드(시안) — 속은 옅은 남색으로 받쳐 흰 글자가 읽히게
-    slice9(art, x, y, w, h, Math.min(34, (o.r || 20) * 1.5));
-    if (art === gl) { ctx.fillStyle = 'rgba(12,40,92,.58)'; rr(x + 8, y + 8, w - 16, h - 16, Math.max(6, (o.r || 20) - 6)); ctx.fill(); } // 유리 테는 살리고 속만 남색(흰 글자 읽히게)
-    if (o.fill && o.fill !== 'rgba(27,28,31,.94)') { ctx.globalAlpha = 0.45; ctx.fillStyle = o.fill; rr(x + 3, y + 3, w - 6, h - 6, Math.max(4, (o.r || 20) - 3)); ctx.fill(); ctx.globalAlpha = 1; } // 고른 칸·특별 칸 색은 얇게 덧칠
-    if (o.sel) { ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 3; rr(x + 1, y + 1, w - 2, h - 2, o.r || 20); ctx.stroke(); }
-  } else {
-  ctx.shadowColor = 'rgba(0,0,0,.1)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
-  ctx.fillStyle = o.fill || 'rgba(27,28,31,.94)'; rr(x, y, w, h, o.r || 20); ctx.fill();
-  ctx.shadowColor = 'transparent';
-  if (o.sel) { ctx.strokeStyle = C.blueD; ctx.lineWidth = 2.5; ctx.stroke(); }
-  }
+  const r = o.r || 20, fill = o.fill && !/27,28,31/.test(o.fill) && !['#1B1C1F', '#33353B', '#0c285c'].includes(o.fill) ? o.fill : '#2a4290'; // 예전 어두운 회색·선택색은 평면 파랑으로
+  ctx.fillStyle = 'rgba(8,14,40,.35)'; rr(x - 3, y + 2, w + 6, h + 6, r + 3); ctx.fill();
+  ctx.fillStyle = UI_INK; rr(x - 3, y - 3, w + 6, h + 6, r + 3); ctx.fill();
+  ctx.fillStyle = '#2a4290'; rr(x, y, w, h, r); ctx.fill();
+  if (fill !== '#2a4290') { ctx.globalAlpha = 0.55; ctx.fillStyle = fill; rr(x, y, w, h, r); ctx.fill(); ctx.globalAlpha = 1; }
+  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 2; rr(x + 5, y + 5, w - 10, h - 10, Math.max(4, r - 5)); ctx.stroke();
+  if (o.sel) { ctx.strokeStyle = '#ffd23a'; ctx.lineWidth = 4; rr(x - 1, y - 1, w + 2, h + 2, r + 1); ctx.stroke(); }
   ctx.restore();
+}
+// 평면 게이지: 남색 테 + 어두운 속 + 색 채움(아래 한 톤) + 흰 하이라이트 줄
+// 평면 알약(칩·토스트·이름표 받침): 굵은 남색 테 + 남색 면
+function flatPill(x, y, w, h, r, fill = '#22356e') { ctx.fillStyle = UI_INK; rr(x - 2.5, y - 2.5, w + 5, h + 5, r + 2.5); ctx.fill(); ctx.fillStyle = fill; rr(x, y, w, h, r); ctx.fill(); }
+function flatBar(x, y, w, h, k, col, col2, o = {}) {
+  const r = h / 2;
+  ctx.fillStyle = UI_INK; rr(x - 3, y - 3, w + 6, h + 6, r + 3); ctx.fill();
+  ctx.fillStyle = o.bg || '#0e1838'; rr(x, y, w, h, r); ctx.fill();
+  if (o.lag != null && o.lag > k) { ctx.fillStyle = '#ff5d6c'; rr(x, y, Math.max(h, w * o.lag), h, r); ctx.fill(); }
+  if (k > 0) { ctx.save(); rr(x, y, Math.max(h, w * k), h, r); ctx.clip(); ctx.fillStyle = col; ctx.fillRect(x, y, w, h); ctx.fillStyle = col2 || col; ctx.fillRect(x, y + h * 0.62, w, h); ctx.fillStyle = 'rgba(255,255,255,.5)'; rr(x + 5, y + 2, Math.max(0, w * k - 10), Math.max(2, h * 0.22), 2); ctx.fill(); ctx.restore(); }
 }
 // 자리마다 굴러가는 숫자 (lucian-uxui #098, MIT): 바뀐 자리만 0~9 기둥이 위아래로 굴러감 — 진주·보석이 늘거나 줄 때
 const ROLL = {};
@@ -688,7 +683,7 @@ function eggBadge(x, y, n, size = 26) {
   const label = String(n);
   ctx.font = `800 ${Math.max(13, size * 0.7)}px ${FONT}`;
   const w = ctx.measureText(label).width + size * 1.6;
-  ctx.fillStyle = 'rgba(16,16,18,.55)'; rr(x - size * 0.75, y - size * 0.62, w, size * 1.24, size * 0.62); ctx.fill();
+  flatPill(x - size * 0.75, y - size * 0.62, w, size * 1.24, size * 0.62);
   drawPearl(x, y, size * 0.95);
   text(label, x + size * 0.62, y + 1, size * 0.7, C.text, { align: 'left', stroke: false });
 }

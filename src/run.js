@@ -720,7 +720,7 @@ function drawRunObs() {
     if (o.x < W && !mightyNow() && Math.sin(T * 8) > -0.2) text(isTouch ? '필살!' : 'Shift!', o.x + o.w / 2, 150, 28, C.yellow, { lw: 6 }); // 벽 위에 깜빡
   }
   const ch = G.chaser;
-  if (ch && ch.x > -200) { const y = GROUND - 60 + Math.sin(T * 6) * 4; drawImg(IMG.spr_shark, ch.x, y, 120, 0, 1, !ch.flee); if (!ch.flee) text('!', ch.x + 30, y - 56, 30, '#ff4d6a', { lw: 6 }); }
+  if (ch && ch.x > -200 && (state === 'play' || state === 'pause')) drawChaser(ch); // 쫓아오는 상어(무섭게) — 결과 화면 뒤엔 안 그림
   for (const o of G.obs) {
     if (o.k === 'wall') continue;
     if (o.k === 'pillar' && drawPillarArt(o)) { /* 코덱스 그림 */ } else if (o.k === 'pillar') {
@@ -777,7 +777,7 @@ function drawRunObs() {
     const pl = IMG.spr_fx_pillar;
     if (pl && ready(pl)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55 + Math.sin(T * 4) * 0.1; const ph = 230, pw = (ph * pl.naturalWidth) / pl.naturalHeight * 0.7; ctx.drawImage(pl, f.x - pw / 2, GROUND - ph, pw, ph); ctx.restore(); }
     ctx.font = `600 ${fs(15)}px ${FONT}`; const lw = ctx.measureText('지난 기록').width + 24, ly = GROUND - 210 + Math.sin(T * 3) * 3;
-    ctx.fillStyle = 'rgba(16,16,18,.7)'; rr(f.x - lw / 2, ly - 15, lw, 30, 15); ctx.fill();
+    flatPill(f.x - lw / 2, ly - 15, lw, 30, 15);
     ctx.strokeStyle = C.yellow; ctx.lineWidth = 2; rr(f.x - lw / 2, ly - 15, lw, 30, 15); ctx.stroke();
     text('지난 기록', f.x, ly, 15, C.yellow, { body: true, stroke: false });
   }
@@ -867,6 +867,22 @@ function drawBonusBubble() { // 보너스 바다: 반짝이는 거품을 타고 
   ctx.strokeStyle = 'rgba(220,250,255,.8)'; ctx.lineWidth = 3; ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.ellipse(p.x - r * 0.45, p.y - 6 - r * 0.5, 10, 5, -0.6, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
+}
+// 쫓아오는 상어: 크게·입을 와작와작·빨간 눈빛·왼쪽 화면 끝이 붉게 — 가까울수록 더 크고 더 빨리 물어뜯음(친구 아님, 적)
+function drawChaser(ch) {
+  const p = G.p, near = ch.flee ? 0 : clamp(1 - (p.x - ch.x - 60) / 220, 0, 1), sz = 150 + near * 50;
+  const bite = (T * (2.2 + near * 3)) % 1, snap = bite < 0.18 ? Math.sin(bite / 0.18 * Math.PI) : 0; // 와작
+  if (snap > 0.9 && !ch.flee && near > 0.5 && T - (ch.biteAt || -9) > 0.35) { ch.biteAt = T; snd('lunge', 0.35 + near * 0.3, 1.2 + Math.random() * 0.2); haptic(10); if (near > 0.85) pop(ch.x + 70, GROUND - 120, '와작!', '#ff4d6a', 22); }
+  if (!ch.flee) { // 왼쪽 끝 붉은 위험 빛
+    ctx.save(); const g = ctx.createLinearGradient(0, 0, 260, 0); g.addColorStop(0, `rgba(255,40,70,${0.28 + near * 0.3 + Math.sin(T * 8) * 0.06})`); g.addColorStop(1, 'rgba(255,40,70,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 260, H); ctx.restore();
+  }
+  const y = GROUND - sz * 0.42 + Math.sin(T * 6) * 5 - snap * 6, x = ch.x + snap * 18;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ch.flee ? 0.3 : -0.06 - snap * 0.12); ctx.scale(1 + snap * 0.08, 1 - snap * 0.05);
+  const key = IMG.spr_boss_shark && ready(IMG.spr_boss_shark) ? 'spr_boss_shark' : 'spr_shark'; // 졸개 상어보다 큰 상어 대장 얼굴로
+  drawImg(IMG[key], 0, 0, sz, 0, 1, !ch.flee);
+  if (!ch.flee) { const s2 = silhouette(key, '#ff2244'); if (s2) drawImg(s2, 0, 0, sz, 0, 0.18 + 0.12 * Math.sin(T * 10), true); } // 화난 붉은 기운
+  ctx.restore();
+  if (!ch.flee) { const s3 = 1 + Math.abs(Math.sin(T * 9)) * 0.25; ctx.save(); ctx.translate(x + 10, y - sz * 0.55); ctx.scale(s3, s3); text('!', 0, 0, 36, '#ff3355', { stroke: '#ffffff', lw: 7 }); ctx.restore(); }
 }
 function drawRunHero(face, blink, alpha) {
   const p = G.p, cap = (SIDE_STYLE[save.skin] || {}).cap; let key = heroPose(), c = pose(key, cap);
@@ -978,21 +994,11 @@ function drawRunHud(L) {
   // 기운 막대(인기 게임 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
   const bx = L + 30, by = 21, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
   const blink = low && Math.sin(T * 12) > 0;
-  const gf = IMG.spr_ui_glass_b; // 시안: 유리 틀 안의 기운 막대
-  if (gf && ready(gf)) { ctx.fillStyle = 'rgba(8,30,70,.45)'; rr(bx - 26, by - 9, bw + 40, bh + 18, (bh + 18) / 2); ctx.fill(); slice3(gf, bx - 34, by - 15, bw + 56, bh + 30); } else { ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(bx - 4, by - 4, bw + 8, bh + 8, (bh + 8) / 2); ctx.fill(); }
-  if (ks > k) { ctx.fillStyle = '#ff3355'; rr(bx, by, bw * ks, bh, bh / 2); ctx.fill(); } // 잃은 만큼(빨강)
-  if (k > 0) {
-    ctx.save(); rr(bx, by, Math.max(bh, bw * k), bh, bh / 2); ctx.clip();
-    const g = ctx.createLinearGradient(0, by, 0, by + bh); g.addColorStop(0, blink ? '#ff8aa0' : '#ffe14a'); g.addColorStop(1, blink ? '#ff3355' : '#ff9a1f');
-    ctx.fillStyle = g; ctx.fillRect(bx, by, bw * k, bh);
-    ctx.fillStyle = 'rgba(255,255,255,.22)'; for (let x = bx - 30 + ((T * 40) % 24); x < bx + bw * k; x += 24) { ctx.beginPath(); ctx.moveTo(x, by + bh); ctx.lineTo(x + 10, by); ctx.lineTo(x + 18, by); ctx.lineTo(x + 8, by + bh); ctx.fill(); } // 흐르는 줄무늬
-    if (G.enHealT > 0) { const k0 = clamp((G.enHealFrom || 0) / G.maxEn, 0, 1); ctx.fillStyle = `rgba(110,235,255,${Math.min(1, G.enHealT / 0.3)})`; ctx.fillRect(bx + bw * k0, by, bw * (k - k0), bh); } // 채운 만큼 하늘색
-    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(bx, by + 2, bw * k, 4);
-    ctx.restore();
-  }
+  flatBar(bx, by, bw, bh, k, blink ? '#ff8aa0' : '#ffd23a', blink ? '#ff3355' : '#ff9f1c', { lag: ks > k ? ks : null }); // 평면 게이지(남색 테·노랑+주황·흰 줄)
+  if (G.enHealT > 0 && k > 0) { const k0 = clamp((G.enHealFrom || 0) / G.maxEn, 0, 1); ctx.fillStyle = `rgba(110,235,255,${Math.min(1, G.enHealT / 0.3)})`; rr(bx + bw * k0, by, Math.max(0, bw * (k - k0)), bh, 4); ctx.fill(); }
   if (G.bonus) { // 보너스 바다: 기운 막대 위에 하늘색 남은 시간 막대를 덮음
     const tk = clamp(G.bonus.t / G.bonus.max, 0, 1);
-    ctx.fillStyle = '#6eebff'; rr(bx, by, Math.max(bh, bw * Math.min(1, tk)), bh, bh / 2); ctx.fill();
+    flatBar(bx, by, bw, bh, Math.min(1, tk), '#6eebff', '#3fb8e0');
     text(`보너스 ${Math.ceil(G.bonus.t)}초`, bx + bw / 2, by + bh / 2 + 1, 13, '#063040', { stroke: false });
   }
   const hs = 34 * (low ? 1 + Math.abs(Math.sin(T * 4.5)) * 0.18 : G.p.inv > 0 && T - (G.hurtAt || -9) < 0.5 ? 1.15 : 1);
@@ -1001,13 +1007,16 @@ function drawRunHud(L) {
   for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, by + bh / 2, 24); hx += 28; }
   if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, by + bh / 2, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
   // 바·다·축·제 글자 (보스전엔 체력바 자리라 숨김)
-  const lx = W / 2 - 66, ly = 62; // 진행 막대(23~37)·막대 위 거북이 아래 여백
-  if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => {
-    const on = G.letters[i];
-    const lim = IMG[on ? 'spr_ui_letter_on' : 'spr_ui_letter_off'], pop = on && G.letterPopAt && G.letterPopAt[i] ? Math.max(0, 1 - (T - G.letterPopAt[i]) / 0.4) : 0;
-    if (lim && ready(lim)) drawImg(lim, lx + i * 44, ly, 40 * (1 + pop * 0.5), 0, on ? 1 : 0.85); // 코덱스 유리 방울(모으면 금빛 사탕)
-    else { ctx.fillStyle = on ? C.yellow : 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(lx + i * 44, ly, 16, 0, Math.PI * 2); ctx.fill(); if (on) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); } }
-    text(c, lx + i * 44, ly + 1, 15, on ? '#7a3a00' : 'rgba(255,255,255,.5)', { stroke: false });
+  const lx = W / 2 - 69, ly = 65; // 진행 막대 가운데 아래, 왼쪽 축제 게이지와 같은 줄(y=65)
+  if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => { // 평면 스티커 글자 방울: 모으면 노랑으로 톡 커지며 흔들, 4개 다 모으면 무지개로 통통
+    const on = G.letters[i], all = G.letters.every(Boolean), pop = on && G.letterPopAt && G.letterPopAt[i] ? Math.max(0, 1 - (T - G.letterPopAt[i]) / 0.45) : 0;
+    const x = lx + i * 46, y = ly - (all ? Math.abs(Math.sin(T * 6 + i * 0.8)) * 5 : 0), r = 16 * (1 + Math.sin(pop * Math.PI) * 0.45);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(pop ? Math.sin(pop * 14) * 0.25 : 0);
+    ctx.fillStyle = UI_INK; ctx.beginPath(); ctx.arc(0, 2, r + 3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(0, 0, r + 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = on ? (all ? `hsl(${(T * 200 + i * 60) % 360},95%,62%)` : '#ffd23a') : '#2b3f7d'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    if (on) { ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.ellipse(-r * 0.42, -r * 0.45, r * 0.28, r * 0.15, -0.6, 0, Math.PI * 2); ctx.fill(); }
+    text(c, 0, 1, 15, on ? '#5a3000' : 'rgba(255,255,255,.45)', { stroke: false });
+    ctx.restore();
   });
   // 연습 안내
   const tu = G.tut;

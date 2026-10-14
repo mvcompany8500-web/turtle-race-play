@@ -78,7 +78,7 @@ function text(s, x, y, size, color = '#fff', o = {}) {
   if (o.stroke !== false) {
     ctx.lineJoin = 'round';
     ctx.lineWidth = o.lw || Math.max(2.5, size * 0.13);
-    ctx.strokeStyle = o.stroke || 'rgba(16,16,18,.62)';
+    ctx.strokeStyle = o.stroke || '#13204a'; // 평면 스티커 글자: 남색 테
     ctx.strokeText(s, x, y);
   }
   ctx.fillStyle = color;

@@ -179,22 +179,16 @@ function drawBossBar(b) {
   const w = Math.min(520, right - left), x = left + Math.max(0, (right - left - w) / 2), y = 19, h = 22;
   const jolt = T - (b.barT || -9) < 0.24 ? 5 * (1 - (T - b.barT) / 0.24) : 0, jx = jolt ? rand(-jolt, jolt) : 0, jy = jolt ? rand(-jolt, jolt) * 0.5 : 0;
   ctx.save(); ctx.translate(jx, jy);
-  ctx.fillStyle = 'rgba(8,10,30,.82)'; rr(x, y, w, h, 10); ctx.fill();
-  const show = clamp(b.hpShow == null ? b.hp : b.hpShow, 0, b.maxHp) / b.maxHp, cur = clamp(b.hp, 0, b.maxHp) / b.maxHp;
-  if (show > cur) { ctx.fillStyle = '#ffffff'; rr(x + 2, y + 2, Math.max(8, (w - 4) * show), h - 4, 8); ctx.fill(); }
-  const low = cur < 0.3, g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, low ? '#ff8a8a' : '#ff6b6b'); g.addColorStop(0.5, '#f0384f'); g.addColorStop(1, '#a3122a');
-  ctx.fillStyle = g; if (cur > 0) { rr(x + 2, y + 2, Math.max(8, (w - 4) * cur), h - 4, 8); ctx.fill(); }
-  if (low) { ctx.fillStyle = `rgba(255,255,255,${0.12 + 0.12 * Math.sin(T / 0.09)})`; rr(x + 2, y + 2, (w - 4) * cur, h - 4, 8); ctx.fill(); }
-  ctx.fillStyle = 'rgba(255,255,255,.25)'; rr(x + 4, y + 3, Math.max(0, (w - 8) * cur), h * 0.32, 6); ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let i = 1; i < 10; i++) ctx.fillRect(x + (w * i) / 10 - 1, y + 3, 2, h - 6);
-  ctx.strokeStyle = b.def.king ? '#ffd23d' : '#ffffff'; ctx.lineWidth = 3; rr(x, y, w, h, 10); ctx.stroke();
+  const show = clamp(b.hpShow == null ? b.hp : b.hpShow, 0, b.maxHp) / b.maxHp, cur = clamp(b.hp, 0, b.maxHp) / b.maxHp, low = cur < 0.3;
+  flatBar(x, y, w, h, cur, low && Math.sin(T / 0.09) > 0 ? '#ff8a96' : '#ff5d6c', '#d93349', { lag: show > cur ? show : null });
+  if (show > cur) { ctx.fillStyle = '#ffffff'; rr(x + w * cur, y, Math.max(0, w * (show - cur)), h, 4); ctx.fill(); }
+  ctx.fillStyle = 'rgba(19,32,74,.5)'; for (let i = 1; i < 10; i++) ctx.fillRect(x + (w * i) / 10 - 1, y + 3, 2, h - 6);
   // 얼굴
-  ctx.fillStyle = '#1b1c1f'; ctx.beginPath(); ctx.arc(x - 6, y + h / 2, 24, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = b.def.king ? '#ffd23d' : '#ffffff'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#2a0e2e'; ctx.beginPath(); ctx.arc(x - 6, y + h / 2, 24, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = UI_INK; ctx.lineWidth = 4; ctx.stroke(); ctx.strokeStyle = b.def.king ? '#ffd23d' : '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x - 6, y + h / 2, 21, 0, Math.PI * 2); ctx.stroke();
   ctx.save(); ctx.beginPath(); ctx.arc(x - 6, y + h / 2, 22, 0, Math.PI * 2); ctx.clip(); drawImg(IMG['spr_' + BOSS_SPR[G.cfg.boss]], x - 2, y + h / 2 + 6, 52); ctx.restore();
-  text(b.def.name, x + 24, y + h + 13, 14, '#ffd1d8', { align: 'left', body: true });
-  text(`${Math.ceil(Math.max(0, b.hp))} / ${b.maxHp}`, x + w - 4, y + h + 13, 13, '#ffffff', { align: 'right', body: true });
+  text(b.def.name, x + 24, y + h + 14, 14, '#ffffff', { align: 'left', stroke: UI_INK, lw: 4 });
+  text(`${Math.ceil(Math.max(0, b.hp))} / ${b.maxHp}`, x + w - 4, y + h + 14, 13, '#ffffff', { align: 'right', stroke: UI_INK, lw: 4 });
   ctx.restore();
 }
 // 보스가 맞을 때 공통(잔상·떨림·구간 넉백)
@@ -512,7 +506,7 @@ const FEAT = { ultWall: ['벽 판', '필살기로 벽을 부숴요'], climb: ['�
 function stageFeat(n) { const st = STAGE_STYLE[n]; if (!st) return null; if (st.wall) return FEAT.ultWall; if ((st.sig || {}).climb >= 2) return FEAT.climb; const top = Object.entries(st.sig || {}).sort((a, b) => b[1] - a[1]).find(([k]) => FEAT[k]); return top ? FEAT[top[0]] : null; }
 function drawReady() {
   const n = ready_.n, st = STAGES[n], endless = n === ENDLESS;
-  ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.6)'; ctx.fillRect(-OX(), 0, W, H);
   withRise(0, () => {
     panel(200, 40, 560, 460, { fill: C.gray }); // 세로: 리본·이름·목표·별·기록·시작 아이템·출발(판 아래 30 여백)
     if (!ribbon(480, 50, 380, endless ? '끝없는 바다' : `${n}번 바다`, 26, true)) text(endless ? '끝없는 바다' : `${n}번 바다`, 480, 82, 30, C.yellow, { stroke: false }); // 시안: 빨간 리본
@@ -587,7 +581,7 @@ function appEggs(cleared) {
 }
 function drawAppEgg(x, y) {
   const a = G.appEgg; if (!a) return;
-  ctx.fillStyle = 'rgba(16,16,18,.7)'; rr(x - 170, y - 18, 340, 36, 18); ctx.fill();
+  flatPill(x - 170, y - 18, 340, 36, 18);
   drawImg(IMG.egg, x - 148, y, 26);
   let t;
   if (a.short) t = '너무 짧은 판은 거북알이 없어요';
@@ -625,5 +619,26 @@ function drawAmeliaSay() {
   const im = amSay.mood === 'scared' || !save.cleared ? IMG.spr_amelia_scared : IMG.spr_amelia_cheer; /* 구출 전엔 갇혀서 걱정하는 얼굴 */ drawImg(im, cx, cy + 14 + Math.sin(t * 12) * (amSay.mood === 'scared' ? 1.5 : 0), 74, 0, 1, true);
   ctx.restore();
   if (!save.cleared) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(cx - 16, cy - 20, 7, 3.5, -0.6, 0, Math.PI * 2); ctx.fill(); } // 거품 감옥 테
+  ctx.restore();
+}
+
+// ───────── 연속 콤보 카운터(인기 게임·서브웨이식 도파민): 오른쪽 위 점수 아래 큰 숫자, 먹을 때마다 톡 커짐, 10·25·50마다 색이 바뀌며 터짐, 끊기면 툭 떨어짐 ─────────
+const comboFx = { shown: 0, popAt: -9, dropAt: -9, last: 0 };
+function drawComboCounter() {
+  if (!G || !G.run || state !== 'play') return;
+  const c = G.comboT > 0 ? G.combo || 0 : 0; // 0.6초 못 먹으면 끊김
+  if (c > comboFx.last) { comboFx.popAt = T; if ([10, 25, 50, 100].includes(c)) { comboFx.bigAt = T; snd('levelup', 0.5, 1 + c / 200); } }
+  if (c === 0 && comboFx.last >= 5) comboFx.dropAt = T, comboFx.dropN = comboFx.last;
+  comboFx.last = c;
+  const R = W - SAFE - 92, y = 132;
+  const dropK = clamp((T - comboFx.dropAt) / 0.5, 0, 1);
+  if (c < 5) { if (dropK < 1 && comboFx.dropN) { ctx.save(); ctx.globalAlpha = 1 - dropK; ctx.translate(R, y + dropK * 60); ctx.rotate(dropK * 0.5); text(`${comboFx.dropN} 콤보`, 0, 0, 26, '#cfd8ff', { lw: 5 }); ctx.restore(); } return; }
+  const pk = clamp((T - comboFx.popAt) / 0.18, 0, 1), big = clamp((T - (comboFx.bigAt || -9)) / 0.5, 0, 1);
+  const s = (1 + (1 - pk) * 0.35) * (big < 1 ? 1 + Math.sin(big * Math.PI) * 0.5 : 1);
+  const col = c >= 50 ? '#ff5fb8' : c >= 25 ? '#ffb02e' : c >= 10 ? '#7dffb0' : '#7cf0ff';
+  ctx.save(); ctx.translate(R, y); ctx.scale(s, s); ctx.rotate(Math.sin(T * 6) * 0.04);
+  if (big < 1) celebrateGlow(0, 0, 70, '255,220,120', 1 - big);
+  text(String(c), -6, 0, 40, col, { stroke: '#1d2a5a', lw: 8 });
+  text('콤보', 0, 26, 15, '#ffffff', { stroke: '#1d2a5a', lw: 5 });
   ctx.restore();
 }

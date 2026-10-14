@@ -248,7 +248,7 @@ function render() {
     drawBoostOverlay();
     drawScreenFxBack();
     drawUltCine(); if (!cine) drawSprFx(); drawTaunt();
-    if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawSweepLabels(); drawHUD(); drawAmeliaSay(); }
+    if (state === 'play' || state === 'pause' || state === 'bless') { drawPops(); drawSweepLabels(); drawHUD(); drawAmeliaSay(); drawComboCounter(); }
     if (state === 'play') drawCutin();
   } else if (state === 'map' || state === 'intro') {
     if (state === 'intro') drawBackground(1, T * 20);

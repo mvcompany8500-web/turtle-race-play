@@ -154,7 +154,7 @@ function drawBuyConfirm() {
 // 보석 배지
 function gemBadge(x, y, n, size = 26) {
   ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(-size * 0.7, -size * 0.6, size * 3.4, size * 1.2, size * 0.6); ctx.fill();
+  flatPill(-size * 0.7, -size * 0.6, size * 3.4, size * 1.2, size * 0.6);
   icon('e_gem', 0, 0, size);
   text(String(n), size * 0.75, 1, size * 0.62, '#9fe3ff', { align: 'left', stroke: false });
   ctx.restore();

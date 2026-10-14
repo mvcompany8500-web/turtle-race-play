@@ -118,8 +118,8 @@ function drawBoxShow() {
 // ───────── 월드맵: 세계 5곳 × 바다 10칸 = 50판, 손가락으로 쭉 미는 긴 바다 지도 ─────────
 const MAP_STEP = 190, MAP_X0 = 300;
 function nodePos(s) {
-  if (s === 0) return { x: 120, y: 190 };
-  return { x: MAP_X0 + (s - 1) * MAP_STEP + (STAGES[s].boss ? 24 : 0), y: 300 + Math.sin(s * 0.85) * 92 + Math.cos(s * 0.37) * 22 };
+  if (s === 0) return { x: 120, y: 250 };
+  return { x: MAP_X0 + (s - 1) * MAP_STEP + (STAGES[s].boss ? 24 : 0), y: 288 + Math.sin((s - 1) * 0.9) * 70 + Math.sin((s - 1) * 0.31) * 12 }; // 위 메뉴(~150)와 아래 판(~445) 사이 가운데 줄을 따라 물결(1번은 정가운데에서 시작)
 }
 const MAP_LEN = MAP_X0 + (LAST - 1) * MAP_STEP + 420;
 const zoneStart = (w) => (w === 1 ? -400 : nodePos((w - 1) * 10 + 1).x - MAP_STEP / 2);
@@ -284,7 +284,7 @@ function drawNode(s, x, y, scale = 1) {
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = open ? '#ffffff' : 'rgba(255,255,255,.35)'; ctx.lineWidth = 4 * scale; ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(x - r * 0.25, y - r * 0.45, r * 0.5, r * 0.22, -0.3, 0, Math.PI * 2); ctx.fill();
-  if (open) text(String(s), x, y + 2, boss ? 24 : 21, '#ffffff', { stroke: 'rgba(16,16,18,.5)', lw: 4 });
+  if (open) text(String(s), x, y + 2, boss ? 24 : 21, '#ffffff', { stroke: 'rgba(10,22,62,.5)', lw: 4 });
   else icon('e_lock', x, y, r * 1.05);
   if (open) for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + (k - 1) * 0.55; drawStar(x + Math.cos(a) * (r + 12), y + Math.sin(a) * (r + 12) + 2, 8, k < stars); }
   if (save.crown[s]) icon('e_crown', x + r * 0.9, y - r * 0.9, 22);
@@ -336,8 +336,8 @@ function drawMap() {
       ctx.fillStyle = g; ctx.fillRect(x0 - 140, 0, 280, H);
     }
     // A: 배경은 한 톤 눌러서(밝은 물 위 밝은 조개가 묻히지 않게) + 위·아래는 더 어둡게(메뉴·아래 판 글자 자리)
-    ctx.fillStyle = 'rgba(6,36,84,.24)'; ctx.fillRect(0, 0, W, H);
-    const vg = ctx.createLinearGradient(0, 0, 0, H); vg.addColorStop(0, 'rgba(4,24,60,.38)'); vg.addColorStop(0.2, 'rgba(4,24,60,0)'); vg.addColorStop(0.78, 'rgba(4,24,60,0)'); vg.addColorStop(1, 'rgba(4,24,60,.45)');
+    ctx.fillStyle = 'rgba(6,36,84,.06)'; ctx.fillRect(0, 0, W, H); // 평면 지도는 밝고 또렷하게(살짝만)
+    const vg = ctx.createLinearGradient(0, 0, 0, H); vg.addColorStop(0, 'rgba(4,24,60,.22)'); vg.addColorStop(0.2, 'rgba(4,24,60,0)'); vg.addColorStop(0.78, 'rgba(4,24,60,0)'); vg.addColorStop(1, 'rgba(4,24,60,.25)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   }
   // 세계 경계는 앞 세계 색이 서서히 사라지게
@@ -424,7 +424,7 @@ function drawMap() {
   if (map.banner > 0) {
     const a = Math.min(1, map.banner / 0.4, (3 - map.banner) / 0.3), wd = WORLDS[map.zone - 1];
     ctx.save(); ctx.globalAlpha = clamp(a, 0, 1);
-    ctx.fillStyle = 'rgba(16,16,18,.7)'; rr(W / 2 - 220, 92, 440, 64, 32); ctx.fill();
+    flatPill(W / 2 - 220, 92, 440, 64, 32);
     text(`세계 ${wd.id}`, W / 2, 112, 14, C.yellow, { stroke: false });
     text(wd.name, W / 2, 136, 26, '#ffffff', { stroke: false });
     ctx.restore();
@@ -443,7 +443,7 @@ function drawMap() {
       ctx.fillStyle = '#ffffff'; rr(bx - bw / 2 - 2, by - 11, bw + 4, 22, 11); ctx.fill(); ctx.fillStyle = C.danger; rr(bx - bw / 2, by - 9, bw, 18, 9); ctx.fill(); text('상자!', bx, by, 12, '#fff', { stroke: false });
     }
     // 둘째 줄: 레벨·출석·왕관을 같은 높이(36)·같은 남색 알약으로, 칸 사이 8
-    const chip = (x, y, w) => { ctx.fillStyle = 'rgba(8,30,70,.66)'; rr(x, y, w, 36, 18); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1.5; rr(x, y, w, 36, 18); ctx.stroke(); };
+    const chip = (x, y, w) => flatPill(x, y, w, 36, 18); // 평면 남색 알약
     chip(L, 62, 150); drawLvBadge(L, 62, true);
     if (save.streak.day) { const st2 = `출석 ${save.streak.day}일째`; ctx.font = `600 ${fs(14)}px ${FONT}`; const sw = ctx.measureText(st2).width; chip(L + 158, 62, sw + 28); text(st2, L + 172, 80, 14, C.yellow, { align: 'left', body: true, stroke: false }); }
     { // 셋째 줄: 거북 파워 + 등급(성장형) — 오르면 「+N」이 튀어오름
@@ -462,14 +462,14 @@ function drawMap() {
   button(L + 130, 14, 156, 42, `별 ${totalStars()} · ${cr ? '상자 열기!' : '상자 ' + chestGoal()}`, openChest, { size: 14, kind: cr ? 'yellow' : 'soft' });
   if (save.cleared) { // 엔딩 뒤: 어려움 왕관 모으기(2회차 목표)
     const nc = Object.keys(save.crown || {}).length;
-    ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(L + 6, 150, 150, 30, 15); ctx.fill(); icon('e_crown', L + 26, 165, 22); text(`왕관 ${nc}/50`, L + 44, 165, 14, C.yellow, { align: 'left', body: true, stroke: false });
+    flatPill(L + 6, 150, 150, 30, 15); icon('e_crown', L + 26, 165, 22); text(`왕관 ${nc}/50`, L + 44, 165, 14, C.yellow, { align: 'left', body: true, stroke: false });
   }
   if (save.streak.day) { // 출석 글: 바쁜 지도 위에서도 읽히게 어두운 띠 위에
     const st = `출석 ${save.streak.day}일째${save.streak.rest ? ` · 쉬는 카드 ${save.streak.rest}` : ''}${save.streak.lost ? ` · 오늘 ${3 - (save.streak.lostRuns || 0)}판 더 하면 ${save.streak.lost}일 되찾기` : ''}`;
     ctx.font = `600 ${fs(14)}px ${FONT}`; const room = R - 480 - (L + 306) - 16; // 오른쪽 둥근 단추 7개(70 간격) 앞까지
     let st2 = st; if (ctx.measureText(st2).width > room) st2 = `출석 ${save.streak.day}일째`; // 좁은 폰: 짧게
     const sw = Math.min(ctx.measureText(st2).width, room);
-    ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(L + 294, 20, sw + 24, 30, 15); ctx.fill();
+    flatPill(L + 294, 20, sw + 24, 30, 15);
     ctx.save(); rr(L + 294, 20, sw + 24, 30, 15); ctx.clip();
     text(st2, L + 306, 35, 14, C.yellow, { align: 'left', body: true, stroke: false }); ctx.restore();
   }
@@ -505,9 +505,9 @@ function drawMap() {
     if (i === 3 && missionsReady()) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 54, by + 4, 11, 0, Math.PI * 2); ctx.fill(); text(String(missionsReady()), bx + 54, by + 5, 13, '#fff', { stroke: false }); }
   });
   // 아래: 바다 정보 · 난이도 · 출발
-  if (NEWUI) { ctx.fillStyle = 'rgba(8,40,80,.42)'; rr(L + 10, 448, R - L - 20, 68, 34); ctx.fill(); slice3(ready(IMG.spr_ui_glass_b) ? IMG.spr_ui_glass_b : IMG.spr_ui_bottom_bar, L, 436, R - L, 92); } // 판 아래 12 띄움, 가운데 줄 y=482 else panel(L, 452, R - L, 80); // 시안: 코덱스 유리 판(속이 비치게) — 아래에 아주 옅은 남색을 깔아 흰 글자가 읽히게
+  flatPill(L + 6, 446, R - L - 12, 72, 36); // 아래 판: 평면 남색 알약(유리 판 뺌), 가운데 줄 y=482
   const s = map.cur;
-  const TL = L + 46, TW = R - 532 - TL; // 글자는 판의 둥근 끝 안쪽부터, 난이도 단추 앞 16에서 끊음
+  const TL = L + 40, TW = R - 560 - TL; // 글자는 판의 둥근 끝 안쪽부터, 난이도 단추 앞 16에서 끊음
   const fit = (str, sz, min) => { while (sz > min) { ctx.font = `800 ${fs(sz)}px ${FONT}`; if (ctx.measureText(str).width <= TW) break; sz--; } return sz; };
   if (s === 0) {
     text('끝없는 바다', TL, 468, 21, '#ffffff', { align: 'left', stroke: 'rgba(8,30,60,.8)', lw: 5 });
@@ -518,15 +518,16 @@ function drawMap() {
     for (let k = 0; k < 3; k++) drawStar(TL + 9 + k * 23, 498, 9, k < (save.stars[s] || 0));
     text(save.best[s] ? `최고 ${save.best[s]}%` : '처음 도전!', TL + 80, 498, 14, '#e8f6ff', { align: 'left', body: true, stroke: 'rgba(8,30,60,.75)', lw: 4 });
   }
-  DIFFS.forEach((d, i) => button(R - 516 + i * 84, 459, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
+  DIFFS.forEach((d, i) => button(R - 538 + i * 92, 459, 78, 46, d.name, () => { save.diff = i; persist(); sfx.click(); }, { size: 15, kind: save.diff === i ? 'primary' : 'soft' }));
   // 인기 게임 「플레이」 단추처럼: 노랑→주황, 두꺼운 아래 그림자, 1.2초 맥박, 3초마다 빛줄이 지나감
   const bounce = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, bx0 = R - 250, by0 = 450, bw0 = 216, bh0 = 64; // 그림 오른쪽 끝이 판 둥근 끝 안쪽(R-17)에
   ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(bounce, bounce); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
   const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
-  if (NEWUI) { // 시안의 노란 재생 단추(코덱스) — 왼쪽 ▶ 그림, 오른쪽에 글자
-    const pb = IMG.spr_ui_play_btn, b2 = obox(pb), ph = bh0 + 14, pw = Math.min(bw0 + 30, ph * b2.w / b2.h);
-    ctx.drawImage(pb, b2.x, b2.y, b2.w, b2.h, bx0 + bw0 / 2 - pw / 2, by0 - 7 + (pressed ? 4 : 0), pw, ph);
-    text('달리기!', bx0 + bw0 / 2 + pw * 0.14, by0 + bh0 / 2 + (pressed ? 5 : 0), 28, '#ffffff', { stroke: '#b4560a', lw: 6 });
+  if (NEWUI || true) { // 평면 스티커 단추(코드): 남색 테·노랑+주황 띠·▶ + 글자 한 덩어리 가운데
+    const dn = pressed ? 4 : 0; flatShape(bx0, by0, bw0, bh0, 26, '#ffd23a', '#ff9f1c', dn, UI_INK, 4);
+    ctx.font = `800 ${fs(28)}px ${FONT}`; const tw = ctx.measureText('달리기!').width, gw = 26 + 10 + tw, gx = bx0 + bw0 / 2 - gw / 2, cy = by0 + bh0 / 2 + dn;
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = UI_INK; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(gx + 2, cy - 13); ctx.lineTo(gx + 24, cy); ctx.lineTo(gx + 2, cy + 13); ctx.closePath(); ctx.stroke(); ctx.fill();
+    text('달리기!', gx + 36, cy, 28, '#ffffff', { align: 'left', stroke: UI_INK, lw: 7 });
   } else {
   const pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
   ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 6, bw0, bh0, 20); ctx.fill(); // 아래 그림자
@@ -561,7 +562,7 @@ function drawMap() {
   if (boxShow) drawBoxShow(); // 상자 열기 연출은 맨 위
 }
 function overlayBase(x, y, w, h, title, ic) {
-  ctx.fillStyle = 'rgba(16,16,18,.7)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.7)'; ctx.fillRect(-OX(), 0, W, H);
   buttons.length = 0;
   buttons.push({ x: 0, y: 0, w: W, h: H, on: () => { map.overlay = null; } });
   buttons.push({ x: x + OX(), y, w, h, on: () => {} }); // 판 안 빈 곳을 눌러도 닫히지 않게(바깥만 닫힘)
@@ -627,7 +628,7 @@ function drawDex() {
 }
 function drawIosGuide() {
   buttons.length = 0;
-  ctx.fillStyle = 'rgba(16,16,18,.88)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.88)'; ctx.fillRect(-OX(), 0, W, H);
   panel(170, 40, 620, 400, { fill: C.gray });
   text('아이폰은 꽉 찬 화면으로 하려면', 480, 84, 26, C.text, { stroke: false });
   const steps = [['1', '사파리 아래(또는 위) 공유 버튼', 'share'], ['2', '「홈 화면에 추가」 누르기', 'plus'], ['3', '바탕화면 「터틀런」 아이콘으로 실행', 'icon']];
@@ -813,7 +814,7 @@ function drawIntro() {
   drawConfetti();
   if (INTRO[i].ev === 'title') {
     const a = Math.min(1, t / 0.5);
-    ctx.fillStyle = `rgba(16,16,18,${0.6 * a})`; ctx.fillRect(-OX(), 0, W, H);
+    ctx.fillStyle = `rgba(10,22,62,${0.6 * a})`; ctx.fillRect(-OX(), 0, W, H);
     ctx.save(); ctx.globalAlpha = a;
     const s = 0.7 + 0.3 * easeOutBack(Math.min(1, t / 0.6));
     ctx.translate(480, 200); ctx.scale(s, s); text('터틀런', 0, 0, 86, C.yellow, { lw: 12 }); ctx.restore();
@@ -875,7 +876,7 @@ function drawLoadBar() {
   const ims = Object.values(IMG).filter((i) => i && i.complete !== undefined), done = ims.filter((i) => i.complete).length;
   if (!ims.length || done >= ims.length) return;
   const k = done / ims.length;
-  ctx.fillStyle = 'rgba(16,16,18,.6)'; rr(330, 500, 300, 14, 7); ctx.fill();
+  flatPill(330, 500, 300, 14, 7);
   ctx.fillStyle = C.blueD; rr(330, 500, Math.max(14, 300 * k), 14, 7); ctx.fill();
   text(`바다 준비 중 ${Math.round(k * 100)}%`, 480, 484, 14, C.text, { body: true });
 }
@@ -951,37 +952,39 @@ function drawTitle() {
   // 가운데 열(560): 로고 → 부제 → 시작 단추 → 아래 줄 / 오른쪽: 상어왕이 아멜리아 거품을 끈으로 들고 있음(이야기가 한눈에)
   const CX = 456 + OX() * 0.5, R = 960 + OX() - SAFE; // 가운데 열은 화면 폭에 맞춰(좁으면 왼쪽으로)
   drawTitleBoss(R, CX);
-  const lg = ready(IMG.spr_title_logo_run) ? IMG.spr_title_logo_run : IMG.spr_title_logo, ly = 92 + Math.sin(T * 2) * 4;
-  if (lg && ready(lg) && typeof obox === 'function') {
-    const b = obox(lg), lw = 340, lh = lw * b.h / b.w, ls = 1 + Math.sin(T * 3) * 0.015;
-    ctx.save(); ctx.translate(CX, ly); ctx.scale(ls, ls); ctx.drawImage(lg, b.x, b.y, b.w, b.h, -lw / 2, -lh / 2, lw, lh); ctx.restore();
-  } else text('터틀런', CX, ly, 76, C.yellow, { lw: 12 });
+  // 가운데 열 = 세로로 한 덩어리를 화면 위아래 가운데에: 로고(lh) 12 부제(34) 52 시작(70+6) 18 아래 줄(40)
+  const lg = ready(IMG.spr_title_logo_run) ? IMG.spr_title_logo_run : IMG.spr_title_logo, lw = 340, lb = lg && ready(lg) && typeof obox === 'function' ? obox(lg) : null, lh = lb ? lw * lb.h / lb.w : 90;
+  const stack = lh + 12 + 34 + 52 + 76 + 18 + 40, top = Math.round((H - stack) / 2), ly = top + lh / 2, py = top + lh + 12, by0 = py + 34 + 52, ry = by0 + 76 + 18;
+  { const bob = Math.sin(T * 2) * 4, ls = 1 + Math.sin(T * 3) * 0.015, pop = clamp(stateT / 0.5, 0, 1), e = pop < 1 ? easeOutBack(pop) : 1; // 처음엔 통 튀어나옴
+    if (lb) { ctx.save(); ctx.translate(CX, ly + bob); ctx.scale(ls * e, ls * e); ctx.rotate(Math.sin(T * 1.4) * 0.02); ctx.drawImage(lg, lb.x, lb.y, lb.w, lb.h, -lw / 2, -lh / 2, lw, lh); ctx.restore(); }
+    else text('터틀런', CX, ly, 76, C.yellow, { lw: 12 }); }
   ctx.font = `800 ${fs(18)}px ${FONT}`; const sw = ctx.measureText('아멜리아 공주 구출 대작전').width + 40;
-  ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(CX - sw / 2, 172, sw, 34, 17); ctx.fill();
-  text('아멜리아 공주 구출 대작전', CX, 189, 18, '#ffffff', { stroke: false });
-  // 시작 단추: 노랑→주황, 아래 그림자, 맥박, 빛줄
-  const bx0 = 456 + OX() * 0.5 - 120, by0 = 360, bw0 = 240, bh0 = 70, pulse = 1 + Math.max(0, Math.sin(T * Math.PI / 0.6)) * 0.04, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`;
-  ctx.save(); ctx.translate(bx0 + bw0 / 2, by0 + bh0 / 2); ctx.scale(pulse, pulse); ctx.translate(-(bx0 + bw0 / 2), -(by0 + bh0 / 2));
-  ctx.fillStyle = '#b4560a'; rr(bx0, by0 + 7, bw0, bh0, 24); ctx.fill();
-  const gg = ctx.createLinearGradient(0, by0, 0, by0 + bh0); gg.addColorStop(0, '#ffd84a'); gg.addColorStop(1, '#ff8a00');
-  ctx.fillStyle = gg; rr(bx0, by0 + (pressed ? 5 : 0), bw0, bh0, 24); ctx.fill();
-  ctx.save(); rr(bx0, by0, bw0, bh0, 24); ctx.clip();
-  if (T % 3 < 0.7) { const sx = ((T % 3) / 0.7) * (bw0 + 120) - 60; ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.moveTo(bx0 + sx, by0); ctx.lineTo(bx0 + sx + 30, by0); ctx.lineTo(bx0 + sx - 10, by0 + bh0); ctx.lineTo(bx0 + sx - 40, by0 + bh0); ctx.fill(); }
-  ctx.fillStyle = 'rgba(255,255,255,.35)'; rr(bx0 + 12, by0 + 7, bw0 - 24, 15, 7); ctx.fill(); ctx.restore();
-  text('시작하기', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 7 : 2), 32, '#ffffff', { stroke: '#b4560a', lw: 6 });
-  ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 7, '시작하기', startGame, { size: 26 }); ctx.restore();
+  ctx.fillStyle = '#1d2a5a'; rr(CX - sw / 2, py, sw, 34, 17); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; rr(CX - sw / 2, py, sw, 34, 17); ctx.stroke();
+  text('아멜리아 공주 구출 대작전', CX, py + 17, 18, '#ffffff', { stroke: false });
+  // 시작 단추(평면 귀염): 굵은 남색 테 + 노랑 + 아래 주황 띠 + 작은 하이라이트 · 젤리처럼 말랑 통통(1.6초마다) · 누르면 쑥
+  const bw0 = 250, bh0 = 70, bx0 = CX - bw0 / 2, pressed = press.down && press.key === `${bx0 | 0},${by0 | 0}`, ph = (T % 1.6) / 1.6, jig = ph < 0.25 ? Math.sin(ph / 0.25 * Math.PI * 2) * (1 - ph / 0.25) : 0, sqx = 1 + jig * 0.06, sqy = 1 - jig * 0.06, dn = pressed ? 5 : 0;
+  ctx.save(); ctx.translate(CX, by0 + bh0); ctx.scale(sqx, sqy); ctx.translate(-CX, -(by0 + bh0));
+  ctx.fillStyle = '#1d2a5a'; rr(bx0 - 4, by0 - 4 + 6, bw0 + 8, bh0 + 8, 30); ctx.fill(); // 아래 그림자 겸 테
+  ctx.fillStyle = '#1d2a5a'; rr(bx0 - 4, by0 - 4 + dn, bw0 + 8, bh0 + 8, 30); ctx.fill();
+  ctx.save(); rr(bx0, by0 + dn, bw0, bh0, 26); ctx.clip();
+  ctx.fillStyle = '#ffd23a'; ctx.fillRect(bx0, by0 + dn, bw0, bh0); ctx.fillStyle = '#ff9f1c'; ctx.fillRect(bx0, by0 + dn + bh0 * 0.68, bw0, bh0);
+  if (T % 2.6 < 0.5) { const sx = ((T % 2.6) / 0.5) * (bw0 + 120) - 60; ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.moveTo(bx0 + sx, by0 + dn); ctx.lineTo(bx0 + sx + 22, by0 + dn); ctx.lineTo(bx0 + sx - 8, by0 + dn + bh0); ctx.lineTo(bx0 + sx - 30, by0 + dn + bh0); ctx.fill(); }
   ctx.restore();
-  // 아래 줄 단추: 시작 단추 가운데(650)를 기준으로 좌우 대칭 — 폭 116, 사이 8: 전체 = n×116 + (n−1)×8, 시작 x = 650 − 전체/2
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(bx0 + 30, by0 + dn + 16, 13, 6, -0.4, 0, Math.PI * 2); ctx.fill();
+  text('시작하기', CX, by0 + dn + bh0 / 2, 32, '#ffffff', { stroke: '#1d2a5a', lw: 7 });
+  ctx.restore();
+  for (let k = 0; k < 2; k++) { const tw = Math.max(0, Math.sin(T * 3 + k * 2.4)); ctx.save(); ctx.globalAlpha = tw; drawImg(IMG.spr_fx_spark, k ? bx0 + bw0 + 2 : bx0 - 2, by0 + (k ? bh0 - 6 : 4), 26 * tw + 6, T * 2); ctx.restore(); } // 단추 모서리 반짝
+  ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 6, '시작하기', startGame, { size: 26 }); ctx.restore();
+  // 아래 줄: 같은 가운데(CX) 기준 좌우 대칭
   const row = [];
   if (save.introSeen) row.push(['첫 이야기', startIntro]);
   if (isTouch && !STANDALONE) row.push(['꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }]);
   row.push(['게임 끄기', () => { quitAsk = true; sfx.click(); }]);
-  const bwR = 116, gapR = 8, totR = row.length * bwR + (row.length - 1) * gapR, x0R = 456 + OX() * 0.5 - totR / 2;
-  row.forEach(([lb, fn], i) => button(x0R + i * (bwR + gapR), 452, bwR, 40, lb, fn, { size: 14, kind: 'soft' }));
+  const bwR = 116, gapR = 10, totR = row.length * bwR + (row.length - 1) * gapR, x0R = CX - totR / 2;
+  row.forEach(([lbl, fn], i) => button(x0R + i * (bwR + gapR), ry, bwR, 40, lbl, fn, { size: 14, kind: 'soft' }));
   if (iosGuide) drawIosGuide();
   eggBadge(36 - OX() + SAFE, 32, save.eggs, 30);
   if (quitAsk) drawQuitAsk();
-  text(isTouch ? '눌러서 시작 · 폰은 가로로' : '스페이스로 시작', 480, H - 12, 14, 'rgba(255,255,255,.85)', { body: true });
 }
 
 // ───────── 나이 묻기(중립 화면: 어른 쪽으로 이끌지 않음 · 모든 단추 같은 모양) ─────────
@@ -1116,7 +1119,7 @@ function drawTurnPreview(x, y, size) {
   ctx.restore();
 }
 function drawShop() {
-  ctx.fillStyle = 'rgba(16,16,18,.6)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.6)'; ctx.fillRect(-OX(), 0, W, H);
   if (shop.tab === 'up') { const pw = turtlePower(); text(`파워 ${pw.toLocaleString()} · ${powerRank(pw)}`, 446, 30, 15, '#ffd27a', { lw: 4, align: 'left' }); } // 키우면 바로 오르는 게 보이게
   // 시안: 왼쪽 위 제목 리본, 오른쪽 위 크림색 재화 칸(지도와 같은 부품)
   const stitle = shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : shop.tab === 'gacha' ? '뽑기' : shop.tab === 'bag' ? '가방' : '진주 상점', sL = -OX() + SAFE + 14, sR = 960 + OX() - SAFE - 14;
@@ -1315,7 +1318,7 @@ function drawShop() {
 function drawHatch() {
   const h = shop.hatch;
   buttons.length = 0;
-  ctx.fillStyle = 'rgba(16,16,18,.86)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.86)'; ctx.fillRect(-OX(), 0, W, H);
   if (h.t < 1.3) {
     const k = h.t / 1.3, wob = Math.sin(h.t * (20 + k * 40)) * 0.25 * k;
     drawImg(IMG.egg, 480, H / 2 + 10, 200 + k * 30, wob);
@@ -1334,7 +1337,7 @@ function drawHatch() {
 
 // ───────── 산호 쉼터 (축복 카드) ─────────
 function drawBless() {
-  ctx.fillStyle = 'rgba(16,16,18,.72)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.72)'; ctx.fillRect(-OX(), 0, W, H);
   const lv = G.blessKind === 'lv';
   if (lv) celebrateGlow(480, 80, 170, '255,214,110', 0.8);
   text(lv ? `레벨 업! Lv ${G.rlv}` : '산호 쉼터', 480, 70, 40, C.yellow, { lw: 8 });
@@ -1360,7 +1363,7 @@ function drawBless() {
 
 // ───────── 결과 화면 ─────────
 function drawRevive() { // 조사 D 규칙: 시간 압박(카운트다운)·아깝다는 문구 없이, 두 버튼 같은 크기
-  ctx.fillStyle = 'rgba(16,16,18,.66)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.66)'; ctx.fillRect(-OX(), 0, W, H);
   drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 250);
   panel(RC.x, 104, RC.w, 316); // 다른 결과 화면과 같은 유리 판 + 리본
   if (!ribbon(RM, 112, 360, '이어서 할까요?', 24)) text('이어서 할까요?', RM, 154, 30, '#ffffff', { stroke: false });
@@ -1397,17 +1400,18 @@ function sayBubble(x, y, w, line, color = '#ffffff') { // 왼쪽 캐릭터 아�
   ctx.fillStyle = 'rgba(12,40,92,.92)'; ctx.beginPath(); ctx.moveTo(x - 9, y + 9); ctx.lineTo(x, y - 6); ctx.lineTo(x + 9, y + 9); ctx.closePath(); ctx.fill(); // 꼬리: 판 속과 같은 남색(예전 검은 삼각형 X)
   lines.forEach((l, i) => text(l, x, y + pad + lh * (i + 0.5), 14, color, { body: true, stroke: false })); // 줄마다 가운데
 }
-function bottomButtons(primaryLabel, primaryFn, secondary) {
-  roundBtn('home', RL + 28, RC.y + RC.h - 90, 28, () => enterMap(), '지도'); // 시안: 왼쪽 동그란 집 + 큰 노란 단추
-  button(RL + 66, RC.y + RC.h - 118, RR - RL - 66, 56, primaryLabel, primaryFn, { size: 21, kind: 'yellow' });
-  const n = secondary.length, gap = 10, bw = (RR - RL - gap * (n - 1)) / n;
-  secondary.forEach(([label, fn], i) => button(RL + i * (bw + gap), RC.y + RC.h - 54, bw, 40, label, fn, { size: 14, kind: 'soft' }));
+function bottomButtons(primaryLabel, primaryFn, secondary) { // 아래부터: 판 끝 26 · 작은 단추 34 · 사이 20 · 큰 단추 48 (테·그림자 두께 4~8까지 셈)
+  const yS = RC.y + RC.h - 26 - 34, yP = yS - 20 - 48;
+  roundBtn('home', RL + 24, yP + 24, 24, () => enterMap(), '지도');
+  button(RL + 62, yP, RR - RL - 62, 48, primaryLabel, primaryFn, { size: 21, kind: 'yellow' });
+  const n = secondary.length, gap = 16, bw = (RR - RL - gap * (n - 1)) / n;
+  secondary.forEach(([label, fn], i) => button(RL + i * (bw + gap), yS, bw, 34, label, fn, { size: 14, kind: 'soft' }));
 }
 const restToday = () => { toast('오늘도 잘했어요! 내일 또 만나요 🐢', C.ok); enterMap(); }; // 「오늘은 여기까지」(조사: 같은 크기로 보이게)
 const HIT_TIPS = { tired: '분홍 기운 물약을 먹으면 기운이 차요 · 필살기 중엔 기운이 안 줄어요', urchin: '가시는 점프로 넘어요 · 짧게 톡 = 낮게', shark: '빨간 ! 뒤 상어: 땅 줄이면 점프, 머리 줄이면 숙이기', eel: '빨간 줄은 곰치 돌진 — 바로 점프!', swordfish: '청새치는 머리 높이 — 오른쪽 꾹 숙이기', rock: '보라 기둥은 숙이기, 바위는 점프(위에서 밟으면 부서져요)', mine: '기뢰 아래 가시는 짧게 톡!', boss: '큰 적 띠 글자를 봐요: ↑ 뛰어요 / ↓ 숙여요', jelly: '해파리는 위에서 밟으면 통통!', puffer: '부푼 복어는 못 밟아요 — 일찍 높게', crab: '게는 위에서 밟으면 끝!', ray: '가오리는 머리 높이 — 숙이기', phantom: '유령 해파리는 숙여서 지나가요', angler: '아귀가 덥석 오면 점프!' };
 function drawDead() {
   const a = Math.min(1, G.deadT / 0.25), endless = G.cfg.endless;
-  ctx.fillStyle = `rgba(16,16,18,${0.66 * a})`; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = `rgba(10,22,62,${0.66 * a})`; ctx.fillRect(-OX(), 0, W, H);
   ctx.save(); ctx.globalAlpha = a;
   drawImg(IMG.comfort, 190, 230 + Math.sin(T * 2) * 6, 260);
   sayBubble(190, 380, 300, '느려도 괜찮아요, 포기만 하지 마세요');
@@ -1429,8 +1433,8 @@ function drawDead() {
   rewardRow(RC.y + 244, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
   if (G.appEgg) rewardRow(RC.y + 278, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : G.appEgg.short ? '짧은 판' : '오늘 3판 다 받음');
   const tip = G.helpNext ? '다음 판은 방패 하나를 그냥 줄게요 ♥ 같이 가요!' : G.fellPit ? '구멍 바로 앞에서 톡! 발판은 끝까지 가서 뛰어요' : HIT_TIPS[G.lastHit] || '박자에 맞춰 뛰면 타이밍이 쉬워요';
-  ctx.fillStyle = G.helpNext ? 'rgba(255,111,168,.16)' : 'rgba(255,213,74,.1)'; rr(RL, RC.y + 304, RR - RL, 34, 10); ctx.fill();
-  text(G.helpNext ? tip : `💡 ${tip}`, RL + 14, RC.y + 322, 13, G.helpNext ? '#ffc4dc' : C.yellow, { align: 'left', body: true, stroke: false });
+  ctx.fillStyle = G.helpNext ? 'rgba(255,111,168,.16)' : 'rgba(255,213,74,.1)'; rr(RL, RC.y + 300, RR - RL, 32, 10); ctx.fill();
+  text(G.helpNext ? tip : `💡 ${tip}`, RL + 14, RC.y + 316, 13, G.helpNext ? '#ffc4dc' : C.yellow, { align: 'left', body: true, stroke: false });
   ctx.restore();
   bottomButtons('다시 하기 ▶', () => startLevel(G.n), [['상점', () => openShop(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
@@ -1479,7 +1483,7 @@ function drawScoreBlock(y) {
   } else if (done && G.prevBestScore) text(`최고 ${Math.max(G.prevBestScore, G.score).toLocaleString()}`, RM, y + 30, 13, C.sub, { body: true, stroke: false });
 }
 function drawClear() {
-  ctx.fillStyle = 'rgba(16,16,18,.55)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.55)'; ctx.fillRect(-OX(), 0, W, H);
   drawConfetti();
   { // 승리 동작(코덱스) + 뒤에서 도는 빛줄기 — 옷·변신이면 그 모습으로
     celebrateGlow(190, 230, 220, '255,215,90', 1);
@@ -1506,7 +1510,7 @@ function drawClear() {
   }
   cardDivider(RC.y + 220);
   // 받은 것(표): 진주는 굴러 오르고, 보너스는 하나씩 붙음 — 보너스 칸이 판 폭을 넘으면 다음 줄로
-  rewardRow(RC.y + 244, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggShown || 0}`, C.yellow, G.diffBonus ? `난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus}` : '');
+  rewardRow(RC.y + 238, (x, y) => drawPearl(x, y, 20), '진주', `+${G.eggShown || 0}`, C.yellow, G.diffBonus ? `난이도 ${G.diffBonus > 0 ? '+' : ''}${G.diffBonus}` : '');
   // 보너스 칸은 한 줄만: 넘치면 남은 것을 「그 밖 +합계」 하나로 묶음(아래 줄·단추와 안 겹치게)
   const shownS = (G.settle || []).filter((it, i) => endT - (EGG_AT + 0.5 + i * 0.35) >= 0), chips = [];
   { let used = 0; const room = RR - (RL + 34);
@@ -1521,14 +1525,14 @@ function drawClear() {
     const it = G.settle[c.i], age = endT - (EGG_AT + 0.5 + c.i * 0.35);
     shownS.forEach((o, k) => { if (!o.played && endT - (EGG_AT + 0.5 + k * 0.35) >= 0) { o.played = true; snd('count', 0.8, 1 + k * 0.12); haptic(10); } });
     const s2 = age < 0.12 ? 0.6 + (age / 0.12) * 0.4 : 1;
-    ctx.save(); ctx.translate(px + c.w / 2, RC.y + 270); ctx.scale(s2, s2);
+    ctx.save(); ctx.translate(px + c.w / 2, RC.y + 264); ctx.scale(s2, s2);
     ctx.fillStyle = 'rgba(255,213,74,.14)'; rr(-c.w / 2, -11, c.w, 22, 11); ctx.fill();
     text(c.lab, 0, 1, 12, C.yellow, { body: true, stroke: false }); ctx.restore();
     px += c.w + 8;
   });
-  const ry = RC.y + 302;
+  const ry = RC.y + 238 + ((G.settle || []).length ? 58 : 32); // 보너스 칩 줄이 있을 때만 그만큼 내림(빈 칸 없이)
   rewardRow(ry, (x, y) => { ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill(); text(String(save.lv), x, y + 1, 12, '#fff', { stroke: false }); }, '경험치', `+${G.xpGain || 0}`, '#cfe0ff', `Lv ${save.lv} · ${Math.floor((save.xp / xpNeed(save.lv)) * 100)}%`);
-  if (G.appEgg) rewardRow(ry + 32, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : '오늘 3판 다 받음');
+  if (G.appEgg) rewardRow(ry + 30, (x, y) => drawImg(IMG.egg, x, y, 22), '거북알', G.appEgg.eggs ? `+${G.appEgg.eggs}` : '—', C.yellow, G.appEgg.eggs ? (G.appEgg.server ? `오늘 ${G.appEgg.runs}/3` : `앱에서 받음 · 오늘 ${G.appEgg.runs}/3`) : '오늘 3판 다 받음');
   bottomButtons('다음 바다로 ▶', () => enterMap(G.n), [['상점', () => openShop(G.n + 1)], ['다시 하기', () => startLevel(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
@@ -1611,7 +1615,7 @@ function drawEnding() {
   // 기록(0.3초 간격으로 하나씩, 숫자는 굴러 오름)
   const stats = [['건넌 바다', LAST, '개'], ['모은 별', totalStars(), '개'], ['달린 판', save.runs, '판'], ['거북 레벨', save.lv, '']];
   stats.forEach(([lab, v, u], i) => { const k = clamp((f - 0.3 - i * 0.3) / 0.8, 0, 1); if (k <= 0) return; const x = 120 + i * 240, y = 98;
-    ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(x - 100, y - 4, 200, 66, 18); ctx.fill(); text(lab, x, y + 14, 14, 'rgba(255,255,255,.75)', { body: true, stroke: false });
+    flatPill(x - 100, y - 4, 200, 66, 18); text(lab, x, y + 14, 14, 'rgba(255,255,255,.75)', { body: true, stroke: false });
     text(`${Math.round(v * easeOutCubic(k)).toLocaleString()}${u}`, x, y + 42, 26, C.yellow, { lw: 5 }); });
   // 전설 보상(1.8초에 상자 → 2.4초 펑)
   if (!save.endReward && f > 2.4) { save.endReward = true; save.gems += 500; save.eggs += 3000; if (typeof grant === 'function') { const g = gearOf('r_king'); if (g && !gearOwn('r_king')) grant(g); } persist(); flash = 0.7; flashColor = '#fff2b0'; shake = 18; endBurst(480, 270, 90, ['#ffd34d', '#ffffff', '#ff6fae', '#7cf0ff'], 820); snd('tada', 1); snd('levelup', 0.9, 1.2, 0, 0.2); haptic([60, 40, 120]); }
@@ -1626,7 +1630,7 @@ function drawEnding() {
   }
 }
 function drawPause() {
-  ctx.fillStyle = 'rgba(16,16,18,.66)'; ctx.fillRect(-OX(), 0, W, H);
+  ctx.fillStyle = 'rgba(10,22,62,.66)'; ctx.fillRect(-OX(), 0, W, H);
   panel(300, 110, 360, 350, { fill: '#0c285c' }); // 시안: 유리판 + 파란 리본 제목 + 큰 노란 단추
   if (!ribbon(480, 116, 320, '잠깐 쉬어요', 24)) text('잠깐 쉬어요', 480, 140, 44, '#fff', { stroke: false });
   button(330, 196, 300, 58, '계속하기 ▶', () => { state = 'play'; }, { size: 22, kind: 'yellow' });
@@ -1675,7 +1679,7 @@ function drawToasts() {
     const y = 132 + i * 48 + (1 - easeOutBack(slide)) * 24; // 아래에서 떠오름(위 아이콘 이름을 덮지 않게)
     ctx.save(); ctx.globalAlpha = a;
     ctx.font = `600 ${fs(18)}px ${FONT}`; const w = ctx.measureText(t.s).width + 56;
-    ctx.fillStyle = 'rgba(27,28,31,.94)'; rr(W / 2 - w / 2, y - 20, w, 40, 20); ctx.fill();
+    flatPill(W / 2 - w / 2, y - 20, w, 40, 20);
     ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(W / 2 - w / 2 + 20, y, 5, 0, Math.PI * 2); ctx.fill();
     text(t.s, W / 2 + 8, y, 18, C.text, { body: true, stroke: false });
     ctx.restore();
@@ -1685,7 +1689,7 @@ function drawToasts() {
 // ───────── 거북 레벨 · 결과 위에 뜨는 창(공주님 편지 → 레벨 업) ─────────
 function drawLvBadge(x, y, noBg) {
   const need = xpNeed(save.lv), k = clamp(save.xp / need, 0, 1);
-  if (!noBg) { ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(x, y, 150, 36, 18); ctx.fill(); }
+  if (!noBg) { flatPill(x, y, 150, 36, 18); }
   ctx.fillStyle = C.blue; ctx.beginPath(); ctx.arc(x + 18, y + 18, 15, 0, Math.PI * 2); ctx.fill();
   text(String(save.lv), x + 18, y + 18, 14, '#fff', { stroke: false });
   text('거북 레벨', x + 40, y + 13, 13, '#d6dbe6', { align: 'left', body: true, stroke: false });
