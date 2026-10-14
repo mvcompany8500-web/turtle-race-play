@@ -854,7 +854,7 @@ function drawRunPads() {
 }
 function drawRunHud(L) {
   // 기운 막대(인기 게임 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
-  const bx = L + 30, by = 22, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
+  const bx = L + 30, by = 21, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
   const blink = low && Math.sin(T * 12) > 0;
   const gf = IMG.spr_ui_glass_b; // 시안: 유리 틀 안의 기운 막대
   if (gf && ready(gf)) { ctx.fillStyle = 'rgba(8,30,70,.45)'; rr(bx - 26, by - 9, bw + 40, bh + 18, (bh + 18) / 2); ctx.fill(); slice3(gf, bx - 34, by - 15, bw + 56, bh + 30); } else { ctx.fillStyle = 'rgba(16,16,18,.62)'; rr(bx - 4, by - 4, bw + 8, bh + 8, (bh + 8) / 2); ctx.fill(); }
@@ -879,7 +879,7 @@ function drawRunHud(L) {
   for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, by + bh / 2, 24); hx += 28; }
   if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, by + bh / 2, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
   // 바·다·축·제 글자 (보스전엔 체력바 자리라 숨김)
-  const lx = W / 2 - 66, ly = 52;
+  const lx = W / 2 - 66, ly = 62; // 진행 막대(23~37)·막대 위 거북이 아래 여백
   if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => {
     const on = G.letters[i];
     ctx.fillStyle = on ? C.yellow : 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(lx + i * 44, ly, 16, 0, Math.PI * 2); ctx.fill();

@@ -1626,7 +1626,7 @@ function drawHUD() {
     ctx.fillStyle = v < 2 ? '#ff5470' : C.yellow; rr(ix - 22, iy + 20, Math.max(4, 44 * Math.min(1, v / max)), 6, 3); ctx.fill();
     iy += 60;
   }
-  const bx = W / 2 - 180, by = 20, bw = 360, bh = 14;
+  const bx = W / 2 - 180, by = G.run ? 23 : 20, bw = 360, bh = 14; // 달리기: 기운 막대·점수 칸과 같은 가운데 줄(y=30)
   if (G.boss && !G.boss.dead && G.run) drawBossBar(G.boss);
   else if (G.boss && !G.boss.dead) {
     text(G.boss.def.name, W / 2, by - 2, 16, '#ff9aa8', { body: true });
@@ -1643,8 +1643,8 @@ function drawHUD() {
     if (!G.cfg.boss) { ctx.fillStyle = G.blessDone ? C.ok : '#ffffff'; ctx.beginPath(); ctx.arc(bx + bw * 0.5, by + bh / 2, 5, 0, Math.PI * 2); ctx.fill(); }
     if (best > 0 && best < 1) {
       const fxp = bx + bw * best;
-      ctx.strokeStyle = C.yellow; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fxp, by - 6); ctx.lineTo(fxp, by + bh + 4); ctx.stroke();
-      text('최고', fxp, by + bh + 15, 13, C.yellow, { body: true });
+      ctx.strokeStyle = C.yellow; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fxp, by - 2); ctx.lineTo(fxp, by + bh + 2); ctx.stroke();
+      ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(fxp - 6, by - 9); ctx.lineTo(fxp + 6, by - 9); ctx.lineTo(fxp, by - 2); ctx.fill(); // 최고 기록 자리: 작은 노란 삼각표(아래 글자 동그라미와 안 겹치게)
     }
     drawHero(bx + bw * pr, by + bh / 2, 30, 0, { ph: T * 10, stand: true });
     drawImg(IMG.princess, bx + bw + 22, by + bh / 2, 30, 0, n === LAST ? 1 : 0.45);
@@ -1670,9 +1670,30 @@ function drawHUD() {
     }
   } else eggBadge(eh.x, eh.y, save.eggs + G.eggs, 28 * (1 + hudPulse * 1.6));
   if (isTouch || G.run) { const pz = IMG.spr_ui_pause; if (G.run && pz && ready(pz)) { drawImg(pz, W - SAFE - 40, 30, 52); ctx.save(); ctx.globalAlpha = 0; button(W - SAFE - 68, 4, 56, 56, 'II', () => { if (!G.p.dead) state = 'pause'; }, {}); ctx.restore(); } else if (isTouch) button(W - SAFE - 60, 52, 46, 40, 'II', () => { if (!G.p.dead) state = 'pause'; }, { size: 17, color: '#cfd8ff' }); }
+  const full = G.boost >= 100;
+  if (G.run) { // 달리기 화면 위쪽(정리): 둘째 줄은 남색 알약 하나씩 — 터치는 질주를 오른쪽 아래 필살 메달이 보여 주니 여기선 축제 게이지만
+    const chip = (x, y, w, h) => { ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(x, y, w, h, h / 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5; rr(x, y, w, h, h / 2); ctx.stroke(); };
+    let ry = 64;
+    if (!isTouch) {
+      chip(L, ry, 262, 28); icon('e_rocket', L + 16, ry + 14, 20);
+      const v = G.boosting > 0 ? G.boosting / boostDur() : (G.boost % 100) / 100;
+      ctx.fillStyle = 'rgba(255,255,255,.16)'; rr(L + 32, ry + 9, 150, 10, 5); ctx.fill();
+      ctx.save(); if (full || G.boosting > 0) { ctx.shadowColor = '#b48bff'; ctx.shadowBlur = 14; } ctx.fillStyle = '#9b7bff'; rr(L + 32, ry + 9, Math.max(10, 150 * v), 10, 5); ctx.fill(); ctx.restore();
+      for (let i = 0; i < 3; i++) { const on = G.boost >= (i + 1) * 100; ctx.fillStyle = on ? (i ? C.yellow : '#b48bff') : 'rgba(255,255,255,.2)'; ctx.beginPath(); ctx.arc(L + 198 + i * 18, ry + 14, 6, 0, Math.PI * 2); ctx.fill(); }
+      if (full && G.boosting <= 0 && Math.sin(T * 8) > -0.3) text('Shift!', L + 274, ry + 14, 18, '#fff', { align: 'left' });
+      ry += 34;
+    }
+    chip(L, ry, 200, 26); icon('e_fire', L + 16, ry + 13, 18);
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; rr(L + 32, ry + 9, 154, 8, 4); ctx.fill();
+    if (G.feverT > 0) {
+      const rg = ctx.createLinearGradient(L + 32, 0, L + 186, 0); ['#ff5470', '#ffd34d', '#7dffb0', '#5fd4ff', '#b48bff'].forEach((c, i) => rg.addColorStop(((i / 4) + T * 0.8) % 1, c));
+      ctx.fillStyle = rg; rr(L + 32, ry + 9, 154 * (G.feverT / 6), 8, 4); ctx.fill();
+      text('축제 2배!', L + 109, ry + 13, 14, '#ffffff', { lw: 4, stroke: '#7a2a00' }); // 알약 안 가운데(옆 아이템 칸과 안 겹치게)
+    } else { ctx.fillStyle = C.yellow; rr(L + 32, ry + 9, Math.max(8, 154 * G.fever / 100), 8, 4); ctx.fill(); }
+  } else {
   // 질주 게이지 (폰은 왼쪽 아래가 조이스틱 자리라 위로)
   const top = isTouch || G.run; // 점프 달리기는 바닥이 길이라 게이지를 위로
-  const gx = L, gy = top ? (G.run ? 74 : 104) : H - 46, gw = top ? 190 : 270, gh = top ? 14 : 20, full = G.boost >= 100;
+  const gx = L, gy = top ? (G.run ? 74 : 104) : H - 46, gw = top ? 190 : 270, gh = top ? 14 : 20;
   icon('e_rocket', gx + 10, gy - 16, 24);
   text('질주', gx + 28, gy - 16, 16, C.text, { align: 'left', body: true });
   ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(gx, gy, gw, gh, 10); ctx.fill();
@@ -1693,6 +1714,7 @@ function drawHUD() {
     ctx.fillStyle = rg; rr(gx + 24, fy - 5, fw * (G.feverT / 6), 10, 5); ctx.fill();
     text('바다 축제 2배', gx + 32 + fw, fy, 14, C.yellow, { align: 'left' });
   } else { ctx.fillStyle = C.yellow; rr(gx + 24, fy - 5, Math.max(10, fw * G.fever / 100), 10, 5); ctx.fill(); }
+  }
   // 조이스틱: 반투명 원 + 손잡이
   if (isTouch && drag) {
     ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
@@ -1715,7 +1737,7 @@ function drawHUD() {
     if (idle && save.runs <= 3) text('끌어서 이동', bx, by - JR - 22, 15, C.text, { body: true });
   }
   // 아이템 칸
-  const ib = isTouch ? ITEM_BTN() : G.run ? { x: gx + gw + 120, y: gy + 6, r: 26 } : { x: gx + gw + 150, y: H - 44, r: 30 };
+  const ib = isTouch ? ITEM_BTN() : G.run ? { x: L + 240, y: 124, r: 24 } : { x: L + 420, y: H - 44, r: 30 }; // 키보드 달리기: 축제 알약 오른쪽(가운데 글자 동그라미와 안 닿게)
   ctx.save();
   const pulse = G.itemPop > 0 ? 1 + G.itemPop * 0.5 : 1;
   const slot = IMG.spr_ui_slot;
