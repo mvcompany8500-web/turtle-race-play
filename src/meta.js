@@ -962,12 +962,12 @@ function buySkin(s) {
   save.eggs -= s.cost; save.skins.push(s.k); sfx.buy(); wearSkin(s.k); shopSay(`${s.name} 획득!`);
 }
 function hatchPet() {
-  const left = PETS.filter((p) => !save.pets.includes(p.k)); const free = !!save.freeEgg; if (free && left.length) save.freeEgg = false;
+  const left = PETS.filter((p) => !save.pets.includes(p.k));
   if (!left.length) { shopSay('펫을 다 모았어요!'); return; }
   const cost = hatchCost();
   if (save.eggs < cost) { sfx.no(); shopSay(`진주가 ${cost - save.eggs}개 부족해요`); return; }
   const p = pick(left);
-  save.eggs -= cost; save.pets.push(p.k); save.pet = p.k; save.petLv[p.k] = 1; persist();
+  save.eggs -= cost; save.freeEgg = false; save.pets.push(p.k); save.pet = p.k; save.petLv[p.k] = 1; persist(); // 공짜 알은 깬 뒤에 씀 처리
   shop.hatch = { t: 0, pet: p, cracked: false };
   sfx.click(); haptic(20);
 }
