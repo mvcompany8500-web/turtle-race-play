@@ -918,12 +918,16 @@ function drawShop() {
   if (shop.pillX == null) shop.pillX = ti;
   const pdt = Math.min(0.1, Math.max(0, T - (shop.pillT || T))); shop.pillT = T;
   shop.pillX += (ti - shop.pillX) * (1 - Math.exp(-pdt * 16)); if (Math.abs(ti - shop.pillX) < 0.002) shop.pillX = ti;
-  TABS.forEach(([k, label], i) => button(52 + i * 144, 62, 136, 40, label, () => { if (shop.tab !== k) { shop.tabDir = i > ti ? 1 : -1; shop.tabAt = T; } shop.tab = k; sfx.click(); }, { size: 15, kind: 'primary' }));
+  // 탭 = 코덱스 흰 아이콘(왼쪽) + 글자(오른쪽) — 시안 ref_mock_shop 처럼
+  const tabIcon = (k, i) => { const im = IMG['spr_tab_' + k]; if (im && ready(im)) { drawImg(im, 52 + i * 144 + 26, 81, 28); return true; } return false; };
+  const hasIc = ready(IMG.spr_tab_up), lx = (i) => 52 + i * 144 + (hasIc ? 84 : 68);
+  const tsz = (label) => { let z = 14; while (z > 12) { ctx.font = `800 ${fs(z)}px ${FONT}`; if (ctx.measureText(label).width <= 82) break; z--; } return z; }; // 아이콘 오른쪽 빈 폭(82)에 맞춤
+  TABS.forEach(([k, label], i) => { button(52 + i * 144, 62, 136, 40, hasIc ? '' : label, () => { if (shop.tab !== k) { shop.tabDir = i > ti ? 1 : -1; shop.tabAt = T; } shop.tab = k; sfx.click(); }, { size: 15, kind: 'primary' }); if (hasIc) { tabIcon(k, i); text(label, lx(i), 81, tsz(label), '#ffffff', { stroke: 'rgba(0,20,60,.45)', lw: 3, weight: 800 }); } });
   const yb = IMG.spr_ui_btn_yellow, px = 52 + shop.pillX * 144;
   if (yb && ready(yb)) {
     slice3(yb, px - 2, 60, 140, 44);
     ctx.save(); ctx.beginPath(); ctx.rect(px + 4, 60, 128, 44); ctx.clip();
-    TABS.forEach(([, label], i) => text(label, 52 + i * 144 + 68, 82 - 40 * 0.04, 15, '#5a3000', { stroke: false, weight: 800 }));
+    TABS.forEach(([k, label], i) => { if (hasIc) tabIcon(k, i); text(label, lx(i), 82 - 40 * 0.04, hasIc ? tsz(label) : 15, '#5a3000', { stroke: false, weight: 800 }); });
     ctx.restore();
   }
   const te = shop.tabAt != null ? clamp((T - shop.tabAt) / 0.32, 0, 1) : 1, tk = 1 - Math.pow(1 - te, 3);

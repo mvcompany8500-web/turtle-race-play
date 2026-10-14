@@ -336,7 +336,7 @@ const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
 const STAGE_STYLE = {
   1: { sig: { eggs: 2, hop: 1.5, pearlWave: 3 }, tempo: 1.1 },
   2: { sig: { kelpSteps: 4, shark: 1.5 }, enter: 'rise' },
-  3: { sig: { rock: 3, chest: 3, rockRow: 3 }, enter: 'drop' },
+  3: { sig: { treasure: 2, chest: 2, rockRow: 1 }, enter: 'drop', tempo: 1.12 }, // 초반: 바위 위주는 서툰 실력 성공률이 절반으로 떨어져서 보물 위주(봇 9/12)
   4: { sig: { stomp: 4, jellyField: 3 }, enter: 'pop' },
   5: { sig: { rockRow: 3, hop2: 2 }, enter: 'rise' },
   6: { sig: { spikeRhythm: 4, pearlWave: 2, zigzag: 2 }, enter: 'pop' },
