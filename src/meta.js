@@ -96,7 +96,7 @@ function drawBoxShow() {
   ctx.fillStyle = `rgba(6,14,34,${Math.min(0.82, b.t * 3)})`; ctx.fillRect(-OX(), 0, W, H);
   const cx = 480, cy = 270, open = b.t >= 0.95;
   if (open && !b.opened) { b.opened = true; sfx.crack(); haptic([30, 30, 80]); flash = 0.4; flashColor = '#fff6c8'; confettiBurst(cx + OX(), cy - 40, 60); popDots(cx + OX(), cy - 30, 70); }
-  if (open) { const k = Math.min(1, (b.t - 0.95) / 0.4); ctx.save(); ctx.translate(cx, cy - 20); ctx.rotate(T * 0.5); for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = b.kind === 'gold' ? `rgba(255,213,74,${0.2 * k})` : `rgba(190,232,255,${0.18 * k})`; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-34, -380); ctx.lineTo(34, -380); ctx.fill(); } ctx.restore(); } // 뒤에서 도는 빛살
+  if (open) { const k = Math.min(1, (b.t - 0.95) / 0.4); celebrateGlow(cx, cy - 20, 260, b.kind === 'gold' ? '255,213,74' : '190,232,255', k); } // 뒤에서 퍼지는 둥근 빛
   let sx = 1, sy = 1, dy = 0, rot = 0;
   if (b.t < 0.35) { const k = b.t / 0.35; dy = -(1 - k * k) * 320; } // 위에서 떨어짐
   else if (b.t < 0.5) { const k = (b.t - 0.35) / 0.15; sy = 1 - 0.18 * Math.sin(k * Math.PI); sx = 1 + 0.14 * Math.sin(k * Math.PI); } // 쿵 찌그러짐
@@ -926,7 +926,7 @@ function drawTitleBoss(R, CX = 560) {
   const hop = T - titleFx.am < 0.5 ? -Math.sin((T - titleFx.am) / 0.5 * Math.PI) * 18 : 0;
   if (img && ready(img)) drawImg(img, ax, ay + 6 + hop, freed ? 220 : 172, freed ? 0 : -swing * 0.5, 1, true);
   if (!freed) { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, ay, br, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(ax - br * 0.5, ay - br * 0.58, 20, 10, -0.6, 0, Math.PI * 2); ctx.fill(); }
-  for (let k = 0; k < 4; k++) { const h = (T * 0.5 + k * 0.25) % 1; ctx.globalAlpha = 1 - h; text('♥', ax + 54 - k * 34, ay - br - h * 46, 16, '#ff8fc8', { stroke: false }); } ctx.globalAlpha = 1;
+  for (let k = 0; k < 4; k++) { const h = (T * 0.5 + k * 0.25) % 1; ctx.globalAlpha = 1 - h; text('♥', ax + br * (0.78 + k * 0.08) + Math.sin(h * 6 + k) * 6, ay - br * 0.1 - h * 70, 16, '#ff8fc8', { stroke: false }); } ctx.globalAlpha = 1; // 하트는 거품 오른쪽에서 피어오름(말풍선과 안 겹치게)
   ctx.font = `800 ${fs(15)}px ${FONT}`; const nw = ctx.measureText('아멜리아 공주').width + 28;
   ctx.fillStyle = '#ff6fae'; rr(ax - nw / 2, ay + br + 6, nw, 30, 15); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; rr(ax - nw / 2, ay + br + 6, nw, 30, 15); ctx.stroke();
   text('아멜리아 공주', ax, ay + br + 21, 15, '#ffffff', { stroke: false, weight: 800 });
@@ -1322,9 +1322,7 @@ function drawHatch() {
     text('두근두근...', 480, 90, 28, '#ffffff', { stroke: false });
   } else {
     const k = Math.min(1, (h.t - 1.3) / 0.5);
-    ctx.save(); ctx.translate(480, H / 2); ctx.rotate(T * 0.6);
-    for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = `rgba(255,213,74,${0.18 * k})`; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-30, -360); ctx.lineTo(30, -360); ctx.fill(); }
-    ctx.restore();
+    celebrateGlow(480, H / 2, 300, '255,213,74', k);
     drawImg(IMG['pet_' + h.pet.k], 480, H / 2 + 10, 220 * easeOutBack(k));
     text(`${h.pet.name} 탄생!`, 480, 80, 44, C.yellow, { lw: 8 });
     const pk = h.pet.perk(1); ctx.font = `800 ${fs(19)}px ${FONT}`; const pw = ctx.measureText(pk).width + 44; // 능력은 노란 띠로 강조
@@ -1338,7 +1336,7 @@ function drawHatch() {
 function drawBless() {
   ctx.fillStyle = 'rgba(16,16,18,.72)'; ctx.fillRect(-OX(), 0, W, H);
   const lv = G.blessKind === 'lv';
-  if (lv) { ctx.save(); ctx.globalAlpha = 0.5; ctx.translate(480, 80); ctx.rotate(T * 0.4); drawImg(IMG.x_lvup_burst, 0, 0, 300); ctx.restore(); }
+  if (lv) celebrateGlow(480, 80, 170, '255,214,110', 0.8);
   text(lv ? `레벨 업! Lv ${G.rlv}` : '산호 쉼터', 480, 70, 40, C.yellow, { lw: 8 });
   text(lv ? '능력 하나를 골라요 · 같은 걸 고르면 ★이 올라가요' : '잠깐 쉬어 가요. 하나만 골라요!', 480, 116, 18, C.text, { body: true });
   (G.bless || []).forEach((b, i) => withRise(i, () => {
@@ -1484,9 +1482,7 @@ function drawClear() {
   ctx.fillStyle = 'rgba(16,16,18,.55)'; ctx.fillRect(-OX(), 0, W, H);
   drawConfetti();
   { // 승리 동작(코덱스) + 뒤에서 도는 빛줄기 — 옷·변신이면 그 모습으로
-    ctx.save(); ctx.translate(190, 230); ctx.rotate(T * 0.5); ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = 'rgba(255,215,90,.13)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-26, -230); ctx.lineTo(26, -230); ctx.fill(); }
-    ctx.restore();
+    celebrateGlow(190, 230, 220, '255,215,90', 1);
     const plain = (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')), hop = Math.abs(Math.sin(T * 4)) * -16, sq = 1 + Math.sin(T * 8) * 0.03;
     const im = plain && ready(IMG.pose_hero_win) ? IMG.pose_hero_win : (typeof formImg === 'function' && formImg()) || IMG.cheer;
     ctx.save(); ctx.translate(190, 230 + hop); ctx.scale(1 / sq, sq); drawImg(im, 0, 0, 260); ctx.restore();
@@ -1536,34 +1532,83 @@ function drawClear() {
   bottomButtons('다음 바다로 ▶', () => enterMap(G.n), [['상점', () => openShop(G.n + 1)], ['다시 하기', () => startLevel(G.n)], ['오늘은 여기까지', restToday]]);
   drawResultOverlay();
 }
+// ───────── 엔딩: 승리 폭발 → 거품 감옥이 깨지고 아멜리아가 빛기둥 타고 내려옴 → 만남(하트 폭발) → 대화 → 친구가 된 보스 퍼레이드·기록 결산·전설 보상 ─────────
+const endFx = [];
+function endBurst(x, y, n, cols, sp = 520, kind = 'dot') { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = rand(sp * 0.3, sp); endFx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.8, 1.6), max: 1.6, c: pick(cols), s: rand(3, 7), kind, rot: rand(0, 6) }); } }
+function endFirework() { const x = rand(140, 820), y = rand(70, 220); endBurst(x, y, 46, pick([['#ffd34d', '#ffffff'], ['#ff6fae', '#ffd1ef'], ['#7cf0ff', '#ffffff'], ['#b48bff', '#ffd34d']]), 360); snd('firework', 0.6, rand(0.9, 1.15)); }
+function drawEndFx(dt) {
+  for (const f of endFx) { f.life -= dt; f.vx *= 1 - dt * 1.6; f.vy = f.vy * (1 - dt * 1.6) + 220 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += dt * 6; }
+  for (let i = endFx.length - 1; i >= 0; i--) if (endFx[i].life <= 0) endFx.splice(i, 1);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const f of endFx) { ctx.globalAlpha = Math.min(1, f.life / f.max * 1.6); if (f.kind === 'heart') { text('♥', f.x, f.y, f.s * 4, f.c, { stroke: false }); continue; } ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(f.x, f.y, f.s, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
 function drawEnding() {
-  ctx.fillStyle = 'rgba(40,10,40,.35)'; ctx.fillRect(-OX(), 0, W, H);
-  drawConfetti();
-  const meet = Math.min(1, endT / 1.6);
-  drawTurtle(lerp(120, 380, meet), 300 + Math.sin(T * 3) * 5, 200, 0);
-  drawImg(meet >= 1 && ready(IMG.spr_amelia_cheer) ? IMG.spr_amelia_cheer : IMG.princess, lerp(840, 590, meet), 300 + Math.sin(T * 3 + 1) * 5 - (meet >= 1 ? Math.abs(Math.sin(T * 4)) * 10 : 0), 200, 0, 1, true); // 다시 만나면 기뻐서 콩콩
-  if (meet >= 1) for (let i = 0; i < 5; i++) {
-    const t = (T * 0.6 + i / 5) % 1;
-    ctx.globalAlpha = 1 - t; text('♥', 485 + Math.sin(t * 9 + i) * 40, 255 - t * 90, 24 + i * 2, '#ff6fa8', { stroke: '#fff', lw: 3 }); ctx.globalAlpha = 1;
+  const e = endT, dt = Math.min(0.05, e - (G.endPrev || 0)); G.endPrev = e;
+  const ev = (k, at, fn) => { if (e >= at && !G['ev_' + k]) { G['ev_' + k] = 1; fn(); } }; // 시각마다 한 번씩 터뜨림
+  // 배경: 어둡게 + 뒤에서 도는 금빛 햇살(점점 밝아짐)
+  ctx.fillStyle = 'rgba(14,6,40,.55)'; ctx.fillRect(-OX(), 0, W, H);
+  const glow = clamp((e - 0.2) / 1.2, 0, 1);
+  celebrateGlow(480, 250, 420, '255,214,110', glow);
+  // 1) 승리 폭발(0~1.3초)
+  ev('boom', 0, () => { flash = 0.8; flashColor = '#ffffff'; shake = 26; haptic([80, 40, 160]); snd('ult_impact', 1); endBurst(480, 120, 80, ['#ffd34d', '#ffffff', '#ff9a1f'], 760); });
+  ev('fw1', 0.5, endFirework); ev('fw2', 0.8, endFirework); ev('fw3', 1.1, endFirework);
+  const fin = G.finAt ? clamp((e - G.finAt) / 0.6, 0, 1) : 0; // 마무리: 리본은 위로 작게, 둘은 양옆으로 벌어져 상자 자리를 비움
+  const ts = (e < 0.45 ? 2.6 - (e / 0.45) * 1.6 : 1 + Math.max(0, 0.12 - (e - 0.45)) * 2) * (1 - 0.2 * fin);
+  ctx.save(); ctx.translate(480, 64 - 22 * fin); ctx.scale(ts, ts); ctx.rotate(e < 0.45 ? (1 - e / 0.45) * -0.2 : 0);
+  if (!ribbon(0, 0, 520, '아멜리아 공주 구출 성공!!', 30)) text('아멜리아 공주 구출 성공!!', 0, 0, 44, C.yellow, { lw: 8 });
+  ctx.restore();
+  // 2) 거품 감옥 → 깨짐(2.3초) → 빛기둥 타고 내려옴
+  const popAt = 2.3, ax = 600 + 140 * fin, landY = 300, down = clamp((e - popAt - 0.3) / 1.1, 0, 1), ay = lerp(175, landY, easeOutBack(down) * 0.95 + down * 0.05);
+  if (e < popAt) { const sh = e > 1.4 ? Math.sin(e * 60) * (e - 1.4) * 5 : 0; ctx.save(); ctx.translate(ax + sh, 175); drawImg(IMG.spr_amelia_scared || IMG.spr_amelia, 0, 4, 150, 0, 1, true); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 92, 0, Math.PI * 2); ctx.stroke(); if (e > 1.4) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; for (let k = 0; k < Math.floor((e - 1.4) * 8); k++) { const a2 = k * 1.3; ctx.beginPath(); ctx.moveTo(Math.cos(a2) * 92, Math.sin(a2) * 92); ctx.lineTo(Math.cos(a2 + 0.2) * 60, Math.sin(a2 + 0.2) * 60); ctx.stroke(); } } ctx.restore(); }
+  ev('pop', popAt, () => { flash = 0.6; flashColor = '#ffe6f6'; shake = 16; snd('break', 1, 1.2); snd('tada', 1); endBurst(ax, 175, 60, ['#ffffff', '#bfefff', '#ffd1ef'], 620); });
+  if (e >= popAt) {
+    if (down < 1) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85 * (1 - down * 0.6); drawImg(IMG.spr_fx_pillar, ax, 210, 520); ctx.restore(); }
+    drawImg(IMG.spr_amelia_cheer || IMG.spr_amelia, ax, ay - (down >= 1 ? Math.abs(Math.sin(T * 4)) * 10 : 0), 190, 0, 1, true);
   }
-  text('아멜리아 공주 구출 성공!', 480, 60, 48, C.yellow, { lw: 8 });
+  // 3) 터틀이가 왼쪽에서 달려와 폴짝(승리 동작)
+  const run = clamp((e - 2.7) / 0.9, 0, 1), hx = lerp(-120, 360, easeOutCubic(run)) - 140 * fin, hy = 305 - Math.sin(run * Math.PI) * 60 - (run >= 1 ? Math.abs(Math.sin(T * 4 + 1)) * 10 : 0);
+  if (e >= 2.6) { const win = ready(IMG.pose_hero_win) && (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')) ? IMG.pose_hero_win : (typeof formImg === 'function' && formImg()) || IMG.cheer; drawImg(win, hx, hy, 210); }
+  ev('meet', 3.7, () => { endBurst(480, 260, 40, ['#ff6fae', '#ff8fc8', '#ffd1ef'], 520, 'heart'); snd('levelup', 0.9); haptic([30, 30, 60]); endFirework(); });
+  if (e >= 3.7 && e < 6) for (let i = 0; i < 6; i++) { const t2 = (T * 0.7 + i / 6) % 1; ctx.globalAlpha = 1 - t2; text('♥', 480 + Math.sin(t2 * 8 + i) * 50, 250 - t2 * 120, 22 + i * 3, '#ff6fa8', { stroke: '#fff', lw: 3 }); } ctx.globalAlpha = 1;
+  if (e > 1.2 && Math.random() < dt * 1.4) endFirework(); // 내내 불꽃놀이
+  drawEndFx(dt);
+  // 4) 대화(4.2초부터)
   const ti = G.talkI || 0;
-  if (endT > 1.8 && ti < ENDING_TALK.length) { // 대화 상자
-    const ln = ENDING_TALK[ti];
+  if (e > 4.2 && ti < ENDING_TALK.length) {
+    const ln = ENDING_TALK[ti]; if (G.talkAt < 4.2) G.talkAt = 4.2;
     G.talkShown = Math.min(ln.text.length, (G.talkShown || 0) + 0.45);
-    panel(60, 394, 840, 120, { fill: 'rgba(27,28,31,.94)' });
-    ctx.save(); ctx.beginPath(); ctx.arc(130, 454, 46, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.clip();
-    drawImg(ln.who === 'princess' ? IMG.princess : IMG.hello, 130, 468, 116); ctx.restore();
-    text(WHO[ln.who], 196, 414, 18, ln.who === 'princess' ? '#ffd1ef' : C.yellow, { align: 'left', stroke: false });
-    wrapText(ln.text.slice(0, Math.floor(G.talkShown)), 660, 21).forEach((l, k) => text(l, 196, 448 + k * 30, 21, '#ffffff', { align: 'left', body: true, stroke: false }));
-    if (G.talkShown >= ln.text.length && Math.sin(T * 8) > 0) text('▼', 870, 494, 16, C.yellow, { stroke: false });
-    if (G.talkShown >= ln.text.length && endT - (G.talkAt || 1.8) > ln.text.length / 27 + 3.2) endingTap();
+    panel(60, 404, 840, 112);
+    ctx.save(); ctx.beginPath(); ctx.arc(128, 460, 42, 0, Math.PI * 2); ctx.fillStyle = ln.who === 'princess' ? '#ffd1e6' : '#cfe9ff'; ctx.fill(); ctx.clip();
+    drawImg(ln.who === 'princess' ? IMG.spr_amelia_cheer || IMG.princess : IMG.pose_hero_win || IMG.hello, 128, 478, 110, 0, 1, ln.who === 'princess'); ctx.restore();
+    text(WHO[ln.who], 188, 428, 17, ln.who === 'princess' ? '#ffb6dc' : C.yellow, { align: 'left', stroke: false });
+    wrapText(ln.text.slice(0, Math.floor(G.talkShown)), 680, 20).forEach((l, k) => text(l, 188, 458 + k * 28, 20, '#ffffff', { align: 'left', body: true, stroke: false }));
+    if (G.talkShown >= ln.text.length && Math.sin(T * 8) > 0) text('▼', 872, 498, 16, C.yellow, { stroke: false });
+    if (G.talkShown >= ln.text.length && e - G.talkAt > ln.text.length / 27 + 2.6) endingTap();
     return;
   }
-  text('다섯 바다를 건넜어요. 느려도 괜찮았죠? 포기하지 않았으니까요.', 480, 114, 20, '#ffffff', { body: true });
-  if (endT > 2 && ti >= ENDING_TALK.length) {
-    text('끝없는 바다·어려움 왕관에 도전해 보세요!', 480, 430, 16, C.text, { body: true, stroke: false });
-    button(330, 452, 300, 56, '지도로', () => enterMap(), { size: 22, kind: 'yellow' });
+  if (e <= 4.2) return;
+  // 5) 마무리: 친구가 된 보스 퍼레이드 + 기록이 굴러 오름 + 전설 보상 상자
+  if (!G.finAt) { G.finAt = e; snd('mission', 1); }
+  const f = e - G.finAt;
+  const parade = ['boss_shark', 'boss_octopus', 'boss_angler', 'boss_jelly', 'boss_pirate', 'boss_crab', 'boss_king'];
+  parade.forEach((k, i) => { const x = ((f * 70 + i * 150) % 1250) - 160, bob = Math.abs(Math.sin(T * 5 + i)) * -12; drawImg(IMG['spr_' + k], x, 486 + bob, k === 'boss_king' ? 96 : 76, Math.sin(T * 5 + i) * 0.08, 0.95); if (Math.sin(T * 2 + i) > 0.6) text('♪', x + 30, 430 + bob, 18, '#ffffff', { stroke: false }); });
+  text('친구가 된 바다 친구들이 축하해요!', 480, 528, 14, 'rgba(255,255,255,.8)', { body: true, stroke: false });
+  // 기록(0.3초 간격으로 하나씩, 숫자는 굴러 오름)
+  const stats = [['건넌 바다', LAST, '개'], ['모은 별', totalStars(), '개'], ['달린 판', save.runs, '판'], ['거북 레벨', save.lv, '']];
+  stats.forEach(([lab, v, u], i) => { const k = clamp((f - 0.3 - i * 0.3) / 0.8, 0, 1); if (k <= 0) return; const x = 120 + i * 240, y = 98;
+    ctx.fillStyle = 'rgba(8,30,70,.6)'; rr(x - 100, y - 4, 200, 66, 18); ctx.fill(); text(lab, x, y + 14, 14, 'rgba(255,255,255,.75)', { body: true, stroke: false });
+    text(`${Math.round(v * easeOutCubic(k)).toLocaleString()}${u}`, x, y + 42, 26, C.yellow, { lw: 5 }); });
+  // 전설 보상(1.8초에 상자 → 2.4초 펑)
+  if (!save.endReward && f > 2.4) { save.endReward = true; save.gems += 500; save.eggs += 3000; if (typeof grant === 'function') { const g = gearOf('r_king'); if (g && !gearOwn('r_king')) grant(g); } persist(); flash = 0.7; flashColor = '#fff2b0'; shake = 18; endBurst(480, 270, 90, ['#ffd34d', '#ffffff', '#ff6fae', '#7cf0ff'], 820); snd('tada', 1); snd('levelup', 0.9, 1.2, 0, 0.2); haptic([60, 40, 120]); }
+  if (f > 1.8) { const op = f > 2.4, sc = op ? 1 : 1 + Math.sin(f * 40) * 0.04 * (f - 1.8); drawImg(IMG[op ? 'spr_box_gold_o' : 'spr_box_gold_c'], 480, 262, 150 * sc); }
+  if (f > 2.4) { const k = clamp((f - 2.4) / 0.4, 0, 1); ctx.save(); ctx.translate(480, 196); ctx.scale(easeOutBack(k), easeOutBack(k));
+    if (typeof drawGear === 'function') { const g = gearOf('r_king'); if (g) { drawAura(-150, 0, 60, '#ffcf3a'); drawGear(g, -150, 0, 92); } }
+    icon('e_gem', 0, -10, 54); text('+500', 0, 30, 18, '#ffffff', { lw: 4 }); drawPearl(150, -10, 48); text('+3,000', 150, 30, 18, '#ffffff', { lw: 4 });
+    ctx.restore(); text('전설 보상 · 상어왕의 왕관(신화) · 보석 500 · 진주 3,000', 480, 340, 16, '#ffe9a8', { lw: 4 }); }
+  if (f > 3.2) {
+    button(250, 368, 280, 54, '끝없는 바다 도전! ▶', () => startLevel(ENDLESS), { size: 19, kind: 'yellow' });
+    button(546, 368, 164, 54, '지도로', () => enterMap(), { size: 17, kind: 'soft' });
   }
 }
 function drawPause() {
@@ -1710,12 +1755,12 @@ function drawResultOverlay() {
 
 // ───────── 마지막: 다시 만난 둘의 대화 ─────────
 function endingTap() {
-  if (endT < 1.8) return;
+  if (endT < 4.2) return;
   const i = G.talkI || 0;
   if (i < ENDING_TALK.length) {
     const line = ENDING_TALK[i].text;
     if ((G.talkShown || 0) < line.length) { G.talkShown = line.length; return; }
     G.talkI = i + 1; G.talkShown = 0; G.talkAt = endT; sfx.click();
-    if (G.talkI === ENDING_TALK.length) { sfx.fever(); fireworks(6); confetti(80); }
-  } else if (endT - (G.talkAt || 0) > 1.2) enterMap();
+    if (G.talkI === ENDING_TALK.length) { sfx.fever(); endFirework(); endFirework(); }
+  } /* 마무리 화면은 단추로만 나감(보상·퍼레이드를 끝까지 보게) */
 }

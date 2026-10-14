@@ -369,7 +369,7 @@ function tryBoost() {
   freeze = 0.05; flash = 0.35; flashColor = '#b48bff'; shake = 14; timeScale = 0.75; zoomTo(1.06);
   ring(G.p.x, G.p.y, '#b48bff', 220, 0.6, 12);
   fxSpr('fx_shock', G.p.x, G.p.y, 200, { life: 0.55, from: 0.2, to: 2.2, vr: 2, add: false }); // 출발 충격파
-  fxSpr('fx_burst', G.p.x + 30, G.p.y, 150, { life: 0.35, from: 0.3, to: 1.3, add: false });
+  fxSpr('fx_poof', G.p.x + 30, G.p.y, 150, { life: 0.35, from: 0.3, to: 1.3, add: false });
   fxSpr('fx_slash', G.p.x + 120, G.p.y, 220, { life: 0.35, from: 0.6, to: 1.3, rot: 0.2, vx: 500, add: false });
   startCutin('boost', '필살 질주!!', '앞을 막는 건 다 들이받아!', 0.7);
   burstRays(G.p.x, G.p.y, '#b48bff', 1.2, 24); edgeFlash('#8b5cff', 0.9);
@@ -590,7 +590,7 @@ function collectEgg(e) {
     snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     fxImg('spr_fx_spark', e.x, e.y, 18, 52, 0.28, { add: true, spin: 2 });
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
-    if (CM[G.combo] != null) { reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`); ameliaSay(pick(['우와, 최고야!', '반짝반짝 멋져!', '그대로 쭉 가자!']), 'cheer', true); }
+    if (CM[G.combo] != null) { reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`); ameliaSay(amLine('combo'), 'cheer', true); }
     return;
   }
   setFace('happy', 0.35); runXp(3);
@@ -1277,7 +1277,7 @@ function finishClear() {
   shake = 8; flash = 0.4; flashColor = '#fff6c0';
   confetti();
   sfx.clear(); musicFever = false;
-  if (G.n === LAST) { save.cleared = true; persist(); state = 'ending'; setMusic('ending'); G.talkI = 0; G.talkShown = 0; G.talkAt = 1.8; }
+  if (G.n === LAST) { save.cleared = true; persist(); state = 'ending'; setMusic('ending'); G.talkI = 0; G.talkShown = 0; G.talkAt = 4.2; endFx.length = 0; for (const k in G) if (k.startsWith('ev_')) delete G[k]; G.finAt = 0; G.endPrev = 0; }
   else { state = 'clear'; setMusic('map'); }
 }
 
@@ -1778,7 +1778,7 @@ function drawHUD() {
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ib.x, ib.y, ib.r * pulse, 0, Math.PI * 2); ctx.stroke();
   }
   if (G.item) { drawItemIcon(G.item, ib.x, ib.y - 2, ib.r * 1.15); if (!isTouch) text('E', ib.x + ib.r - 2, ib.y + ib.r - 6, 13, C.yellow); }
-  else text('?', ib.x, ib.y + 1, ib.r * 0.8, 'rgba(255,255,255,.35)', { stroke: false });
+  else if (ib.x > 0) text('?', ib.x, ib.y + 1, ib.r * 0.8, 'rgba(255,255,255,.35)', { stroke: false });
   if (isTouch) buttons.push({ x: ib.x - ib.r, y: ib.y - ib.r, w: ib.r * 2, h: ib.r * 2, on: useItem });
   if (isTouch) {
     const bb = BOOST_BTN();
@@ -1924,10 +1924,7 @@ function drawScreenFxBehind() {
   for (const r of scr.rays) {
     const k = r.t / r.dur, a = (1 - k) * 0.26, rad = 900;
     ctx.fillStyle = r.color; ctx.globalAlpha = a;
-    for (let i = 0; i < r.n; i++) {
-      const ang = r.rot + i * Math.PI * 2 / r.n + r.t * 0.9, w = 0.05 + 0.03 * Math.sin(i * 7);
-      ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x + Math.cos(ang - w) * rad, r.y + Math.sin(ang - w) * rad); ctx.lineTo(r.x + Math.cos(ang + w) * rad, r.y + Math.sin(ang + w) * rad); ctx.fill();
-    }
+    for (let q = 0; q < 3; q++) { const kk = clamp(k * 1.3 - q * 0.15, 0, 1); if (kk <= 0) continue; ctx.globalAlpha = a * 1.6 * (1 - kk); ctx.strokeStyle = r.color; ctx.lineWidth = 10 * (1 - kk) + 2; ctx.beginPath(); ctx.arc(r.x, r.y, 40 + kk * 380, 0, Math.PI * 2); ctx.stroke(); } // 퍼지는 고리(방사형 빛살 금지)
     const g = ctx.createRadialGradient(r.x, r.y, 4, r.x, r.y, 220 * (0.5 + k)); g.addColorStop(0, r.color); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.globalAlpha = a * 0.7; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(r.x, r.y, 160 * (0.5 + k), 0, Math.PI * 2); ctx.fill();
   }

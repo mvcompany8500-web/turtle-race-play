@@ -164,6 +164,7 @@ function springStep(sp, target, dt, cfg = SPRING) {
   return sp.v;
 }
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 const easeOutBack = (t) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
 function drawImg(im, x, y, h, rot = 0, alpha = 1, flip = false) {
   if (!im || !(im.width || im.naturalWidth) || (im instanceof HTMLImageElement && !ready(im))) return false;

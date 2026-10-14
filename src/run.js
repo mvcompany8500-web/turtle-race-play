@@ -38,7 +38,7 @@ function runInit() {
   G.letterAt = [0.14, 0.36, 0.58, 0.8].map((k) => G.cfg.length * k);
   G.touch = { j: null, s: null };
   if (!G.cfg.boss && !G.cfg.endless && !G.tut) G.chaser = { x: -200, flee: 0, until: 3.5, intro: true }; // 출발하자마자 뒤에서 상어가 쫓아옴(그림만, 3.5초 뒤 지쳐서 감)
-  setTimeout(() => ameliaSay(pick(['터틀아, 힘내!', '오늘도 같이 달리자!', '기다릴게, 터틀!']), 'cheer', true), 3300);
+  setTimeout(() => ameliaSay(amLine('start'), 'cheer', true), 4600);
   if (hasPerk('boostStart')) G.boost = Math.max(G.boost, 25);
   if (hasPerk('shieldStart')) G.shield++;
   Object.assign(p, { fy: GROUND, vy: 0, onG: true, jumps: 0, slide: false, slideHold: false, holdJ: false, buf: 0, coyote: 0, land: 0, spin: 0, r: STAND_R, airT: 0 });
@@ -193,7 +193,7 @@ function stomp(e) {
   p.vy = -(p.holdJ ? 860 : 640); p.jumps = Math.min(p.jumps, 1); p.bounced = true; p.onG = false;
   freeze = Math.max(freeze, 0.05); shake = Math.max(shake, 10);
   ring(e.x, e.y - 10, '#ffffff', 90, 0.3, 8);
-  if (G.stompChain === 3) ameliaSay('쿵쿵쿵! 멋지다!', 'cheer');
+  if (G.stompChain === 3) ameliaSay(amLine('stomp'), 'cheer');
   if (!snd('stomp', 1, comboRate(Math.min(G.stompChain, 5)))) sfx.stomp(); haptic([15, 10, 30]); // 연속 밟기마다 한 음씩 위로
   const c = G.stompChain;
   const cv = c >= 2 ? Math.min(8, 2 ** (c - 1)) : 0; if (cv) earn('stompChain', cv); // 인기 게임처럼 연속 밟기 진주 1→2→4→8
@@ -636,7 +636,7 @@ function updateObs(dt, scroll) {
   G.obs = G.obs.filter((o) => !o.dead && o.x + (o.w || 0) > -120);
   const ch = G.chaser; // 쫓아오는 상어(그림만 — 벽에서 멈추면 다가와 물고, 벽을 부수면 도망)
   if (ch && ch.until != null && G.t > ch.until && !G.wallStop) ch.flee = 1;
-  if (!G.goalSaid && !G.cfg.endless && !G.cfg.boss && G.dist > G.cfg.length * 0.85) { G.goalSaid = true; ameliaSay('거의 다 왔어, 조금만 더!', 'cheer', true); }
+  if (!G.goalSaid && !G.cfg.endless && !G.cfg.boss && G.dist > G.cfg.length * 0.85) { G.goalSaid = true; ameliaSay(amLine('goal'), 'cheer', true); }
   if (ch) { if (ch.flee) { ch.x -= 520 * dt; if (ch.x < -260) G.chaser = null; } else ch.x = lerp(ch.x, G.wallStop ? p.x - 70 : ch.until != null ? Math.max(70, p.x - 95) + Math.sin(G.t * 5) * 12 : -40, dt * (G.wallStop ? 1.4 : 1.6)); }
   // 지난 기록 깃발
   const f = G.bestFlag;

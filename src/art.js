@@ -907,6 +907,14 @@ function drawInk(k) {
 // ───────── 아이템 상자·아이콘 ─────────
 const ITEM_ART = { magnet: 'x_it_magnet', bubble: 'x_it_bubble', double: 'x_it_star', freeze: 'x_it_ice', giant: 'x_it_up', bolt: 'x_it_bolt', whirl: 'x_it_swirl', rain: 'spr_it_rain', rocket: 'spr_it_rocket', transform: 'spr_it_transform' };
 // 게임 안 돈 = 진주 (앱의 진짜 거북알과 헷갈리지 않게 — 알 합치기와 같은 규칙). 황금 진주는 금빛을 덧입힘
+// 축하 빛: 둥근 빛 + 천천히 도는 반짝 점(방사형 빛살은 쓰지 않음 — 욱일기처럼 보일 수 있어 금지)
+function celebrateGlow(x, y, r, rgb = '255,214,110', a = 1) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(x, y, r * 0.05, x, y, r); g.addColorStop(0, `rgba(${rgb},${0.55 * a})`); g.addColorStop(0.5, `rgba(${rgb},${0.22 * a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 9; i++) { const an = (ring ? -T * 0.5 : T * 0.7) + i * Math.PI * 2 / 9 + ring * 0.35, rr2 = r * (ring ? 0.82 : 0.58), tw = 0.5 + 0.5 * Math.sin(T * 5 + i * 1.7 + ring); ctx.globalAlpha = a * (0.35 + 0.65 * tw); ctx.fillStyle = `rgb(${rgb})`; ctx.beginPath(); ctx.arc(x + Math.cos(an) * rr2, y + Math.sin(an) * rr2 * 0.9, 2.5 + tw * 3.5, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
 function drawPearl(x, y, size, rot = 0, gold = false, alpha = 1) {
   if (!ready(IMG.x_cur_pearl)) return drawImg(gold ? silhouette('egg', '#ffc93a') : IMG.egg, x, y, size, rot, alpha);
   drawImg(IMG.x_cur_pearl, x, y, size * 1.25, rot, alpha);

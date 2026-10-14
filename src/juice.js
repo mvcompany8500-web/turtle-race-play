@@ -342,7 +342,7 @@ function ultCine(lvl) {
   later(500, () => {
     reaction(3, gold ? '그림자 거북 군단!!' : '그림자 거북 군단!'); burstRays(G.p.x, G.p.y, '#8b5cff', 1.2, 22);
     fxSpr('fx_shock', px, py, 200, { life: 0.55, from: 0.3, to: 1.6, vr: -1 });
-    fxSpr('fx_burst', px, py, 160, { life: 0.45, from: 0.3, to: 1.4 });
+    fxSpr('fx_poof', px, py, 160, { life: 0.45, from: 0.3, to: 1.4 });
   });
   later(1250, () => {
     flash = 0.45; flashColor = '#b48bff'; shake = 14; edgeFlash('#8b5cff', 0.8);
@@ -366,7 +366,7 @@ function ultCine(lvl) {
     snd('chain', 0.8, rate);
     burst(tg.x, tg.y, '#c9a2ff', 12, 420); ring(tg.x, tg.y, '#b48bff', 90, 0.35, 6);
     fxSpr(gold && i % 2 ? 'fx_slash_gold' : 'fx_slash', tg.x, tg.y, 150, { life: 0.3, from: 0.6, to: 1.3, rot: rand(-1.2, 1.2), flip: i % 2 === 1 });
-    fxSpr('fx_burst', tg.x, tg.y, 110, { life: 0.32, from: 0.3, to: 1.2, rot: rand(0, 6) });
+    fxSpr('fx_poof', tg.x, tg.y, 110, { life: 0.32, from: 0.3, to: 1.2, rot: rand(0, 6) });
     shake = Math.max(shake, 3 + Math.min(8, i * 0.5));
     if (tg.kind === 'e' && !o.dead) { if (ENEMIES[o.type] && ENEMIES[o.type].hp >= 999) o.dead = true; else killEnemy(o, 'ult'); }
     else if (tg.kind === 'p' && !o.dead) smashPillar(o);
@@ -375,7 +375,7 @@ function ultCine(lvl) {
   later(1700 + n * 65 + 260, () => {
     snd('ult_impact', 1);
     // 마무리 한 방: 가운데 큰 폭발 + 충격파 두 겹 (+3단은 황금 X 칼빛과 빛기둥 줄)
-    fxSpr('fx_burst', W / 2, H / 2, 380, { life: 0.6, from: 0.3, to: 1.5, rot: rand(0, 6) });
+    fxSpr('fx_poof', W / 2, H / 2, 380, { life: 0.6, from: 0.3, to: 1.5, rot: rand(0, 6) });
     fxSpr('fx_shock', W / 2, H / 2, 300, { life: 0.7, from: 0.2, to: 3.6, vr: 1.2 });
     fxSpr('fx_shock', W / 2, H / 2, 300, { life: 0.9, from: 0.1, to: 2.4, vr: -0.8, delay: 0.1, alpha: 0.8 });
     if (gold) {
@@ -593,6 +593,14 @@ function drawAppEgg(x, y) {
 
 // ───────── 아멜리아 한마디(판 중): 위 가운데 동그란 얼굴 + 말풍선, 4초에 한 번까지(러너 히트작의 귀여운 동료 반응) ─────────
 let amSay = null, amSayAt = -9;
+// 구출 전(save.cleared 아님)엔 아멜리아는 상어왕의 거품 감옥 안 — 「나한테 와 줘」 하고 부름. 구출 뒤엔 옆에서 응원
+const AM_LINES = {
+  start: [['터틀아, 여기야! 와 줘!', '나 여기 갇혀 있어… 꼭 와 줘!', '기다릴게, 꼭 와 줘!'], ['터틀아, 힘내!', '오늘도 같이 달리자!', '같이 가자, 터틀!']],
+  combo: [['그래, 그렇게 와 줘!', '점점 가까워지고 있어!', '보여! 터틀이 보여!'], ['우와, 최고야!', '반짝반짝 멋져!', '그대로 쭉 가자!']],
+  stomp: [['멋져! 조금만 더 와 줘!'], ['쿵쿵쿵! 멋지다!']],
+  goal: [['거의 다 왔어! 조금만 더!'], ['거의 다 왔어, 조금만 더!']],
+};
+const amLine = (k) => pick(AM_LINES[k][save.cleared ? 1 : 0]);
 function ameliaSay(line, mood = 'cheer', force = false) {
   if (!G || !G.run || (!force && T - amSayAt < 4)) return;
   amSay = { line, mood, t0: T }; amSayAt = T;
@@ -608,6 +616,8 @@ function drawAmeliaSay() {
   text(amSay.line, cx + 30 + tw / 2, cy, 16, '#e0457b', { stroke: false });
   ctx.fillStyle = '#ffd1e6'; ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#ff6fae'; ctx.lineWidth = 3; ctx.stroke();
   ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, 28, 0, Math.PI * 2); ctx.clip();
-  const im = amSay.mood === 'scared' ? IMG.spr_amelia_scared : IMG.spr_amelia_cheer; drawImg(im, cx, cy + 14 + Math.sin(t * 12) * (amSay.mood === 'scared' ? 1.5 : 0), 74, 0, 1, true);
-  ctx.restore(); ctx.restore();
+  const im = amSay.mood === 'scared' || !save.cleared ? IMG.spr_amelia_scared : IMG.spr_amelia_cheer; /* 구출 전엔 갇혀서 걱정하는 얼굴 */ drawImg(im, cx, cy + 14 + Math.sin(t * 12) * (amSay.mood === 'scared' ? 1.5 : 0), 74, 0, 1, true);
+  ctx.restore();
+  if (!save.cleared) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(cx - 16, cy - 20, 7, 3.5, -0.6, 0, Math.PI * 2); ctx.fill(); } // 거품 감옥 테
+  ctx.restore();
 }

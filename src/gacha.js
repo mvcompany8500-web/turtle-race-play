@@ -185,7 +185,7 @@ function drawGachaPage() {
   // 왼쪽: 조개 진열장 — 전설 3개가 조개 둘레를 돌며 「이게 나올 수 있어요」
   panel(40, PT, 420, PB - PT, { fill: 'rgba(70,30,120,.9)' });
   ctx.save(); rr(48, PT + 8, 404, PB - PT - 16, 16); ctx.clip();
-  ctx.save(); ctx.translate(250, 282); ctx.rotate(T * 0.3); for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.fillStyle = 'rgba(255,200,90,.07)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-40, -300); ctx.lineTo(40, -300); ctx.fill(); } ctx.restore();
+  celebrateGlow(250, 282, 190, '255,200,90', 0.6);
   const legs = GEAR.filter((g) => g.r === 'l');
   legs.forEach((g, i) => { const a = T * 0.7 + i * Math.PI * 2 / legs.length, x = 250 + Math.cos(a) * 140, y = 282 + Math.sin(a) * 52, z = 0.75 + 0.25 * Math.sin(a); drawGear(g, x, y, 64 * z, 0.5 + 0.5 * z); });
   ctx.restore();
@@ -313,9 +313,7 @@ function drawRevealOne(rv, t) {
     return;
   }
   const k = clamp((performance.now() - rv.openT) / 1000 / 0.5, 0, 1), g = it.g, gc = RARITY[g.r].col;
-  ctx.save(); ctx.translate(480, H / 2); ctx.rotate(T * 0.5);
-  for (let i = 0; i < 14; i++) { ctx.rotate(Math.PI / 7); ctx.fillStyle = RARITY[g.r].glow + ((R_ORDER.indexOf(g.r) >= 2 ? 0.22 : 0.1) * k) + ')'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-34, -420); ctx.lineTo(34, -420); ctx.fill(); }
-  ctx.restore();
+  { const m = RARITY[g.r].glow.match(/\d+,\d+,\d+/); celebrateGlow(480, H / 2 - 20, 300, m ? m[0] : '255,214,110', k); }
   drawImg(IMG.spr_clam_open, 480, H / 2 + 56, 170, 0, 0.85);
   drawAura(480, H / 2 - 24, 150, gc, 1.3);
   drawGear(g, 480, H / 2 - 24, 170 * easeOutBack(k));
