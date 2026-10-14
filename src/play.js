@@ -1604,8 +1604,9 @@ function drawPops() {
     ctx.restore();
   }
 }
-const BOOST_BTN = () => (G && G.run ? { x: W - SAFE - 84, y: H - 222, r: 48 } : { x: W - SAFE - 92, y: H - 92, r: 60 });
-const ITEM_BTN = () => (G && G.run ? { x: W - SAFE - 206, y: H - 168, r: 38 } : { x: W - SAFE - 214, y: H - 70, r: 44 });
+// 달리기(터치): 양쪽 끝 세로 줄로 — 왼쪽 = 점프 위에 아이템(거북이 x=230 뒤라 길을 안 가림), 오른쪽 = 숙이기 위에 필살. 두 줄 모두 x=66, 단추 사이 약 12
+const BOOST_BTN = () => (G && G.run ? { x: W - SAFE - 66, y: H - 182, r: 42 } : { x: W - SAFE - 92, y: H - 92, r: 60 });
+const ITEM_BTN = () => (G && G.run ? { x: SAFE + 66, y: H - 178, r: 34 } : { x: W - SAFE - 214, y: H - 70, r: 44 });
 function drawHUD() {
   const n = G.n, endless = G.cfg.endless, L = 22 + SAFE;
   if (!G.run) text(endless ? STAGES[n].name : `${n}번 바다 · ${STAGES[n].name}`, L, 30, 18, C.text, { align: 'left' }); // 달리기 화면은 시안처럼 바다 이름 대신 기운 막대가 맨 위
