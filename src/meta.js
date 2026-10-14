@@ -1488,7 +1488,7 @@ function drawClear() {
     ctx.save(); ctx.translate(190, 230 + hop); ctx.scale(1 / sq, sq); drawImg(im, 0, 0, 260); ctx.restore();
   }
   if (save.pet) drawImg(IMG['pet_' + save.pet], 300, 320 + Math.abs(Math.sin(T * 4 + 1)) * -10, 62);
-  sayBubble(190, 370, 300, BOSS_LINES[G.n] || CLEAR_LINES[(G.n - 1) % CLEAR_LINES.length], '#ffd1ef');
+  drawCloser(190, 372);
   resultCard();
   if (!ribbon(RM, RC.y + 10, 400, `${G.n}번 바다 성공!`, 24)) text(`${G.n}번 바다 성공!`, RM, RC.y + 36, 24, C.yellow, { lw: 5 });
   if (save.diff === 2) icon('e_crown', RM + 120, RC.y + 34, 26, Math.sin(T * 4) * 0.1);
@@ -1542,6 +1542,20 @@ function drawEndFx(dt) {
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const f of endFx) { ctx.globalAlpha = Math.min(1, f.life / f.max * 1.6); if (f.kind === 'heart') { text('♥', f.x, f.y, f.s * 4, f.c, { stroke: false }); continue; } ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(f.x, f.y, f.s, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore(); ctx.globalAlpha = 1;
+}
+// 결과 화면 왼쪽: 「아멜리아에게 한 바다 더 가까이」 — 길 위의 터틀이가 한 칸 다가가고, 끝엔 거품 속 아멜리아가 부름
+function drawCloser(cx, y) {
+  const n = G.n === ENDLESS ? 0 : G.n, rem = LAST - n, k = easeOutCubic(clamp((endT - 0.4) / 1.2, 0, 1)), w = 300, x0 = cx - w / 2;
+  panel(x0 - 14, y - 20, w + 28, 128, { r: 18 });
+  const L = x0 + 18, R = x0 + w - 44, prog = lerp((n - 1) / LAST, n / LAST, k), tx = lerp(L, R, prog);
+  ctx.fillStyle = 'rgba(255,255,255,.14)'; rr(L, y + 18, R - L, 10, 5); ctx.fill();
+  const g = ctx.createLinearGradient(L, 0, R, 0); g.addColorStop(0, '#5fd4ff'); g.addColorStop(1, '#ff8fc8'); ctx.fillStyle = g; rr(L, y + 18, Math.max(10, tx - L), 10, 5); ctx.fill();
+  drawHero(tx, y + 10, 34, 0, { ph: T * 12, stand: true });
+  const ax = R + 22; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ax, y + 18, 22, 0, Math.PI * 2); ctx.stroke();
+  drawImg(IMG.spr_amelia_scared || IMG.spr_amelia, ax, y + 22 + Math.sin(T * 3) * 2, 40, 0, 1, true);
+  text(G.n === ENDLESS ? '끝없는 바다' : rem > 0 ? `아멜리아까지 ${rem}바다` : '아멜리아에게!', cx, y + 52, 17, '#ffd1ef', { lw: 4 });
+  const line = BOSS_LINES[n] || (rem <= 5 ? '바로 앞이야! 조금만 더 와 줘!' : rem <= 15 ? '네 발소리가 들려! 와 줘!' : '보여! 조금만 더 와 줘!');
+  wrapText(line, w - 10, 13).slice(0, 2).forEach((l, i) => text(l, cx, y + 76 + i * fs(13) * 1.4, 13, 'rgba(255,255,255,.85)', { body: true, stroke: false }));
 }
 function drawEnding() {
   const e = endT, dt = Math.min(0.05, e - (G.endPrev || 0)); G.endPrev = e;

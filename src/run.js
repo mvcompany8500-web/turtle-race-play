@@ -636,7 +636,7 @@ function updateObs(dt, scroll) {
   G.obs = G.obs.filter((o) => !o.dead && o.x + (o.w || 0) > -120);
   const ch = G.chaser; // 쫓아오는 상어(그림만 — 벽에서 멈추면 다가와 물고, 벽을 부수면 도망)
   if (ch && ch.until != null && G.t > ch.until && !G.wallStop) ch.flee = 1;
-  if (!G.goalSaid && !G.cfg.endless && !G.cfg.boss && G.dist > G.cfg.length * 0.85) { G.goalSaid = true; ameliaSay(amLine('goal'), 'cheer', true); }
+  if (!G.goalSaid && !G.cfg.endless && !G.cfg.boss && G.dist > G.cfg.length * 0.7 && G.dist < G.cfg.length * 0.8) { G.goalSaid = true; ameliaSay(amLine('goal'), 'cheer', true); } // 빛 고리가 보이기 전에(고리에선 고리 속 아멜리아가 말함)
   if (ch) { if (ch.flee) { ch.x -= 520 * dt; if (ch.x < -260) G.chaser = null; } else ch.x = lerp(ch.x, G.wallStop ? p.x - 70 : ch.until != null ? Math.max(70, p.x - 95) + Math.sin(G.t * 5) * 12 : -40, dt * (G.wallStop ? 1.4 : 1.6)); }
   // 지난 기록 깃발
   const f = G.bestFlag;
