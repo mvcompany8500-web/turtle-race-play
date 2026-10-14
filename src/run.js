@@ -234,7 +234,7 @@ function mon(type, x, y, extra = {}) {
 }
 function jar(x) { const d = BREAK.jar; G.breaks.push({ k: 'jar', x, y: GROUND - d.r, r: d.r, hp: 1, maxHp: 1, t: 0, hitT: 0, wob: 0, run: true }); }
 function pillar(x, w = 64) { G.obs.push({ k: 'pillar', x, w, y1: GROUND - 46, t: 0 }); }
-function plat(x, w, y) { G.obs.push({ k: 'plat', x, w, y, t: 0 }); }
+function plat(x, w, y, amp = 0) { G.obs.push({ k: 'plat', x, w, y, y0: y, amp, ph: Math.random() * 6, t: 0 }); } // amp: 위아래로 오르내리는 발판(판 레벨 높을 때)
 function qblock(x, y = GROUND - 180) { G.obs.push({ k: 'qb', x, y, t: 0, hit: false }); }
 function letter(x, y) {
   const i = G.letters.indexOf(0); if (i < 0) return;
@@ -299,10 +299,24 @@ const PATS = [
   }],
   ['tutPotion', 99, 0, (x) => { G.eggsArr.push({ x: x + 200, y: GROUND - 70, potion: 's', t: 0, tut: true }); eggLine(x, 4, GC()); return 320; }], // 튜토리얼: 기운 물약
   // ── 판마다 다른 맛: 대표 패턴(STAGE_STYLE 의 sig 로만 나옴) ──
-  ['kelpSteps', 99, 1, (x) => { // 해초 계단: 세 칸 올라가며 진주, 아래는 가시
-    plat(x, 170, GROUND - 96); plat(x + 230, 170, GROUND - 166); plat(x + 460, 190, GROUND - 236);
-    eggLine(x + 20, 3, GROUND - 126, 50); eggLine(x + 250, 3, GROUND - 196, 50); eggLine(x + 480, 3, GROUND - 266, 50, 2);
-    spike(x + 200); spike(x + 430); return 690;
+  ['climb', 10, 1.5, (x) => { // 오르기: 발판을 밟고 위로, 위로 — 바닥은 가시밭(떨어지면 아픔). 판 레벨이 오를수록 단수↑·폭↓·간격↑·높이차↑
+    const k = diffK(), tiers = 3 + Math.round(k * 2), pw = lerp(200, 128, k), dy = lerp(68, 90, k), gap = lerp(56, 112, k);
+    let cx = x + 60, lv = 0, dir = 1;
+    const TOP = GROUND - 290; // 꼭대기 한계(더 높으면 천장에 머리를 박아 점프가 짧아짐) — 닿으면 내려가는 계단으로
+    for (let i = 0; i < tiers; i++) {
+      let y = GROUND - 92 - lv * dy; if (y < TOP) { dir = -1; lv -= 2; y = GROUND - 92 - lv * dy; }
+      plat(cx, pw, y, k > 0.35 ? lerp(8, 30, (k - 0.35) / 0.65) * (i % 2 ? 1 : -1) : 0); lv += dir; // 뒤 판: 오르내리는 발판(번갈아 반대로)
+      eggLine(cx + 18, Math.max(2, Math.floor(pw / 48)), y - 30, 44); if (i === tiers - 1) egg(cx + pw - 16, y - 36, true); // 꼭대기엔 황금 진주
+      cx += pw + gap;
+    }
+    for (let sx = x + 60 + pw * 0.55; sx < cx - gap - 10; sx += 46) spike(sx); // 첫 발판 밑부터 마지막 발판 끝까지 가시
+    return cx - gap - x + REACT() + 60;
+  }],
+  ['kelpSteps', 99, 1, (x) => { // 해초 계단: 세 칸 올라가며 진주, 아래는 가시 — 판 레벨에 따라 폭·간격
+    const k = diffK(), pw = lerp(180, 130, k), g = lerp(50, 95, k);
+    plat(x, pw, GROUND - 96); plat(x + pw + g, pw, GROUND - 166); plat(x + 2 * (pw + g), pw + 20, GROUND - 236);
+    eggLine(x + 20, 3, GROUND - 126, 44); eggLine(x + pw + g + 20, 3, GROUND - 196, 44); eggLine(x + 2 * (pw + g) + 20, 3, GROUND - 266, 44, 2);
+    spike(x + pw + g / 2); spike(x + 2 * pw + 1.5 * g); if (k > 0.4) spike(x + 2 * (pw + g) + pw * 0.5); return 3 * pw + 2 * g + 120;
   }],
   ['duckJump', 99, 1, (x) => { // 숙이기 → 점프 → 숙이기
     const w = jumpW(), s1 = x + 30 + 64 + REACT() + w * 0.35, p2 = s1 + w * 0.5 + REACT();
@@ -315,10 +329,12 @@ const PATS = [
     eggArc(x, w * 1.5, 240, 9, true); return w * 0.3 + span + REACT();
   }],
   ['rockRow', 99, 1, (x) => { const w = jumpW(), g = w + REACT(); rockAt(x + 120); rockAt(x + 120 + g); eggArc(x - 10, w * 1.05, 175, 6); eggArc(x - 10 + g, w * 1.05, 175, 6); return 120 + g + w * 0.7; }], // 바위 두 개: 넘거나 밟아 부수기
-  ['zigzag', 99, 1, (x) => { // 높고 낮은 발판 지그재그
-    plat(x, 150, GROUND - 140); plat(x + 250, 150, GROUND - 70); plat(x + 500, 150, GROUND - 170);
-    eggLine(x + 15, 3, GROUND - 170, 46); eggLine(x + 265, 3, GROUND - 100, 46); eggLine(x + 515, 3, GROUND - 200, 46, 2);
-    return 680;
+  ['zigzag', 99, 1, (x) => { // 높고 낮은 발판 지그재그 — 판 레벨이 오르면 발판 좁고 아래 가시
+    const k = diffK(), pw = lerp(160, 132, k), st = pw + lerp(90, 120, k);
+    plat(x, pw, GROUND - 140); plat(x + st, pw, GROUND - 70); plat(x + 2 * st, pw, GROUND - 180);
+    eggLine(x + 15, 3, GROUND - 170, 40); eggLine(x + st + 15, 3, GROUND - 100, 40); eggLine(x + 2 * st + 15, 3, GROUND - 210, 40, 2);
+    if (k > 0.3) spike(x + pw + (st - pw) / 2);
+    return 2 * st + pw + 120;
   }],
   ['treasure', 99, 1, (x) => { const w = jumpW(); qblock(x + w * 0.4); qblock(x + w * 0.4 + 96); rockAt(x + w * 0.4 + 260, 'chest'); for (let i = 0; i < 3; i++) pearl(x + w * 0.4 - 40 + i * 48, GC()); return w * 0.4 + 380; }], // 보물: ? 조개 두 개 + 상자
   ['pearlWave', 99, 1, (x) => { for (let i = 0; i < 11; i++) pearl(x + i * 46, GROUND - 34 - Math.sin(i / 10 * Math.PI) * 150); return 520; }], // 쉬어 가는 진주 물결(뛰면서 줍기)
@@ -344,7 +360,7 @@ const PAT_BY = Object.fromEntries(PATS.map((p) => [p[0], p]));
 // 판 한가운데쯤엔 대표 패턴 두 개로 만든 연속 구간(그 판의 하이라이트)이 한 번 나옴
 const STAGE_STYLE = {
   1: { sig: { eggs: 2, hop: 1.5, pearlWave: 3 }, tempo: 1.1 },
-  2: { sig: { kelpSteps: 4, shark: 1.5 }, enter: 'rise' },
+  2: { sig: { kelpSteps: 4, shark: 1.5, climb: 1 }, enter: 'rise' },
   3: { sig: { treasure: 2, chest: 2, rockRow: 1, jarRow: 2 }, enter: 'drop', tempo: 1.12 }, // 초반: 바위 위주는 서툰 실력 성공률이 절반으로 떨어져서 보물 위주(봇 9/12)
   4: { sig: { stomp: 4, jellyField: 3 }, enter: 'pop' },
   5: { sig: { rockRow: 3, hop2: 2 }, enter: 'rise' },
@@ -353,7 +369,7 @@ const STAGE_STYLE = {
   8: { sig: { highRoad: 3, eggs: 2 }, enter: 'rise' },
   9: { sig: { highRoad: 4, stairs: 3, zigzag: 2 }, enter: 'swoop', wall: 2 },
   10: { sig: { duckLong: 3, duck: 2 }, enter: 'drop' },
-  11: { sig: { stairs: 3, kelpSteps: 3, zigzag: 3 }, enter: 'swoop' },
+  11: { sig: { stairs: 3, kelpSteps: 3, zigzag: 3, climb: 3 }, enter: 'swoop' },
   12: { sig: { jellyField: 3, spikeRhythm: 2 }, enter: 'pop' },
   13: { sig: { stomp: 5, jellyField: 4 }, enter: 'pop' },
   14: { sig: { angler: 2, highRoad: 2 }, enter: 'rise' },
@@ -363,7 +379,7 @@ const STAGE_STYLE = {
   18: { sig: { ray: 1.5, spikeRhythm: 3 }, tempo: 0.88, enter: 'swoop' },
   19: { sig: { duckJump: 3, lowCeil: 3, slideTunnel: 2 }, enter: 'pop', wall: 2 },
   20: { sig: { hop2: 2, spikeRhythm: 2 }, enter: 'swoop' },
-  21: { sig: { crab: 2, kelpSteps: 3 }, enter: 'drop' },
+  21: { sig: { crab: 2, kelpSteps: 3, climb: 2 }, enter: 'drop' },
   22: { sig: { spikeRhythm: 3, hop2: 3 }, tempo: 0.85, enter: 'pop' },
   23: { sig: { shortHop: 5, lowCeil: 3 }, enter: 'pop' },
   24: { sig: { duckLong: 2, duckJump: 3, slideTunnel: 3 }, enter: 'rise' },
@@ -379,22 +395,24 @@ const STAGE_STYLE = {
   34: { sig: { highRoad: 4, treasure: 3 }, enter: 'pop' },
   35: { sig: { duckJump: 2, octo: 2 }, enter: 'drop' },
   36: { sig: { shortHop: 3, sword: 2 }, enter: 'drop' },
-  37: { sig: { zigzag: 4, jellyField: 2 }, enter: 'pop' },
+  37: { sig: { zigzag: 4, jellyField: 2, climb: 2 }, enter: 'pop' },
   38: { sig: { duckJump: 3, lowCeil: 3, slideTunnel: 3 }, tempo: 0.9, enter: 'rise' },
   39: { sig: { angler: 2, treasure: 2, jarRow: 2 }, enter: 'rise', wall: 2 },
   40: { sig: { highRoad: 2, treasure: 2 }, enter: 'pop' },
-  41: { sig: { stairs: 3, kelpSteps: 3 }, enter: 'swoop' },
+  41: { sig: { stairs: 3, kelpSteps: 3, climb: 3 }, enter: 'swoop' },
   42: { sig: { phantom: 2, stomp: 2 }, enter: 'pop' },
   43: { sig: { duck: 3, duckLong: 3, rockRow: 2, slideTunnel: 2 }, enter: 'drop', wall: 1 },
   44: { sig: { duckJump: 3, lowCeil: 3 }, enter: 'rise' },
   45: { sig: { rockRow: 3, spikeRhythm: 2 }, enter: 'rise' },
   46: { sig: { jellyField: 3, spikeRhythm: 3 }, enter: 'pop' },
-  47: { sig: { zigzag: 3, highRoad: 3 }, tempo: 1.1, enter: 'swoop' },
+  47: { sig: { zigzag: 3, highRoad: 3, climb: 3 }, tempo: 1.1, enter: 'swoop' },
   48: { sig: { gauntlet: 5 }, tempo: 0.85, enter: 'drop' },
   49: { sig: { stairs: 3, treasure: 2, pearlWave: 2, jarRow: 2 }, enter: 'swoop', wall: 2 },
   50: { sig: { gauntlet: 2, duckJump: 2, spikeRhythm: 2 }, enter: 'drop' },
 };
 const NEW_PATS = new Set(['kelpSteps', 'duckJump', 'jellyField', 'rockRow', 'zigzag', 'treasure', 'pearlWave', 'spikeRhythm', 'lowCeil', 'jarRow', 'slideTunnel']); // ultWall 은 벽 판에만(끝없는 바다에도 가끔)
+// 판 레벨(0 → 1): 1번 바다 0, 50번 바다 1, 끝없는 바다는 거리에 따라 — 발판 폭·간격·높이·단수가 이걸로 어려워짐
+const diffK = () => (G.cfg.endless ? Math.min(1, G.dist / 20000) : clamp((G.n - 1) / 49, 0, 1));
 const styleOf = () => (G.cfg.endless ? {} : STAGE_STYLE[G.n] || {});
 function setPiece() { // 대표 패턴 둘을 A·B·A 로
   const sig = Object.entries(styleOf().sig || {}).filter(([k]) => PAT_BY[k] && (PAT_BY[k][1] <= G.n || NEW_PATS.has(k)) && (!PAT_BY[k][4] || has(PAT_BY[k][4]))).sort((a, b) => b[1] - a[1]).map(([k]) => k);
@@ -556,6 +574,7 @@ function updateObs(dt, scroll) {
   const magL = hasPerk('letterLuck') ? 160 : 0;
   for (const o of G.obs) {
     o.t += dt; o.x -= scroll * dt;
+    if (o.k === 'plat' && o.amp) o.y = o.y0 + Math.sin(o.t * 2.2 + o.ph) * o.amp;
     if (o.bumpT > 0) o.bumpT -= dt;
     if (o.dead || p.dead) continue;
     if (o.k === 'pillar') {
