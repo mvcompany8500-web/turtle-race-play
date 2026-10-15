@@ -164,13 +164,13 @@ let last = performance.now(), prevState = state;
 // 프레임 재기: 2초 동안 평균이 느리면(45프레임 아래) 화질을 낮춰 조작이 굼뜨지 않게
 let fpsAcc = 0, fpsN = 0;
 let flashPrev = 0; const flashHits = [];
-let playSec = 0, restAt = 3600, persistAsked = false; // 이번에 켠 뒤 판을 한 시간
+let playSec = 0, restAt = 3600, persistAsked = false, fpsSlow = 0; // 이번에 켠 뒤 판을 한 시간
 function frame(now) {
   const raw = (now - last) / 1000;
   const dt = Math.min(0.05, raw); last = now; T += dt;
-  if (state === 'play' && !LOWFX && raw < 0.5) {
+  if (state === 'play' && !LOWFX && raw < 0.5 && G && G.t > 2) { // 판 시작 2초(그림을 처음 그리며 푸는 동안)는 빼고 잼
     fpsAcc += raw; fpsN++;
-    if (fpsAcc > 2) { if (fpsN / fpsAcc < 45 && DPR_CAP > 2 && (devicePixelRatio || 1) > 2) { DPR_CAP = 2; resize(); } else if (fpsN / fpsAcc < 45) { LOWFX = true; resize(); try { Object.defineProperty(ctx, 'shadowBlur', { get: () => 0, set() {}, configurable: true }); } catch (e) { /* 무시 */ } } fpsAcc = 0; fpsN = 0; } // 느린 폰: 번짐(shadowBlur)도 끔
+    if (fpsAcc > 3) { if (fpsN / fpsAcc < 40 && ++fpsSlow < 2) { /* 한 번은 봐줌: 두 번 연속 느릴 때만 */ } else if (fpsN / fpsAcc < 40 && DPR_CAP > 2 && (devicePixelRatio || 1) > 2) { DPR_CAP = 2; resize(); } else if (fpsN / fpsAcc < 40) { LOWFX = true; resize(); try { Object.defineProperty(ctx, 'shadowBlur', { get: () => 0, set() {}, configurable: true }); } catch (e) { /* 무시 */ } } if (fpsN / fpsAcc >= 40) fpsSlow = 0; fpsAcc = 0; fpsN = 0; } // 느린 폰: 번짐(shadowBlur)도 끔
   }
   update(dt); render();
   requestAnimationFrame(frame);
