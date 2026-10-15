@@ -488,7 +488,7 @@ let ready_ = null;
 const warmed = new Set();
 function warmStage(n) {
   const w = n === ENDLESS ? 1 : Math.floor((n - 1) / 10) + 1, st = STAGES[n] || {};
-  const keys = ['spr_bg' + w, 'spr_castle' + w, ...Object.keys(ENEMIES).map((k) => 'spr_' + k), st.boss ? 'spr_' + BOSS_SPR[st.boss] : null,
+  const keys = ['spr_bgv2_' + w, 'spr_ground' + w, 'spr_castle' + w, ...Object.keys(ENEMIES).map((k) => 'spr_' + k), st.boss ? 'spr_' + BOSS_SPR[st.boss] : null,
     ...['fx_burst', 'fx_lightning', 'fx_pillar', 'fx_shadow', 'fx_shock', 'fx_slash', 'fx_slash_gold', 'fx_trail', 'fx_wave', 'goal_gate', 'it_rain', 'it_rocket', 'it_transform', 'ledge', 'pillar_body', 'pillar_tip', 'potion_b', 'potion_s', 'qblock', 'qblock_used', 'ui_pad_jump', 'ui_pad_slide', 'ui_slot', 'ui_pause'].map((k) => 'spr_' + k)]
     .filter((k) => k && IMG[k] && !warmed.has(k));
   const c = document.createElement('canvas'); c.width = c.height = 4; const g = c.getContext('2d');

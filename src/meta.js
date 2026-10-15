@@ -1671,7 +1671,7 @@ function drawEggFly() {
     drawPearl(x, y, 24 - k * 8, k * 6, !!f.gold);
   }
 }
-function toastOK() { return state === 'map' && !map.overlay; }
+function toastOK() { return state === 'map' && !map.overlay && !(map.banner > 0); } // 세계 이름 띠가 떠 있는 동안엔 알림을 기다림(겹치지 않게)
 function drawToasts() {
   if (!toastOK()) return;
   toasts.slice(0, 1).forEach((t, i) => {
