@@ -167,6 +167,7 @@ let fpsAcc = 0, fpsN = 0;
 let flashPrev = 0; const flashHits = [];
 let playSec = 0, restAt = 3600, persistAsked = false, fpsSlow = 0; // 이번에 켠 뒤 판을 한 시간
 function frame(now) {
+  if (window.FILMING) { last = now; requestAnimationFrame(frame); return; } // 영상 찍기(실험실): 장면은 LAB.film 이 한 장씩 넘김
   const raw = (now - last) / 1000;
   const dt = Math.min(0.05, raw); last = now; T += dt;
   if (state === 'play' && !LOWFX && raw < 0.5 && G && G.t > 2) { // 판 시작 2초(그림을 처음 그리며 푸는 동안)는 빼고 잼
