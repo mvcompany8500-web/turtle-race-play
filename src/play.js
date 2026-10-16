@@ -162,7 +162,7 @@ function updateFx(dt) {
   for (const f of fx) {
     f.life -= dt;
     if (f.k === 'ring') f.r = lerp(f.r, f.maxR, dt * 9);
-    else if (f.k === 'eggfly') { if (f.life <= 0) { hudPulse = 0.18; snd('count', 0.35, rand(0.95, 1.15), 0.06); } }
+    else if (f.k === 'eggfly') { if (f.life <= 0) hudPulse = 0.18; } // 점수 칸에 닿는 띵 소리 뺌(너무 잦음) — 칸만 톡
     else if (f.k === 'laser' || f.k === 'dot') { /* 그대로 */ }
     else if (f.k === 'img') { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += f.g * dt; }
     else {
@@ -588,7 +588,7 @@ function collectEgg(e) {
     G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
     if (G.boosting <= 0) addBoost(1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
-    snd('egg', 0.3, comboRate(Math.min(G.combo, 6)), 0.06); // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
+    if (G.combo % 3 === 1) snd('egg', 0.16, comboRate(Math.min(Math.floor(G.combo / 3), 6)), 0.18); // 띵 소리 줄임: 젤리 3개에 한 번만, 작게 // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     fxImg('spr_fx_spark', e.x, e.y, 18, 52, 0.28, { add: true, spin: 2 });
     if (e.jv && Math.random() < 0.5) { const tx = W - SAFE - 230, ty = 30, life = 0.45; fxImg('spr_pk_jelly_' + e.jv, e.x, e.y, 30, 14, life, { vx: (tx - e.x) / life, vy: (ty - e.y) / life - 300, g: 1333, must: true }); } // 먹은 젤리가 점수 칸으로 퐁
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
@@ -605,7 +605,7 @@ function collectEgg(e) {
   G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
   if (G.boosting <= 0) addBoost((e.gold && !e.bonus ? 10 : 2.5));
   if (e.gold && !e.bonus) { sfx.gold(); pop(e.x, e.y - 24, `황금 진주 +${v}`, C.yellow, 26); burst(e.x, e.y, '#ffe36b', 16); track('gold'); }
-  else { sfx.egg(G.combo); burst(e.x, e.y, '#eafff2', 5, 160); }
+  else { if (G.combo % 3 === 1) sfx.egg(Math.floor(G.combo / 3)); burst(e.x, e.y, '#eafff2', 5, 160); }
   if (G.combo > 0 && G.combo % (G.run ? 15 : 6) === 0) { pop(G.p.x, G.p.y - 60, `${G.combo}개 연속!`, '#7cf0ff', 30); addBoost(6); haptic(12); }
   const CM = G.run ? { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 } : { 12: 0, 24: 1, 36: 2, 54: 3, 80: 4 };
   if (CM[G.combo] != null) reaction(CM[G.combo], `${G.combo}연속 ${REACT_WORDS[CM[G.combo]][0]}`);

@@ -248,7 +248,7 @@ for (const k of Object.keys(sfx)) {
   const synth = sfx[k];
   sfx[k] = (...a) => {
     if (k === 'buy' && typeof popDots === 'function' && mouse.x > 0) { popDots(mouse.x, mouse.y); confettiBurst(mouse.x, mouse.y - 10, 36); } // 산 자리에서 톡 + 색종이(녹음 소리가 있어도 늘)
-    if (k === 'egg') { if (playSample('sfx_egg', 0.7, 1 + Math.min(a[0] || 0, 14) * 0.045)) return; }
+    if (k === 'egg') { if (playSample('sfx_egg', 0.4, 1 + Math.min(a[0] || 0, 14) * 0.045)) return; }
     else if (k === 'star') { if (a[1] ? playSample('sfx_star', 1, 1 + a[0] * 0.12) : false) return; }
     else if (playSample('sfx_' + k)) return;
     if (!SAMPLE_LIST.length || SAMPLE_LIST.includes('sfx_' + k)) return; // 녹음 파일이 있는 소리는 받는 중이어도 옛날 합성음을 내지 않음

@@ -269,7 +269,7 @@ function beatJudge() {
     pop(p.x, p.y - 92, c >= 2 ? `박자 딱! ×${c}` : '박자 딱!', '#ffe36b', 22);
     ring(p.x, p.y, '#ffe36b', 70, 0.3, 5);
     const rate = comboRate(c);
-    snd('beat', 0.25, rate, 0.2); // 박자 딱: 아주 작게(잦은 소리)
+    /* 박자 딱 소리 뺌(띵 소리가 너무 잦음) — 고리 빛·5연속 보상만 */
     addBoost(4 * (1 + abStar('ult') * 0.25));
     if (G.feverT <= 0) G.fever = Math.min(100, G.fever + 3);
     runXp(2);

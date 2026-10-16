@@ -521,7 +521,7 @@ function bumpBlock(o) {
     const gold = Math.random() < 0.3, n = gold ? 3 : 3;
     for (let i = 0; i < n; i++) later(i * 90, () => { fx.push({ k: 'eggfly', sx: o.x, sy: o.y - 30, life: 0.5, max: 0.5, gold: gold && i === 0 }); });
     earn('qb', gold ? 5 : 3);
-    for (let i = 0; i < n; i++) snd('egg', 0.6, comboRate(3 + i * 2), 0, 0.06 + i * 0.09); // 진주가 하나씩 튈 때마다 「딩·딩·딩」 올라감(나는 모습과 같은 박)
+    for (let i = 0; i < n; i++) if (i % 2 === 0) snd('egg', 0.3, comboRate(3 + i * 2), 0, 0.06 + i * 0.09); // 진주가 하나씩 튈 때마다 「딩·딩·딩」 올라감(나는 모습과 같은 박)
     if (gold) snd('gold', 0.8, 1, 0, 0.3);
     pop(o.x, o.y - 56, gold ? '황금 진주! +5' : '진주 +3', C.yellow, 26, true);
   }
