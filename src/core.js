@@ -10,6 +10,7 @@ const ctx = cvs.getContext('2d');
 const isTouch = matchMedia('(pointer: coarse)').matches || /[?&]lab\b.*[?&]touch\b|[?&]touch\b.*[?&]lab\b/.test(location.search); // 실험실 ?lab&touch: 폰 화면처럼(스토어 스크린샷)
 function resize() {
   const vw = innerWidth, vh = innerHeight;
+  if (!(vw > 0 && vh > 0)) return; // 숨은 창·앱 시작 직후(크기 0): 계산이 깨져 게임이 멈추지 않게 크기가 생길 때까지 기다림
   PORTRAIT = isTouch && vh > vw * 1.05;
   W = PORTRAIT ? 960 : Math.round(Math.min(1280, Math.max(960, H * vw / vh)));
   const dpr = LOWFX ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP); // 폰도 화면 그대로 선명하게(최대 3배) — 느리면 2배 → 1배로 내려감
