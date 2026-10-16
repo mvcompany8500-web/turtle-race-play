@@ -1,5 +1,5 @@
 // 터틀 레이스 오프라인 실행(서비스 워커): 한 번 받은 그림·소리는 저장해 두고, 코드·페이지는 새것 먼저(없으면 저장본)
-const V = 'turtle-race-13ff064';
+const V = 'turtle-race-7401ad5';
 self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(V).then((c) => c.addAll(['./', './index.html', './manifest.json']).catch(() => {}))); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== V).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {

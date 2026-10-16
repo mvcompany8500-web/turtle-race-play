@@ -286,10 +286,29 @@ function unlockAudio() {
   if (ac.state === 'running') { audioOn = true; return; }
   const p = ac.resume(); if (p && p.then) p.then(() => { audioOn = ac.state === 'running'; }).catch(() => {});
   try { const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0); } catch (e) { /* 무시 */ } // 아이폰: 빈 소리 한 번으로 풀림
+  silentTrack(); // 아이폰 무음 스위치를 켜 둬도 들리게
 }
+// 아이폰(옛 iOS 포함): 웹 오디오는 무음 스위치에 묶여 소리가 안 남 → 첫 터치 때 <audio> 로 아주 작은 무음을 반복 재생하면
+// 소리 세션이 「재생(음악)」으로 바뀌어 게임 음악·효과음이 무음 모드에서도 나옴. 한 번만 만듦
+let silentEl = null;
+function silentTrack() {
+  try {
+    if (!silentEl) {
+      const sr = 8000, n = sr / 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf); // 0.5초 무음 WAV
+      const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+      silentEl = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+      silentEl.loop = true; silentEl.setAttribute('playsinline', ''); silentEl.volume = 0.01;
+    }
+    if (silentEl.paused) { const p = silentEl.play(); if (p && p.catch) p.catch(() => {}); }
+  } catch (e) { /* 지원 안 함 */ }
+}
+// 다른 앱에 갔다 오면(화면 꺼짐·홈) 소리 장치가 멈춰 있을 수 있음 → 돌아오면 다시 켬
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state !== 'running' && userActed) { audioOn = false; unlockAudio(); } });
 try {
   initAudio(true);
   if (typeof setMusic === 'function' && !trackName) setMusic('title'); // 첫 화면 음악을 1순위로 받기
   unlockAudio();
 } catch (e) { /* 나중에 첫 터치 때 */ }
-['pointerdown', 'touchstart', 'touchend', 'mousedown', 'keydown', 'click'].forEach((ev) => addEventListener(ev, () => { if (!audioOn) { userActed = true; initAudio(); unlockAudio(); } }, { capture: true, passive: true }));
+['pointerdown', 'touchstart', 'touchend', 'mousedown', 'keydown', 'click'].forEach((ev) => addEventListener(ev, () => { if (!audioOn) { userActed = true; initAudio(); unlockAudio(); } if (!silentEl || silentEl.paused) silentTrack(); }, { capture: true, passive: true })); // 소리 장치가 이미 켜져 있어도(아이폰은 「켜짐」인데 무음 스위치로 안 들림) 첫 터치에 무음 트랙
