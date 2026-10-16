@@ -789,7 +789,7 @@ function drawIntro() {
     if (!cageK) { const gl = ctx.createRadialGradient(px, py + bob, 10, px, py + bob, 110); gl.addColorStop(0, 'rgba(255,255,255,.55)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(px, py + bob, 110, 0, Math.PI * 2); ctx.fill(); } // 분홍 궁전 앞에서도 또렷하게: 뒤에 흰 빛
     drawImg(pImg(pose), px + jx, py + bob, cageK ? 160 : 185, cageK ? Math.sin(T * 8) * 0.08 : 0, 1, true);
     if (pose === 'scared' && Math.sin(T * 5) > 0.3) { ctx.fillStyle = 'rgba(160,220,255,.9)'; ctx.beginPath(); ctx.ellipse(px + 30, py - 20 + ((T * 80) % 30), 4, 6, 0, 0, Math.PI * 2); ctx.fill(); } // 눈물
-    if (cageK > 0.02 && !drawImg(IMG.spr_bubble_cage, px, py, (200 + Math.sin(T * 4) * 4) * cageK)) { ctx.strokeStyle = 'rgba(200,240,255,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, 88 * cageK, 0, Math.PI * 2); ctx.stroke(); }
+    if (cageK > 0.02 && !drawImg(IMG.spr_bubble_cage, px, py, (200 + Math.sin(T * 4) * 4) * cageK, 0, 0.55)) { /* 거품은 반투명: 안에 갇힌 공주가 보이게 */ ctx.strokeStyle = 'rgba(200,240,255,.9)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(px, py, 88 * cageK, 0, Math.PI * 2); ctx.stroke(); }
   }
   if (i >= iIn && sx < 960 + 260 && !drawImg(IMG.spr_boss_king, sx + 60, sy + Math.sin(T * 3) * 6, 200, Math.sin(T * 8) * 0.05)) drawShark(sx, 250, 2.7, '#8a6bd6', '#3f2a7a', true, false, true, Math.sin(T * 8) * 0.28, 0.6);
   if (ev === 'kidnap') { // 큰 알림: 아멜리아 공주가 납치되었어요!
@@ -797,7 +797,7 @@ function drawIntro() {
     ctx.fillStyle = `rgba(20,0,10,${0.72 * a})`; ctx.fillRect(-OX(), 0, W, H);
     ctx.save(); ctx.globalAlpha = a; ctx.translate(480, 250); ctx.scale(z, z);
     const g = ctx.createRadialGradient(0, 0, 10, 0, 0, 150); g.addColorStop(0, 'rgba(255,120,160,.35)'); g.addColorStop(1, 'rgba(255,120,160,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 150, 0, Math.PI * 2); ctx.fill();
-    drawImg(pImg('scared'), Math.sin(T * 9) * 3, 6, 150, Math.sin(T * 6) * 0.06, 1, true); drawImg(IMG.spr_bubble_cage, 0, 0, 200 + Math.sin(T * 4) * 5);
+    drawImg(pImg('scared'), Math.sin(T * 9) * 3, 6, 150, Math.sin(T * 6) * 0.06, 1, true); drawImg(IMG.spr_bubble_cage, 0, 0, 200 + Math.sin(T * 4) * 5, 0, 0.55);
     ctx.restore();
     ctx.save(); ctx.globalAlpha = a;
     if (!ribbon(480, 92, 560, '아멜리아 공주가 납치되었어요!', 26, true)) text('아멜리아 공주가 납치되었어요!', 480, 92, 34, '#ff9aa8', { lw: 8 });
@@ -836,7 +836,7 @@ function drawIntro() {
     wrapText(s.text.slice(0, Math.floor(cut.shown)), 690, 21).forEach((l, k) => text(l, 186, 448 + k * 30, 21, '#ffffff', { align: 'left', body: true, stroke: false }));
     if (cut.shown >= s.text.length && Math.sin(T * 8) > 0) text('▼', 890, 498, 16, C.yellow, { stroke: false });
   }
-  button(960 + OX() - SAFE - 140, 14, 120, 40, '건너뛰기', endIntro, { size: 15, kind: 'soft' });
+  if (!window.FILMING) button(960 + OX() - SAFE - 140, 14, 120, 40, '건너뛰기', endIntro, { size: 15, kind: 'soft' }); // 영상 찍을 땐 숨김
 }
 
 // ───────── 타이틀 · 터틀이 숨쉬기와 동작 (디자인 키트 4번) ─────────
