@@ -515,7 +515,7 @@ function bumpBlock(o) {
   // 보상은 거북이에게 바로(인기 게임 동전처럼) — 위로 튀어 못 먹는 일이 없게
   burst(o.x, o.y - 20, '#ffe36b', 20, 360);
   if (Math.random() < 0.4 && !G.item) {
-    G.item = rollItem(); G.itemPop = 0.6; sfx.box();
+    G.item = rollItem(); G.itemPop = 0.6; G.itemFly = { x: o.x, y: o.y - 30, t0: T }; sfx.box();
     pop(o.x, o.y - 56, `${ITEMS[G.item].name}!`, '#ffffff', 26, true);
   } else {
     const gold = Math.random() < 0.3, n = gold ? 3 : 3;
@@ -571,7 +571,7 @@ function getLetter(o) {
   sfx.letter(); haptic([10, 20, 30]);
   burst(o.x, o.y, '#ffe36b', 24, 360); ring(o.x, o.y, '#ffffff', 80, 0.4, 6);
   pop(o.x, o.y - 40, `「${LETTERS[o.i]}」`, C.yellow, 40, true);
-  coachOnce('letter', { text: '「바·다·축·제」 글자를 모아요', sub: '4개 다 모으면 보너스 바다 15초!', spot: { x: W / 2, y: 52, w: 200, h: 46 }, state: 'play' });
+  coachOnce('letter', { text: '「바·다·축·제」 글자를 모아요', sub: '4개 다 모으면 보너스 바다 15초!', spot: { x: W / 2, y: 65, w: 198, h: 50 }, spotId: 'letters', state: 'play' });
   if (G.letters.every(Boolean)) { // 인기 게임 보너스 타임처럼: 글자를 다 모으면 보너스 바다 15초
     G.letters = [0, 0, 0, 0];
     startBonus();
@@ -653,10 +653,10 @@ function updateTutor() {
   const p = G.p;
   // 이단 점프 안내: 긴 가시밭 위 꼭대기에서 멈춤
   if (tu.dbl && !p.onG && !p.dead && p.jumps === 1 && p.vy > -140 && G.enemies.some((e) => !e.dead && e.type === 'urchin' && e.x - p.x > -20 && e.x - p.x < 200))
-    coachOnce('double', { text: '공중에서 한 번 더 톡!', sub: '이단 점프로 긴 가시밭을 넘어요', spot: { x: SAFE + 66, y: H - 80, r: 62 }, wait: 'jump', state: 'play' });
+    coachOnce('double', { text: '공중에서 한 번 더 톡!', sub: '이단 점프로 긴 가시밭을 넘어요', spot: { x: SAFE + 66, y: H - 88, r: 64 }, spotId: 'padJump', wait: 'jump', state: 'play' });
   // 기운 안내: 물약이 보이면
   const pot = G.eggsArr.find((e) => e.tut && !e.got && e.x - p.x < 330);
-  if (pot) coachOnce('potion', { text: '기운은 조금씩 줄어요', sub: '분홍 물약을 먹으면 다시 차요 · 부딪히면 크게 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 59, w: 270, h: 46 }, state: 'play' });
+  if (pot) coachOnce('potion', { text: '기운은 조금씩 줄어요', sub: '분홍 물약을 먹으면 다시 차요 · 부딪히면 크게 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 30, w: 270, h: 44 }, spotId: 'enBar', state: 'play' });
   let need = null;
   if (p.onG && !p.dead) {
     for (const o of G.obs) if (o.k === 'pillar' && !o.taught && o.x - p.x < 230 && o.x - p.x > 40) { need = 'slide'; tu.obj = o; break; }
@@ -956,6 +956,7 @@ function drawRunPads() {
   const tu = G.tut, jh = tu && (tu.hint === 'jump' || tu.hint === 'stomp'), sh = tu && tu.hint === 'slide';
   const pads = [[SAFE + 66, H - 80, '점프', 'e_rocket', jh, !!G.touch.j], [W - SAFE - 66, H - 80, '숙이기', null, sh, !!G.touch.s]];
   for (const [x, y, label, , hi, on] of pads) {
+    markSpot(label === '점프' ? 'padJump' : 'padSlide', x, y - 8, 64);
     const pim = IMG[label === '점프' ? 'spr_ui_pad_jump' : 'spr_ui_pad_slide'];
     if (pim && ready(pim)) { // 시안: 비눗방울 단추(코덱스)
       const sz = (hi ? 136 + Math.sin(T * 10) * 10 : 112) * (on ? 0.92 : 1);
@@ -994,6 +995,7 @@ function drawRunHud(L) {
   // 기운 막대(인기 게임 에너지 막대 방식): 하트 + 줄무늬 막대, 줄어든 만큼 0.4초 빨갛게 남았다 따라 내려감, 채우면 하늘색 반짝, 20% 아래면 깜빡
   const bx = L + 30, by = 21, bw = 220, bh = 18, k = clamp(G.en / G.maxEn, 0, 1), ks = clamp(G.enShow / G.maxEn, 0, 1), low = k < 0.2;
   const blink = low && Math.sin(T * 12) > 0;
+  markSpot('enBar', bx + bw / 2 - 12, by + bh / 2, 0, bw + 56, bh + 26); // 안내 구멍이 이 막대에 딱 맞게
   flatBar(bx, by, bw, bh, k, blink ? '#ff8aa0' : '#ffd23a', blink ? '#ff3355' : '#ff9f1c', { lag: ks > k ? ks : null }); // 평면 게이지(남색 테·노랑+주황·흰 줄)
   if (G.enHealT > 0 && k > 0) { const k0 = clamp((G.enHealFrom || 0) / G.maxEn, 0, 1); ctx.fillStyle = `rgba(110,235,255,${Math.min(1, G.enHealT / 0.3)})`; rr(bx + bw * k0, by, Math.max(0, bw * (k - k0)), bh, 4); ctx.fill(); }
   if (G.bonus) { // 보너스 바다: 기운 막대 위에 하늘색 남은 시간 막대를 덮음
@@ -1007,7 +1009,7 @@ function drawRunHud(L) {
   for (let i = 0; i < G.shield; i++) { icon('e_shield', hx + 4, by + bh / 2, 24); hx += 28; }
   if (save.diff !== 1) text(DIFFS[save.diff].name, hx + 10, by + bh / 2, 13, save.diff === 2 ? C.danger : C.ok, { align: 'left', body: true });
   // 바·다·축·제 글자 (보스전엔 체력바 자리라 숨김)
-  const lx = W / 2 - 69, ly = 65; // 진행 막대 가운데 아래, 왼쪽 축제 게이지와 같은 줄(y=65)
+  const lx = W / 2 - 69, ly = 65; markSpot('letters', W / 2, ly, 0, 46 * 3 + 60, 50); // 진행 막대 가운데 아래, 왼쪽 축제 게이지와 같은 줄(y=65)
   if (!(G.boss && !G.boss.dead)) LETTERS.forEach((c, i) => { // 평면 스티커 글자 방울: 모으면 노랑으로 톡 커지며 흔들, 4개 다 모으면 무지개로 통통
     const on = G.letters[i], all = G.letters.every(Boolean), pop = on && G.letterPopAt && G.letterPopAt[i] ? Math.max(0, 1 - (T - G.letterPopAt[i]) / 0.45) : 0;
     const x = lx + i * 46, y = ly - (all ? Math.abs(Math.sin(T * 6 + i * 0.8)) * 5 : 0), r = 16 * (1 + Math.sin(pop * Math.PI) * 0.45);

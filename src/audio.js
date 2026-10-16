@@ -204,7 +204,7 @@ function duckMusic(sec) { if (!ac) return; duckUntil = Math.max(duckUntil, ac.cu
 // ── 시작하자마자 소리: 페이지가 열리면 바로 받기 시작 → 소리 장치도 미리 만들어 풀어 둠 → 첫 터치에 켜기만 ──
 const BYTES = {}, DECODING = {};
 const fetchBytes = (n) => (BYTES[n] = BYTES[n] || fetch(`assets/audio/${n}.mp3`).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
-const FIRST_SOUNDS = ['bgm_title', 'bgm_map', 'sfx_tap', 'sfx_click', 'sfx_egg', 'sfx_jump', 'sfx_jump2', 'sfx_land', 'sfx_stomp', 'sfx_ready', 'v_go', 'sfx_slide', 'sfx_hurt', 'sfx_count', 'sfx_beat'];
+const FIRST_SOUNDS = ['bgm_title', 'bgm_map', 'sfx_tap', 'sfx_click', 'sfx_egg', 'sfx_jump', 'sfx_jump2', 'sfx_land', 'sfx_stomp', 'sfx_ready', (typeof isEN !== 'undefined' && isEN ? 'v_go_en' : 'v_go'), 'sfx_slide', 'sfx_hurt', 'sfx_count', 'sfx_beat'];
 FIRST_SOUNDS.forEach(fetchBytes);
 const META_P = fetch('assets/audio/meta.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
 const LIST_P = fetch('assets/audio/list.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
@@ -226,7 +226,7 @@ async function loadSamples() {
 let SAMPLE_LIST = [];
 let sayAt = -9;
 // 터틀이 목소리(외침): 서로 겹치지 않게 1초 간격 (조사 00-레시피: 콤보 칭찬 단계 + 터틀이 외침)
-function say(k, force = false) { if (!ac || save.sfxOff) return false; if (!force && ac.currentTime - sayAt < 1) return false; if (playSample('v_' + k, 0.9)) { sayAt = ac.currentTime; return true; } return false; }
+function say(k, force = false) { if (!ac || save.sfxOff) return false; if (!force && ac.currentTime - sayAt < 1) return false; if (playSample('v_' + k + (typeof isEN !== 'undefined' && isEN && SAMPLE_LIST.includes('v_' + k + '_en') ? '_en' : ''), 0.9)) { sayAt = ac.currentTime; return true; } return false; }
 const sndLast = {};
 // 녹음 소리만(합성음 대신 안 함). cool: 같은 소리 최소 간격(초) — 촘촘히 겹쳐 지지직거리지 않게
 // delay: 그림 동작의 박(떨어짐·부서짐 등)에 맞춰 몇 초 뒤에 (알 합치기와 같은 방식)
@@ -248,7 +248,7 @@ for (const k of Object.keys(sfx)) {
   const synth = sfx[k];
   sfx[k] = (...a) => {
     if (k === 'buy' && typeof popDots === 'function' && mouse.x > 0) { popDots(mouse.x, mouse.y); confettiBurst(mouse.x, mouse.y - 10, 36); } // 산 자리에서 톡 + 색종이(녹음 소리가 있어도 늘)
-    if (k === 'egg') { if (playSample('sfx_egg', 0.4, 1 + Math.min(a[0] || 0, 14) * 0.045)) return; }
+    if (k === 'egg') { if (playSample('sfx_egg', 0.75, 1 + Math.min(a[0] || 0, 14) * 0.045)) return; }
     else if (k === 'star') { if (a[1] ? playSample('sfx_star', 1, 1 + a[0] * 0.12) : false) return; }
     else if (playSample('sfx_' + k)) return;
     if (!SAMPLE_LIST.length || SAMPLE_LIST.includes('sfx_' + k)) return; // 녹음 파일이 있는 소리는 받는 중이어도 옛날 합성음을 내지 않음

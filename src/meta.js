@@ -139,8 +139,8 @@ function updateMap(dt) {
   if (save.cleared && !map.overlay && stateT > 0.5) coachOnce('afterEnd', { text: '아멜리아 공주를 구했어요! 다음 목표는', sub: '「어려움」으로 바다마다 왕관 모으기(50개) · 끝없는 바다 최고 기록 · 펫 키우기 · 바다 패스', spot: null, pass: true, state: 'map' });
   // 지도 초보 안내: 처음엔 「달리기!」, 첫 성공 뒤 진주가 모이면 상점
   if (!map.overlay && !map.unlock && !map.path.length && stateT > 0.8) {
-    if (marks.play && !save.runs) coachOnce('map', { text: '「달리기!」를 눌러 출발해요', sub: '왼쪽 = 점프 · 오른쪽 꾹 = 숙이기', spot: marks.play, pass: true, state: 'map' });
-    else if (marks.shopBtn && Object.keys(save.best || {}).length && save.eggs >= 85) coachOnce('shopBtn', { text: '진주로 실력을 키워요', sub: '상점에서 「실력 키우기」 — 한 번 사면 모든 판에 계속', spot: marks.shopBtn, pass: true, state: 'map' });
+    if (marks.play && !save.runs) coachOnce('map', { text: '「달리기!」를 눌러 출발해요', sub: '왼쪽 = 점프 · 오른쪽 꾹 = 숙이기', spot: marks.play, spotId: 'play', pass: true, state: 'map' });
+    else if (marks.shopBtn && Object.keys(save.best || {}).length && save.eggs >= 85) coachOnce('shopBtn', { text: '진주로 실력을 키워요', sub: '상점에서 「실력 키우기」 — 한 번 사면 모든 판에 계속', spot: marks.shopBtn, spotId: 'shopBtn', pass: true, state: 'map' });
   }
   // 새 바다 열리는 연출
   const u = map.unlock;
@@ -540,7 +540,7 @@ function drawMap() {
   text('달리기!', bx0 + bw0 / 2, by0 + bh0 / 2 + (pressed ? 6 : 2), 30, '#ffffff', { stroke: '#b4560a', lw: 6 });
   }
   ctx.save(); ctx.globalAlpha = 0; button(bx0, by0, bw0, bh0 + 6, '달리기!', mapPlay, { size: 26 }); ctx.restore();
-  markSpot('play', bx0 + bw0 / 2, by0 + bh0 / 2, 96);
+  markSpot('play', bx0 + bw0 / 2, by0 + bh0 / 2 + 3, 0, bw0 + 16, bh0 + 22);
   ctx.restore();
   ctx.restore();
   if (map.overlay === 'missions') drawMissions();

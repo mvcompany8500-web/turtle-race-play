@@ -492,7 +492,7 @@ function pickupBox(b) {
   b.got = true;
   burst(b.x, b.y, '#ffffff', 14, 300); ring(b.x, b.y, C.blueD, 70, 0.4, 5);
   if (G.item) { earn('box', 5); pop(b.x, b.y - 30, '진주 +5', C.yellow, 22); sfx.gold(); return; }
-  G.item = rollItem(); G.itemPop = 0.6;
+  G.item = rollItem(); G.itemPop = 0.6; G.itemFly = { x: G.p.x, y: G.p.y - 50, t0: T };
   pop(G.p.x, G.p.y - 70, `${ITEMS[G.item].name}!`, '#ffffff', 26);
   sfx.box(); haptic(15);
   if (!save.itemTipSeen) { save.itemTipSeen = true; toast(isTouch ? '아이템 버튼을 눌러서 써요' : 'E 키로 아이템을 써요', C.blueD); }
@@ -588,7 +588,7 @@ function collectEgg(e) {
     G.combo = G.comboT > 0 ? G.combo + 1 : 1; G.comboT = 0.6; // 0.6초 못 먹으면 첫 음으로(인기 게임)
     if (G.boosting <= 0) addBoost(1.2);
     if (G.feverT <= 0) { G.fever = Math.min(100, G.fever + 1.4); if (G.fever >= 100) startFever(); }
-    if (G.combo % 3 === 1) snd('egg', 0.16, comboRate(Math.min(Math.floor(G.combo / 3), 6)), 0.18); // 띵 소리 줄임: 젤리 3개에 한 번만, 작게 // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
+    if (G.combo % 3 === 1) snd('egg', 0.34, comboRate(Math.min(Math.floor(G.combo / 3), 6)), 0.18); // 띵 소리 줄임: 젤리 3개에 한 번만, 작게 // 진주 줄: 5음계로 한 칸씩 올라감(알 합치기 콤보 음)
     fxImg('spr_fx_spark', e.x, e.y, 18, 52, 0.28, { add: true, spin: 2 });
     if (e.jv && Math.random() < 0.5) { const tx = W - SAFE - 230, ty = 30, life = 0.45; fxImg('spr_pk_jelly_' + e.jv, e.x, e.y, 30, 14, life, { vx: (tx - e.x) / life, vy: (ty - e.y) / life - 300, g: 1333, must: true }); } // 먹은 젤리가 점수 칸으로 퐁
     const CM = { 30: 0, 60: 1, 100: 2, 150: 3, 220: 4 };
@@ -1765,8 +1765,24 @@ function drawHUD() {
   ctx.beginPath(); ctx.arc(ib.x, ib.y, ib.r * pulse, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ib.x, ib.y, ib.r * pulse, 0, Math.PI * 2); ctx.stroke();
   }
-  if (G.item) { drawItemIcon(G.item, ib.x, ib.y - 2, ib.r * 1.15); if (!isTouch) text('E', ib.x + ib.r - 2, ib.y + ib.r - 6, 13, C.yellow); }
+  const fk = G.itemFly ? (T - G.itemFly.t0) / 0.6 : 1; // 먹은 아이템이 터틀이에게서 아이템 칸으로 날아감(어디 들어갔는지 보이게)
+  if (G.item && fk < 1) {
+    const e = easeOutCubic(Math.max(0, fk)), fx0 = G.itemFly.x, fy0 = G.itemFly.y;
+    const fx1 = fx0 + (ib.x - fx0) * e, fy1 = fy0 + (ib.y - fy0) * e - Math.sin(Math.PI * e) * 120;
+    for (let i = 1; i <= 4; i++) { const e2 = Math.max(0, e - i * 0.07); ctx.save(); ctx.globalAlpha = 0.35 - i * 0.07; drawItemIcon(G.item, fx0 + (ib.x - fx0) * e2, fy0 + (ib.y - fy0) * e2 - Math.sin(Math.PI * e2) * 120, 34 - i * 4); ctx.restore(); }
+    drawItemIcon(G.item, fx1, fy1, 46 - 10 * e);
+  } else if (G.itemFly) { G.itemFly = null; G.itemPop = 0.5; }
+  if (G.item && fk >= 1) {
+    drawItemIcon(G.item, ib.x, ib.y - 2, ib.r * 1.15); if (!isTouch) text('E', ib.x + ib.r - 2, ib.y + ib.r - 6, 13, C.yellow);
+    // 칸 위: 「톡! 쓰기」 말풍선이 통통 — 칸 아래: 아이템 이름
+    const by = ib.y - ib.r - 26 + Math.sin(T * 7) * 4, lab = isTouch ? '톡! 쓰기' : 'E 키로 쓰기';
+    ctx.font = `800 ${fs(14)}px ${FONT}`; const lw2 = ctx.measureText(lab).width + 20;
+    flatPill(ib.x - lw2 / 2, by - 13, lw2, 26, 13, C.yellow); text(lab, ib.x, by, 14, '#13204a', { stroke: false });
+    ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(ib.x - 7, by + 12); ctx.lineTo(ib.x + 7, by + 12); ctx.lineTo(ib.x, by + 20); ctx.fill();
+    text(ITEMS[G.item].name, ib.x, ib.y + ib.r + 14, 13, '#ffffff', { lw: 3, maxW: 120 });
+  }
   else if (ib.x > 0) text('?', ib.x, ib.y + 1, ib.r * 0.8, 'rgba(255,255,255,.35)', { stroke: false });
+  if (ib.x > 0) markSpot('itemBtn', ib.x, ib.y, ib.r + 14);
   if (isTouch) buttons.push({ x: ib.x - ib.r, y: ib.y - ib.r, w: ib.r * 2, h: ib.r * 2, on: useItem });
   if (isTouch) {
     const bb = BOOST_BTN();
@@ -1784,6 +1800,7 @@ function drawHUD() {
       icon('e_rocket', bb.x, bb.y - 10, 44);
       text('필살', bb.x, bb.y + 28, 17, '#fff');
     }
+    markSpot('boostBtn', bb.x, bb.y, bb.r + 14);
     buttons.push({ x: bb.x - bb.r, y: bb.y - bb.r, w: bb.r * 2, h: bb.r * 2, on: tryBoost });
   }
   // 보스 경고

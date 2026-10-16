@@ -30,7 +30,7 @@ function storeInit() {
   for (const k in d) if (save[k] === undefined) save[k] = d[k];
   passSeason();
 }
-const kstMonth = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 7);
+const kstMonth = (t = Date.now()) => new Date(t + 9 * 3600e3).toISOString().slice(0, 7);
 function passSeason() { if (!save.pass || save.pass.season !== kstMonth()) save.pass = { season: kstMonth(), xp: 0, prem: false, cf: [], cp: [] }; }
 
 // ───────── 결제 ─────────
@@ -53,7 +53,7 @@ async function restoreBuys() {
   if (!r || !r.ok) { toast('복원하지 못했어요 · 잠시 뒤 다시', C.danger); return; }
   let n = 0;
   for (const id of r.ids || []) {
-    if (id === 'starter' && !save.starter) { save.starter = true; if (!save.trails.includes('gold')) save.trails.push('gold'); n++; } // 스타터 팩: 꼬리(한 번만 사는 꾸밈)와 「샀어요」 표시
+    if (id === 'starter' && !save.starter) { grantProduct('starter', { quiet: true }); n++; } // 스타터 팩(한 번만 사는 상품): 다시 깔았으면 내용 전부(보석·진주·꼬리)
     if (id === 'pass:' + kstMonth()) { passSeason(); if (!save.pass.prem) { save.pass.prem = true; n++; } }
   }
   persist();
@@ -88,17 +88,45 @@ async function confirmBuy() {
   const r = await PAY.buy(b.prod);
   buying = null;
   if (!r || !r.ok) { toast('결제가 취소됐어요', C.danger); sfx.no(); return; }
-  save.buys.push({ id: b.prod.id, t: Date.now(), test: !!r.test, receipt: r.receipt || null });
+  save.buys.push({ id: b.prod.id, t: Date.now(), test: !!r.test, tx: r.tx || null }); // tx: 스토어 영수증 번호(다음 실행 때 빠진 결제를 찾을 때 겹치지 않게)
   b.onDone(); persist();
   sfx.buy(); haptic([20, 30, 60]);
 }
+// 상품 하나의 내용 그대로 넣기(결제 직후·빠진 결제 찾기·구매 복원이 모두 이것을 씀 — 스토어에 적은 내용과 같아야 함)
+function grantProduct(id, opts = {}) {
+  const p = GEM_PACKS.find((x) => x.id === id);
+  if (p) { save.gems += p.gems + p.bonus; return `${p.name} · 보석 +${p.gems + p.bonus}`; }
+  if (id === 'starter') { if (save.starter) return ''; save.starter = true; save.gems += STARTER.gems; save.eggs += STARTER.pearls; if (!save.trails.includes('gold')) save.trails.push('gold'); if (!opts.quiet) save.trail = 'gold'; return '스타터 팩! 보석 300 · 진주 2,000 · 황금 별가루'; }
+  if (id === 'pass') { passSeason(); if (save.pass.prem) return ''; save.pass.prem = true; return '바다 패스 프리미엄이 열렸어요!'; }
+  return '';
+}
+// 결제는 됐는데 게임에 못 넣은 것(앱이 꺼짐 등)을 켤 때 찾아 넣음 — 이미 넣은 영수증은 건너뜀.
+// 보석·패스(소모품)는 최근 2일 것만(다시 깔아서 예전 보석을 또 받는 것 막기), 스타터 팩은 언제든(한 번만 사는 상품)
+async function deliverPending() {
+  if (!(window.TurtlePay && window.TurtlePay.history)) return;
+  let r; try { r = await window.TurtlePay.history(); } catch (e) { return; }
+  if (!r || !r.ok) return;
+  const seen = new Set(save.buys.map((b) => b.tx).filter(Boolean));
+  const msgs = [];
+  for (const it of r.items || []) {
+    if (!it.tx || seen.has(it.tx)) continue;
+    if (save.buys.some((b) => !b.tx && b.id === it.id && Math.abs(b.t - it.at) < 10 * 60e3)) { seen.add(it.tx); continue; } // 영수증 번호 없이 이미 넣은 같은 결제
+    const fresh = Date.now() - it.at < 2 * 864e5;
+    if (it.id !== 'starter' && !fresh) continue;
+    if (it.id === 'pass' && kstMonth(it.at) !== kstMonth()) continue; // 지난달 패스는 이미 끝남
+    const m = grantProduct(it.id);
+    save.buys.push({ id: it.id, t: it.at, tx: it.tx, late: true }); seen.add(it.tx);
+    if (m) msgs.push(m);
+  }
+  if (msgs.length) { persist(); toast(`결제한 것을 넣었어요 · ${msgs.join(' · ')}`, C.yellow); }
+}
 function grantGems(n, why) { save.gems += n; persist(); toast(`보석 +${n}${why ? ` · ${why}` : ''}`, '#7cd8ff'); }
-function buyGemPack(p) { askBuy(p, () => grantGems(p.gems + p.bonus, p.name)); }
+function buyGemPack(p) { askBuy(p, () => toast(grantProduct(p.id), '#7cd8ff')); }
 function buyStarter() {
   if (save.starter) return;
-  askBuy(STARTER, () => { save.starter = true; save.gems += STARTER.gems; save.eggs += STARTER.pearls; if (!save.trails.includes('gold')) save.trails.push('gold'); save.trail = 'gold'; toast('스타터 팩! 보석 300 · 진주 2,000 · 황금 별가루', C.yellow); });
+  askBuy(STARTER, () => toast(grantProduct('starter'), C.yellow));
 }
-function buyPass() { passSeason(); if (save.pass.prem) return; askBuy(PASS_PROD, () => { save.pass.prem = true; toast('바다 패스 프리미엄이 열렸어요!', C.yellow); }); }
+function buyPass() { passSeason(); if (save.pass.prem) return; askBuy(PASS_PROD, () => toast(grantProduct('pass'), C.yellow)); }
 // 보석 쓰기 확인(옷·꼬리·보물·진주 바꾸기): 한 번 눌러 바로 빠지지 않게 — 두 단추 같은 크기
 let spending = null;
 function askSpend(gems, name, then) { if (save.gems < gems) { spendGems(gems); return; } spending = { gems, name, then }; sfx.click(); }
@@ -366,7 +394,7 @@ function drawStory() {
 let coach = null;
 const spotAt = (x, y) => { const m = ctx.getTransform(); return { x: (m.a * x + m.c * y + m.e) / K, y: (m.b * x + m.d * y + m.f) / K }; }; // 지금 그리는 좌표 → 화면 좌표
 const marks = {}; // 그릴 때 기록해 둔 단추 자리(화면 좌표)
-function markSpot(id, x, y, r) { const s = spotAt(x, y); marks[id] = { x: s.x, y: s.y, r }; }
+function markSpot(id, x, y, r, w, h) { const s = spotAt(x, y), m = ctx.getTransform(), k = Math.hypot(m.a, m.b) / K; marks[id] = w ? { x: s.x, y: s.y, w: w * k, h: h * k } : { x: s.x, y: s.y, r: r * k }; } // 둥근 네모(w,h)도 — 그리는 순간의 크기·자리 그대로
 function coachOnce(id, o) {
   save.coach = save.coach || {};
   if (save.coach[id] || coach || (typeof LAB !== 'undefined' && LAB.noCoach)) return false;
@@ -389,7 +417,7 @@ function finishCoach() {
 }
 function drawCoach() {
   if (!coach) return;
-  const c = coach, a = Math.min(1, c.t / 0.25), sp = c.spot;
+  const c = coach, a = Math.min(1, c.t / 0.25), sp = (c.spotId && marks[c.spotId]) || c.spot; // spotId: 매 장면 실제로 그려진 자리를 따라감(화면 크기·움직임이 달라도 정확히)
   ctx.save(); ctx.globalAlpha = a;
   // 어둡게 + 구멍
   ctx.fillStyle = 'rgba(8,10,20,.62)'; ctx.beginPath(); ctx.rect(0, 0, W, H);
@@ -429,11 +457,11 @@ function coachRunTriggers() {
   const p = G.p, low = G.en / G.maxEn;
   const bb = BOOST_BTN(), ib = ITEM_BTN();
   const wall = G.obs.find((o) => o.k === 'wall' && !o.dead && o.x > p.x), jarA = G.breaks.find((o) => o.k === 'jar' && !o.dead && o.x - p.x < 380 && o.x > p.x + 60), cl = G.obs.find((o) => o.climb && !o.dead && o.x - p.x < 430 && o.x > p.x + 40);
-  if (wall && wall.x - p.x < 560 && G.boost >= 100 && G.boosting <= 0) coachOnce('wall', { text: '앞은 벽! 필살기로 부숴요', sub: isTouch ? '오른쪽 필살 단추를 눌러요 · 뒤에서 상어가 와요!' : 'Shift 를 눌러요 · 뒤에서 상어가 와요!', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, wait: 'boost', state: 'play' }); // 벽 앞 첫 안내
+  if (wall && wall.x - p.x < 560 && G.boost >= 100 && G.boosting <= 0) coachOnce('wall', { text: '앞은 벽! 필살기로 부숴요', sub: isTouch ? '오른쪽 필살 단추를 눌러요 · 뒤에서 상어가 와요!' : 'Shift 를 눌러요 · 뒤에서 상어가 와요!', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, spotId: 'boostBtn', wait: 'boost', state: 'play' }); // 벽 앞 첫 안내
   else if (jarA) coachOnce('jar', { text: '항아리는 숙여서 깨요', sub: isTouch ? '오른쪽 꾹 = 등껍질 굴리기 · 진주가 나와요' : '↓ 꾹 = 등껍질 굴리기 · 진주가 나와요', spot: { x: jarA.x, y: jarA.y, r: 54 }, wait: 'slide', state: 'play' });
   else if (cl) coachOnce('climb', { text: '발판을 밟고 위로, 위로!', sub: '발판 끝에서 톡 뛰어요 · 아래는 가시예요', spot: { x: cl.x + cl.w / 2, y: cl.y - 20, r: 80 }, state: 'play' });
-  else if (G.boost >= 100 && !G.bonus && G.boosting <= 0 && !wall) coachOnce('boost', { text: '필살기가 꽉 찼어요!', sub: '필살 단추를 누르면 앞을 다 들이받아요', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, wait: 'boost', state: 'play' });
-  else if (G.item && isTouch) coachOnce('item', { text: `아이템 「${ITEMS[G.item].name}」!`, sub: ITEMS[G.item].desc, spot: { x: ib.x, y: ib.y, r: ib.r + 14 }, wait: 'item', state: 'play' });
-  else if (low < 0.25 && G.en > 0) coachOnce('lowEn', { text: '기운이 얼마 안 남았어요', sub: '분홍 물약을 먹으면 차요 · 필살기 중엔 안 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 59, w: 270, h: 46 }, state: 'play' });
+  else if (G.boost >= 100 && !G.bonus && G.boosting <= 0 && !wall) coachOnce('boost', { text: '필살기가 꽉 찼어요!', sub: '필살 단추를 누르면 앞을 다 들이받아요', spot: { x: bb.x, y: bb.y, r: bb.r + 14 }, spotId: 'boostBtn', wait: 'boost', state: 'play' });
+  else if (G.item && isTouch) coachOnce('item', { text: `아이템 「${ITEMS[G.item].name}」!`, sub: ITEMS[G.item].desc, spot: { x: ib.x, y: ib.y, r: ib.r + 14 }, spotId: 'itemBtn', wait: 'item', state: 'play' });
+  else if (low < 0.25 && G.en > 0) coachOnce('lowEn', { text: '기운이 얼마 안 남았어요', sub: '분홍 물약을 먹으면 차요 · 필살기 중엔 안 줄어요', spot: { x: SAFE + 22 + 30 + 110, y: 30, w: 270, h: 44 }, spotId: 'enBar', state: 'play' });
   else if (G.n >= 2 && G.t > 4 && p.onG && !G.enemies.some((e) => !e.dead && e.x - p.x < 420 && e.x > p.x - 40)) coachOnce('beat', { text: '고리가 금색일 때 뛰면', sub: '「박자 딱!」 — 필살 게이지가 빨리 차고 진주도 받아요', spot: { x: p.x, y: p.y, r: 90 }, state: 'play' });
 }
