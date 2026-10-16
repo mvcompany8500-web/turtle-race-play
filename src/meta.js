@@ -721,7 +721,7 @@ function drawSettings() {
 // ───────── 첫 이야기: 공주 납치 ─────────
 const INTRO = [
   { who: 'princess', text: '오늘은 바다 축제 날이에요! 다 같이 신나게 놀아요~' },
-  { who: 'hero', text: '아멜리아 공주님! 오늘 레이스에서 꼭 1등 할게요!' },
+  { who: 'hero', text: '아멜리아 공주님! 오늘 바다 축제 달리기에서 꼭 1등 할게요!' },
   { who: 'shark', text: '크하하하! 축제는 끝났다!!', ev: 'sharkIn' },
   { who: 'shark', text: '아멜리아 공주는 깊은 바다 끝 내 성으로 데려간다! 느림보 거북이가 따라올 수 있을까?', ev: 'grab' },
   { who: 'princess', text: '꺄악! 터틀아, 살려줘요!!', ev: 'leave' },
@@ -953,7 +953,7 @@ function drawTitle() {
   const CX = 456 + OX() * 0.5, R = 960 + OX() - SAFE; // 가운데 열은 화면 폭에 맞춰(좁으면 왼쪽으로)
   drawTitleBoss(R, CX);
   // 가운데 열 = 세로로 한 덩어리를 화면 위아래 가운데에: 로고(lh) 12 부제(34) 52 시작(70+6) 18 아래 줄(40)
-  const lg = ready(IMG.spr_title_logo_run) ? IMG.spr_title_logo_run : IMG.spr_title_logo, lw = 340, lb = lg && ready(lg) && typeof obox === 'function' ? obox(lg) : null, lh = lb ? lw * lb.h / lb.w : 90;
+  const lg = IMG.spr_title_logo_run, lw = 340, lb = lg && ready(lg) && typeof obox === 'function' ? obox(lg) : null, lh = lb ? lw * lb.h / lb.w : 90;
   const stack = lh + 12 + 34 + 52 + 76 + 18 + 40, top = Math.round((H - stack) / 2), ly = top + lh / 2, py = top + lh + 12, by0 = py + 34 + 52, ry = by0 + 76 + 18;
   { const bob = Math.sin(T * 2) * 4, ls = 1 + Math.sin(T * 3) * 0.015, pop = clamp(stateT / 0.5, 0, 1), e = pop < 1 ? easeOutBack(pop) : 1; // 처음엔 통 튀어나옴
     if (lb) { ctx.save(); ctx.translate(CX, ly + bob); ctx.scale(ls * e, ls * e); ctx.rotate(Math.sin(T * 1.4) * 0.02); ctx.drawImage(lg, lb.x, lb.y, lb.w, lb.h, -lw / 2, -lh / 2, lw, lh); ctx.restore(); }
