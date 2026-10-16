@@ -842,7 +842,7 @@ function drawIntro() {
 // ───────── 타이틀 · 터틀이 숨쉬기와 동작 (디자인 키트 4번) ─────────
 const BUDDY_ACTS = ['jump', 'shake', 'bounce2', 'tilt', 'spin'];
 const buddy = { i: 0, act: null, t: 0, idle: 10 };
-function buddyAct() { if (REDUCE) return; buddy.act = BUDDY_ACTS[buddy.i++ % 5]; buddy.t = 0; haptic(10); sfx.tap(); }
+function buddyAct(byTap) { if (REDUCE) return; buddy.act = BUDDY_ACTS[buddy.i++ % 5]; buddy.t = 0; if (byTap) { haptic(10); sfx.tap(); } } // 혼자 움직일 땐 소리·진동 없음(켜 두면 몇 초마다 「띵」 나던 원인)
 function updateBuddy(dt) {
   if (buddy.act) { buddy.t += dt / 0.7; if (buddy.t >= 1) buddy.act = null; }
   else if ((buddy.idle -= dt) <= 0) { buddy.idle = rand(8, 14); buddyAct(); }
