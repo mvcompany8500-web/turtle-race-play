@@ -478,7 +478,7 @@ function drawMap() {
   const btns = [
     ['설정', () => { map.overlay = 'settings'; sfx.click(); }, null, 'gear'],
     ['상점', () => openShop(map.cur === 0 ? ENDLESS : map.cur), 'e_gem', null],
-    ['도감', () => { map.overlay = 'dex'; sfx.click(); }, 'e_dex', null],
+    ['도감', () => { map.overlay = 'dex'; map.dexSel = null; sfx.click(); }, 'e_dex', null],
     ['도전', () => { map.overlay = 'missions'; sfx.click(); }, 'e_target', null],
     [gr ? '선물!' : giftLeft(), openGift, 'e_gift', null],
     ['패스', () => { map.overlay = 'pass'; passPage = Math.floor(Math.max(0, passTier() - 1) / 6); sfx.click(); }, 'e_medal', null],
@@ -594,8 +594,22 @@ const COLLECT = [
 const collectNext = (c) => { const got = (save.colRw || {})[c.k] || 0; return got < c.goals.length ? got : -1; };
 const collectReady = () => COLLECT.filter((c) => { const i = collectNext(c); return i >= 0 && c.have() >= c.goals[i]; }).length;
 function claimCollect(c) { const i = collectNext(c); if (i < 0 || c.have() < c.goals[i]) return; save.colRw = save.colRw || {}; save.colRw[c.k] = i + 1; save.gems += c.gems[i]; persist(); sfx.mission(); popDots(mouse.x, mouse.y); confettiBurst(mouse.x, mouse.y - 10, 30); toast(`${c.name} ${c.goals[i]}개 모음! 보석 +${c.gems[i]}`, '#7cd8ff'); }
+const dexMet = (c) => c.stage === 0 || (save.unlocked || 1) >= c.stage; // 인물: 그 바다까지 가 봤으면 보임
+function dexTap(x, y, w, h, on) { buttons.push({ x: x + OX(), y, w, h, on }); }
 function drawDex() {
   overlayBase(60, 50, 840, 460, '바다 도감', 'e_dex');
+  const tab = map.dexTab || 'sea';
+  [['sea', `바다 친구 ${ENEMY_KEYS.filter((k) => save.dex[k]).length}/${ENEMY_KEYS.length}`], ['who', `인물·보스 ${DEX_CHARS.filter(dexMet).length}/${DEX_CHARS.length}`]].forEach(([id, label], i) => { // 위 탭 두 개
+    const x = 84 + i * 168, on = tab === id;
+    flatPill(x, 74, 156, 32, 16, on ? C.yellow : 'rgba(255,255,255,.12)');
+    text(label, x + 78, 91, 14, on ? '#3a2a00' : C.text, { stroke: false, maxW: 140 });
+    dexTap(x, 70, 156, 40, () => { map.dexTab = id; map.dexSel = null; sfx.tap(); });
+  });
+  text('눌러서 자세히', 876, 92, 12, C.mute, { align: 'right', body: true, stroke: false });
+  if (tab === 'who') drawDexWho(); else drawDexSea();
+  if (map.dexSel) drawDexDetail(map.dexSel);
+}
+function drawDexSea() {
   COLLECT.forEach((c, i) => { // 아래 줄: 모으기 목표 4칸
     const x = 84 + i * 200, y = 446, w = 190, n = collectNext(c), have = c.have(), goal = n >= 0 ? c.goals[n] : c.all(), ready = n >= 0 && have >= goal;
     ctx.fillStyle = ready ? 'rgba(255,213,74,.16)' : 'rgba(255,255,255,.08)'; rr(x, y, w, 50, 14); ctx.fill(); ctx.strokeStyle = ready ? C.yellow : 'rgba(255,255,255,.16)'; ctx.lineWidth = ready ? 2.5 : 1.5; rr(x, y, w, 50, 14); ctx.stroke();
@@ -605,11 +619,11 @@ function drawDex() {
     else if (ready) button(x + w - 74, y + 9, 64, 32, `받기 ${c.gems[n]}`, () => claimCollect(c), { size: 13, kind: 'ok' });
     else { icon('e_gem', x + w - 52, y + 25, 18); text(`${c.gems[n]}`, x + w - 40, y + 26, 13, '#9fe3ff', { align: 'left', stroke: false }); }
   });
-  const found = ENEMY_KEYS.filter((k) => save.dex[k]).length;
-  text(`${found}/${ENEMY_KEYS.length} 만남`, 866, 96, 13, C.sub, { align: 'right', body: true, stroke: false });
-  ENEMY_KEYS.forEach((k, i) => withRise(i, () => { // 13마리 → 5칸 × 3줄(4칸이면 4줄째가 화면 밖)
+  ENEMY_KEYS.forEach((k, i) => withRise(i, () => { // 13마리 → 5칸 × 3줄
     const col = i % 5, row = Math.floor(i / 5), x = 74 + col * 164, y = 116 + row * 106, cw = 156, ch = 98, info = ENEMIES[k], d = save.dex[k];
-    panel(x, y, cw, ch, { fill: C.sel, r: 16 });
+    const sel = map.dexSel && map.dexSel.k === k;
+    panel(x, y, cw, ch, { fill: sel ? 'rgba(255,213,74,.22)' : C.sel, r: 16 });
+    dexTap(x, y, cw, ch, () => { map.dexSel = { kind: 'sea', k, t: T }; sfx.tap(); haptic(8); });
     ctx.save(); ctx.beginPath(); rr(x, y, 60, ch, 16); ctx.clip();
     if (d) drawEnemy({ type: k, x: x + 32, y: y + 48, r: k === 'puffer' ? 15 : k === 'eel' ? 9 : 16, t: T, ph: 0, len: 36, baseY: y + 48, top: false, armed: false }, x + 200, y + 48);
     else text('?', x + 32, y + 48, 36, C.mute, { stroke: false });
@@ -617,14 +631,60 @@ function drawDex() {
     ctx.save(); rr(x, y, cw, ch, 16); ctx.clip();
     const tx = x + 64;
     if (d) {
-      text(info.name, tx, y + 24, 14, C.text, { align: 'left', stroke: false });
-      ctx.font = `600 ${fs(13)}px ${FONT}`; const lw = ctx.measureText('약점').width;
+      text(info.name, tx, y + 24, 14, C.text, { align: 'left', stroke: false, maxW: 86 });
+      ctx.font = `600 ${fs(13)}px ${FONT}`; const lw = ctx.measureText(tr('약점')).width;
       text('약점', tx, y + 62, 13, C.mute, { align: 'left', body: true, stroke: false });
       drawItemIcon(info.weak, tx + lw + 16, y + 62, 22);
-      if (fs(13) <= 16) text(ITEMS[info.weak].name, tx + lw + 30, y + 62, 13, d.weak ? C.yellow : C.sub, { align: 'left', body: true, stroke: false });
+      if (fs(13) <= 16) text(ITEMS[info.weak].name, tx + lw + 30, y + 62, 13, d.weak ? C.yellow : C.sub, { align: 'left', body: true, stroke: false, maxW: cw - (lw + 96) });
     } else text(`${info.intro}번 바다`, tx, y + 48, 13, C.mute, { align: 'left', body: true, stroke: false });
     ctx.restore();
   }));
+}
+function drawDexWho() {
+  DEX_CHARS.forEach((c, i) => withRise(i, () => { // 10명 → 5칸 × 2줄(큰 그림)
+    const col = i % 5, row = Math.floor(i / 5), x = 74 + col * 164, y = 116 + row * 192, cw = 156, ch = 182, met = dexMet(c);
+    panel(x, y, cw, ch, { fill: c.boss || c.k === 'king' ? 'rgba(255,90,120,.14)' : 'rgba(120,220,255,.14)', r: 18 });
+    dexTap(x, y, cw, ch, () => { map.dexSel = { kind: 'who', k: c.k, t: T }; sfx.tap(); haptic(8); });
+    const bob = Math.sin(T * 2.4 + i) * 3;
+    if (met) drawImg(IMG[c.img], x + cw / 2, y + 74 + bob, 112); else drawImg(silhouette(c.img, '#2a3a6e'), x + cw / 2, y + 74, 112, 0, 0.9);
+    if (!met) text('?', x + cw / 2, y + 74, 40, C.mute, { stroke: false });
+    flatPill(x + 14, y + 136, cw - 28, 22, 11, c.boss || c.k === 'king' ? '#ff5a78' : C.blue);
+    text(c.role, x + cw / 2, y + 147, 12, '#fff', { stroke: false, maxW: cw - 36 });
+    text(met ? c.name : `${c.stage}번 바다`, x + cw / 2, y + 170, 15, met ? C.text : C.mute, { stroke: false, maxW: cw - 12 });
+  }));
+}
+function drawDexDetail(sel) {
+  const isSea = sel.kind === 'sea', c = isSea ? null : DEX_CHARS.find((q) => q.k === sel.k);
+  const info = isSea ? ENEMIES[sel.k] : c, d = isSea ? save.dex[sel.k] : null, met = isSea ? !!d : dexMet(c);
+  const p = easeOutBack(Math.min(1, (T - sel.t) / 0.28));
+  ctx.fillStyle = 'rgba(10,22,62,.6)'; ctx.fillRect(-OX(), 0, W, H);
+  dexTap(-OX(), 0, W, H, () => { map.dexSel = null; sfx.click(); }); // 아무 데나 누르면 닫힘
+  ctx.save(); ctx.translate(480, 280); ctx.scale(0.6 + 0.4 * p, 0.6 + 0.4 * p); ctx.translate(-480, -280);
+  panel(150, 96, 660, 368, { fill: C.gray, r: 26 });
+  const lx = 300, ly = 270; // 왼쪽: 큰 그림
+  ctx.fillStyle = isSea ? 'rgba(120,220,255,.16)' : c.boss || c.k === 'king' ? 'rgba(255,90,120,.18)' : 'rgba(120,220,255,.16)'; ctx.beginPath(); ctx.arc(lx, ly, 118, 0, Math.PI * 2); ctx.fill();
+  const bob = Math.sin(T * 2.2) * 5;
+  if (!met) { text('?', lx, ly, 90, C.mute, { stroke: false }); }
+  else if (isSea) { if (!drawImg(IMG['spr_' + sel.k], lx, ly + bob, 150)) { ctx.save(); ctx.translate(lx, ly); ctx.scale(3, 3); ctx.translate(-lx, -ly); drawEnemy({ type: sel.k, x: lx, y: ly, r: 16, t: T, ph: 0, len: 36, baseY: ly, top: false, armed: false }, lx + 200, ly); ctx.restore(); } }
+  else drawImg(IMG[c.img], lx, ly + bob, 210);
+  const tx = 450, tw = 330; // 오른쪽: 이름 · 설명 · 특징
+  if (!isSea) { flatPill(tx, 122, 120, 26, 13, c.boss || c.k === 'king' ? '#ff5a78' : C.blue); text(c.role, tx + 60, 135, 13, '#fff', { stroke: false, maxW: 108 }); }
+  text(met ? info.name : '아직 못 만났어요', tx, isSea ? 140 : 176, 30, C.text, { align: 'left', stroke: false, maxW: tw });
+  let y = isSea ? 186 : 218;
+  const desc = met ? (isSea ? DEX_DESC[sel.k] : c.desc) : `${isSea ? info.intro : c.stage}번 바다까지 가면 만날 수 있어요!`;
+  wrapText(desc || '', tw, 16).slice(0, 5).forEach((ln) => { text(ln, tx, y, 16, C.sub, { align: 'left', body: true, stroke: false }); y += 25; });
+  if (met) {
+    y += 10;
+    const row = (label, val, col = C.text) => { text(label, tx, y, 14, C.mute, { align: 'left', body: true, stroke: false }); text(val, tx + 96, y, 15, col, { align: 'left', stroke: false, maxW: tw - 96 }); y += 30; };
+    row('특징', isSea ? info.trait : c.trait);
+    if (isSea) {
+      text('약점', tx, y, 14, C.mute, { align: 'left', body: true, stroke: false }); drawItemIcon(info.weak, tx + 110, y, 26); text(ITEMS[info.weak].name, tx + 130, y, 15, C.yellow, { align: 'left', stroke: false, maxW: tw - 130 }); y += 30;
+      row('처음 만남', `${info.intro}번 바다`);
+      row('물리친 수', `${d.kills || 0}마리`, C.ok);
+    } else if (c.stage) row('만나는 곳', `${c.stage}번 바다`);
+  }
+  ctx.restore();
+  roundBtn('close', 800, 106, 22, () => { map.dexSel = null; sfx.click(); }, '닫기');
 }
 function drawIosGuide() {
   buttons.length = 0;
@@ -1137,6 +1197,7 @@ function drawTurnPreview(x, y, size) {
   else if (tr && v < 0.875) { im = IMG.side; flip = true; }
   ctx.save(); ctx.translate(x, y + lift); ctx.scale(squeeze, 1);
   drawImg(im, 0, 0, size, 0, 1, flip);
+  if (!tr || v < 0.125 || v >= 0.875) drawFrontDeco(0, 0, size); // 끼운 치장도 보이게
   ctx.restore();
 }
 function drawShop() {
@@ -1151,7 +1212,8 @@ function drawShop() {
   } else { eggBadge(960 + OX() - SAFE - 120, 34, save.eggs, 30 * (1 + hudPulse * 1.6)); gemBadge(960 + OX() - SAFE - 250, 34, save.gems, 26); }
   // 미끄러지는 알약 탭 (lucian-uxui #039, MIT): 노란 알약이 고른 탭으로 스르륵, 그 아래 글자만 진하게 · 내용은 옮긴 쪽에서 밀려 들어옴
   const TABS = [['up', '실력 키우기'], ['skin', '옷장'], ['pet', '펫'], ['tr', '보물'], ['fx', '꼬리 효과'], ['gem', '보석']], ti = TABS.findIndex(([k]) => k === shop.tab);
-  gachaBtn(268, 10, 164, 40); // 신비한 조개(뽑기)·가방 — 탭 줄과 따로, 반짝이는 단추
+  gachaBtn(268, 10, 164, 40); // 신비한 조개(뽑기) — 탭 줄과 따로, 반짝이는 단추
+  bagBtn(442, 10, 104, 40); // 가방(변신·무기·치장·보스 유물) 바로 가기
   if (shop.pillX == null) shop.pillX = Math.max(0, ti);
   const pdt = Math.min(0.1, Math.max(0, T - (shop.pillT || T))); shop.pillT = T;
   if (ti >= 0) { shop.pillX += (ti - shop.pillX) * (1 - Math.exp(-pdt * 16)); if (Math.abs(ti - shop.pillX) < 0.002) shop.pillX = ti; }
@@ -1224,10 +1286,12 @@ function drawShop() {
     TRAILS.forEach((t, i) => withRise(i, () => {
       const x = 40 + (i % 4) * 222, y = 116 + Math.floor(i / 4) * 176, w = 210, h = 166, own = save.trails.includes(t.k), on = save.trail === t.k;
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : undefined });
-      for (let k = 0; k < 9; k++) { // 미리보기: 꼬리 색 점
-        const c = t.k === 'none' ? 'rgba(255,255,255,.15)' : t.k === 'rainbow' ? `hsl(${(T * 200 + k * 40) % 360},95%,65%)` : (TRAIL_COL[t.k] || ['#fff'])[k % (TRAIL_COL[t.k] || ['#fff']).length];
-        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 30 + k * 18, y + 40 + Math.sin(T * 6 + k) * 7, 6 - k * 0.4, 0, Math.PI * 2); ctx.fill();
-      }
+      if (t.k !== 'none') { // 미리보기: 게임과 같은 리본 + 날리는 조각
+        ctx.save(); ctx.lineCap = 'round';
+        for (let k = 0; k < 14; k++) { const f = k / 13, x0 = x + 22 + k * 10, y0 = y + 42 + Math.sin(T * 7 - k * 0.5) * 7 * (1 - f * 0.6); ctx.globalAlpha = 0.25 + 0.75 * f; ctx.strokeStyle = trailCol(t.k, k >> 1); ctx.lineWidth = 3 + f * 13; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + 10, y + 42 + Math.sin(T * 7 - (k + 1) * 0.5) * 7 * (1 - f * 0.6)); ctx.stroke(); }
+        ctx.restore();
+        for (let k = 0; k < 4; k++) { const ph = (T * 0.9 + k / 4) % 1, sh = t.k === 'gold' || t.k === 'rainbow' ? 'star' : t.k; ctx.save(); ctx.globalAlpha = Math.sin(ph * Math.PI); trailShape(sh, x + 150 - ph * 130, y + 30 + Math.sin(ph * 9 + k) * 14 + (k % 2 ? 10 : -6), 9, T * 3 + k, trailCol(t.k, k)); ctx.restore(); }
+      } else text('꼬리 없음', x + 70, y + 42, 14, C.mute, { stroke: false });
       drawImg(IMG.side, x + w - 40, y + 40, 56);
       text(t.name, x + w / 2, y + 80, 17, C.text, { stroke: false });
       if (t.how && !own) text(t.how, x + w / 2, y + 104, 12, C.sub, { body: true, stroke: false });
@@ -1288,6 +1352,8 @@ function drawShop() {
     drawTurnPreview(165, 266, 220);
     text(SKINS.find((s) => s.k === save.skin).name, 165, 398, 17, C.text, { body: true, stroke: false });
     [['basic', '기본 얼굴'], ['lash', '속눈썹 얼굴']].forEach(([f, label], i) => button(56 + i * 112, 418, 106, 36, label, () => { save.face = f; persist(); sfx.click(); }, { size: 13, kind: save.face === f ? 'primary' : 'soft' }));
+    if (!save.skin || save.skin === 'basic') button(52, 128, 112, 32, save.noHat ? '모자 쓰기' : '모자 벗기', () => { save.noHat = !save.noHat; persist(); if (!REDUCE) shop.turn = { t: 0, from: save.skin }; sfx.click(); haptic(10); }, { size: 13, kind: save.noHat ? 'yellow' : 'soft' }); // 기본 옷: 모자 벗고 치장만
+    const dg = gearEq('deco'); button(176, 128, 104, 32, dg ? (save.hideDeco ? '치장 보이기' : '치장 숨기기') : '치장 끼우기', () => { if (!dg) { shop.tab = 'bag'; gacha.bagKind = 'deco'; shop.tabAt = T; shop.tabDir = 1; } else { save.hideDeco = !save.hideDeco; persist(); } sfx.click(); }, { size: 12, kind: dg && !save.hideDeco ? 'soft' : 'primary' });
     const pages = Math.ceil(SKINS.length / 8), pg = clamp(shop.skinPage || 0, 0, pages - 1);
     const SK = [SKINS[0], ...SKINS.filter((s) => s.gems), ...SKINS.filter((s) => !s.gems && s.k !== 'basic')]; // 보석 옷은 앞자리(꾸미기 욕구: 제일 예쁜 걸 먼저 보이게)
     SK.slice(pg * 8, pg * 8 + 8).forEach((s, i) => withRise(i, () => {

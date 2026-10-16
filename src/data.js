@@ -88,6 +88,36 @@ const ENEMIES = {
   phantom: { name: '유령 해파리', hp: 3, intro: 42, trait: '사라졌다 나타나요', weak: 'lamp', color: '#c9b8ff' },
 };
 const ENEMY_KEYS = Object.keys(ENEMIES);
+// 도감 설명(칸을 누르면 크게 보여 줌)
+const DEX_DESC = {
+  jelly: '말랑말랑 둥둥 떠다니는 해파리. 가까이 가면 찌릿한 물방울을 쏘아요. 거품 방패가 있으면 하나도 안 아파요!',
+  urchin: '뾰족뾰족 가시가 가득한 성게. 바닥이나 천장에 콕 박혀 꼼짝 안 해요. 커지기로 와장창 부술 수 있어요.',
+  shark: '바다의 말썽꾸러기 상어. 빨간 ! 가 뜨면 쏜살같이 돌진해요. 꽁꽁 눈꽃이면 얼음이 돼요.',
+  puffer: '겁이 많은 복어. 놀라면 뾰족한 공처럼 빵빵 부풀어요. 번개 한 방이면 바람이 쭉 빠져요.',
+  eel: '바위 틈에 숨어 사는 곰치. 빨간 줄이 보이면 그 길로 휙 튀어나와요.',
+  octopus: '장난꾸러기 문어. 먹물을 뿜어 앞을 깜깜하게 가려요. 등불을 켜면 다 보여요!',
+  angler: '깜깜한 바다에 사는 아귀. 머리 위 가짜 황금 진주로 꾀어 덥석 물어요.',
+  whirlpool: '빙글빙글 도는 바다 소용돌이. 거북이를 쭉 빨아들여요. 회오리로 맞서면 사라져요.',
+  ray: '넓은 날개로 물결치며 헤엄치는 가오리. 점점 빨라지니 조심!',
+  crab: '단단한 껍데기의 게. 폴짝 뛰어오르고 번개도 안 통해요. 커지기로 밟아 버려요!',
+  mine: '옛날 바다에 남은 기뢰. 깜빡깜빡하다가 펑 터져요. 멀리 피하거나 회오리로 날려요.',
+  swordfish: '바다에서 제일 빠른 청새치. 긴 부리를 앞세워 일직선으로 돌진해요.',
+  phantom: '스르륵 사라졌다 나타나는 유령 해파리. 등불을 비추면 숨지 못해요.',
+};
+// 도감 › 인물: 이야기 속 친구들과 보스(stage: 처음 만나는 바다, 0 = 처음부터)
+const DEX_CHARS = [
+  { k: 'hero', name: '터틀이', role: '주인공', img: 'hello', stage: 0, desc: '느리지만 절대 포기하지 않는 꼬마 바다거북. 납치된 아멜리아 공주님을 구하러 50개 바다를 달려요!', trait: '밟기 · 필살 질주 · 변신' },
+  { k: 'amelia', name: '아멜리아 공주', role: '바다 왕국 공주님', img: 'spr_amelia', stage: 0, desc: '상냥하고 용감한 바다 왕국의 공주님. 상어왕에게 납치돼 거품 감옥에 갇혔지만, 터틀이가 꼭 올 거라 믿고 편지를 보내요.', trait: '바다마다 응원 편지' },
+  { k: 'king', name: '상어왕', role: '최종 보스', img: 'spr_boss_king', stage: 0, desc: '바다를 몽땅 갖고 싶은 심술쟁이 왕. 공주님을 데려가 왕좌의 성에 숨었어요. 30번 바다에서 한 번, 50번 바다에서 마지막으로 만나요.', trait: '보라 번개 돌진 · 도망치기' },
+  { k: 'shark', name: '상어 대장', role: '보스', img: 'spr_boss_shark', boss: 'shark', desc: '상어왕의 오른팔. 바위성을 지키며 엄청 빠르게 들이받아요. 다시 만날 때마다 더 빨라져요.', trait: '돌진 · 꼬리 휘두르기' },
+  { k: 'octopus', name: '대왕 문어', role: '보스', img: 'spr_boss_octopus', boss: 'octopus', desc: '깊은 동굴에 사는 커다란 문어. 먹물과 긴 다리로 길을 막아요. 등불이 있으면 훨씬 쉬워요.', trait: '먹물 · 다리 공격' },
+  { k: 'angler', name: '아귀 대왕', role: '보스', img: 'spr_boss_angler', boss: 'angler', desc: '깜깜한 등불탑의 주인. 어둠 속에서 불빛으로 꾀어 덥석 물어요.', trait: '어둠 · 덥석 물기' },
+  { k: 'jellyq', name: '번개 해파리 여왕', role: '보스', img: 'spr_boss_jelly', boss: 'jellyq', desc: '찌릿찌릿 번개 줄을 내리는 해파리 궁전의 여왕. 낮게 내려올 때 머리를 밟아요!', trait: '번개 줄 · 해파리 소환' },
+  { k: 'pirate', name: '해적 문어 선장', role: '보스', img: 'spr_boss_pirate', boss: 'octopus3', desc: '보물을 지키는 해적 선장. 다리가 세 줄로 한꺼번에 몰려와요.', trait: '세 줄 다리 공격' },
+  { k: 'angler2', name: '아귀 여왕', role: '보스', img: 'spr_boss_angler', boss: 'angler2', desc: '아귀 대왕의 짝꿍. 보물고에 가짜 황금 진주를 잔뜩 뿌려 놓았어요.', trait: '가짜 진주 · 어둠' },
+  { k: 'crabk', name: '왕꽃게', role: '보스', img: 'spr_boss_crab', boss: 'crabk', desc: '모래성의 왕. 쿵 하고 내려찍으면 모래 파도가 와요 — 점프! 집게는 숙여서 피해요.', trait: '모래 파도 · 집게' },
+];
+DEX_CHARS.forEach((c) => { if (c.boss) c.stage = STAGES.findIndex((s) => s && s.boss === c.boss); });
 
 // ───────── 아이템 8종 (? 상자) ─────────
 const ITEMS = {

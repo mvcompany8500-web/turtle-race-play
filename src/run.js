@@ -803,6 +803,7 @@ const OUTFIT_H = { chef: 1.16, wizard: 1.3, pirate: 1.12, firefighter: 1.1, astr
 function outfitPose(key) {
   const fm = typeof gearEq === 'function' && gearEq('form'); // 변신이면 그 동물의 달리기 그림(없으면 옷 그림으로)
   if (fm) { const n = `f_${fm.k}_${key}`; if (!outfitMiss.has(n)) { if (!IMG['pose_' + n]) { const im = load('pose_' + n, `assets/sprites/${n}.webp`); im.onerror = () => outfitMiss.add(n); } if (ready(IMG['pose_' + n])) return n; } }
+  if (!fm && hatOff()) { const n = `nh_${key}`; if (!outfitMiss.has(n)) { if (!IMG['pose_' + n]) { const im = load('pose_' + n, `assets/sprites/${n}.webp`); im.onerror = () => outfitMiss.add(n); } if (ready(IMG['pose_' + n])) return n; } } // 모자 벗은 기본 터틀이
   const sk = save.skin; if (!sk || sk === 'basic' || !OUTFIT_POSES.includes(sk)) return null;
   const n = `o_${sk}_${key}`; if (outfitMiss.has(n)) return null;
   if (!IMG['pose_' + n]) { const im = load('pose_' + n, `assets/sprites/${n}.webp`); im.onerror = () => outfitMiss.add(n); }
@@ -810,6 +811,9 @@ function outfitPose(key) {
 }
 function pose(key, cap) {
   const ok = outfitPose(key); if (ok) { key = ok; cap = null; } // 옷 그림이 있으면 모자 색 바꾸기는 안 함
+  return poseRaw(key, cap);
+}
+function poseRaw(key, cap) {
   const id = key + (cap || '');
   if (poseCache[id] !== undefined) return poseCache[id];
   const im = IMG['pose_' + key]; if (!ready(im)) return null;
@@ -823,6 +827,8 @@ function pose(key, cap) {
     if (cap) { const [tr, tg, tb] = rgb(cap); for (let i = 0; i < px.length; i += 4) { const r = px[i], gg = px[i + 1], b = px[i + 2]; if (b > r + 45 && b > gg + 25) { const lum = (r * 0.3 + gg * 0.59 + b * 0.11) / 110; px[i] = clamp(tr * lum, 0, 255); px[i + 1] = clamp(tg * lum, 0, 255); px[i + 2] = clamp(tb * lum, 0, 255); } } g0.putImageData(d, 0, 0); }
     const c = document.createElement('canvas'); c.width = x1 - x0 + 1; c.height = y1 - y0 + 1;
     c.getContext('2d').drawImage(c0, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+    { let bx0 = w, bx1 = 0; for (let y = Math.round(y1 - (y1 - y0) * 0.4); y <= y1; y++) for (let x = x0; x <= x1; x++) if (px[(y * w + x) * 4 + 3] > 24) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; } c.br = (bx1 - bx0 + 1) / c.height; } // 몸통(아래 40%) 폭 ÷ 키: 모자 벗은 그림 크기 맞출 때 씀
+    c.nh = key.startsWith('nh_');
     return (poseCache[id] = c);
   } catch (e) { return (poseCache[id] = null); }
 }
@@ -889,6 +895,7 @@ function drawRunHero(face, blink, alpha) {
   if (!c && key === 'hero_fall') { key = 'hero_jump'; c = pose(key, cap); } // 그림이 없으면 점프 그림으로
   if (!c) return drawRunHeroOld(face, blink, alpha);
   const base = HERO_H * 1.1 * p.scale; /* 그림은 판정보다 조금 크게(요즘 러너처럼 캐릭터가 화면을 채움) */ let h = base * POSE_H[key] * (outfitPose(key) && !gearEq('form') ? OUTFIT_H[save.skin] || 1 : 1) * (gearLook('giant') || 1), rot = 0, sx = 1, sy = 1, feet = p.fy + 2, x = p.x;
+  if (c.nh) { const b = poseRaw(key, cap); if (b && b.br && c.br) h *= clamp(b.br / c.br, 0.7, 1.05); } // 모자 벗은 그림: 몸 크기를 모자 쓴 그림과 똑같이
   if (key === 'hero_ball' && G.boosting > 0) { rot = T * 22; feet = p.fy - base * 0.06 + Math.sin(T * 30) * 2; h *= 1.3; } // 필살: 크게 빙글빙글
   else if (key === 'hero_ball') { rot = Math.PI * 2 * easeInOutCubic(1 - p.spin); feet = p.fy - base * 0.12; }
   else if (key === 'hero_shell') { rot = Math.sin(T * 30) * 0.03; x += Math.sin(T * 20) * 1.5; }

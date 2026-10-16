@@ -189,17 +189,59 @@ function gemBadge(x, y, n, size = 26) {
 }
 
 // ───────── 꼬리 효과(달리는 동안 보이는 유료 꾸밈) ─────────
-const TRAIL_COL = { bubble: ['#dff6ff', '#9fe3ff'], heart: ['#ff7aa8', '#ffc1d6'], sakura: ['#ffd1e0', '#ffffff'], rainbow: null, fire: ['#ff8a3c', '#ffd54a', '#ff4d6a'], gold: ['#ffe36b', '#fff4c0'] };
+const TRAIL_COL = { bubble: ['#dff6ff', '#9fe3ff'], heart: ['#ff5c96', '#ff8fb8', '#ff3d7f'], sakura: ['#ffd1e0', '#ffffff'], rainbow: null, fire: ['#ff8a3c', '#ffd54a', '#ff4d6a'], gold: ['#ffe36b', '#fff4c0'] };
+// 꼬리 = ① 몸 뒤로 굵게 휘날리는 리본(물결치며 가늘어짐) ② 테마 조각(하트·꽃잎·불꽃·별·물방울)이 돌고 흔들리며 날림 ③ 뛸 때·내려앉을 때 팡
+const trailCol = (k, i) => (k === 'rainbow' ? `hsl(${(T * 260 + i * 34) % 360},95%,62%)` : TRAIL_COL[k][i % TRAIL_COL[k].length]);
 function trailTick(dt) {
   const k = save.trail; if (!k || k === 'none' || !G || REDUCE) return;
-  const p = G.p; if (p.dead || G.won) return;
-  if (Math.random() > dt * (k === 'fire' ? 50 : 30)) return;
-  const x = p.x - 26, y = p.y + rand(-12, 12);
-  if (k === 'bubble') fx.push({ k: 'bub', x, y, vx: rand(-200, -90), vy: rand(-60, 10), life: 0.7, max: 0.7, size: rand(2, 5) });
-  else if (k === 'fire') fx.push({ k: 'flame', x, y, vx: rand(-260, -140), vy: rand(-40, 20), life: 0.4, max: 0.4, size: rand(5, 10), color: pick(TRAIL_COL.fire) });
-  else fx.push({ k: 'spark', x, y, vx: rand(-260, -120), vy: rand(-60, 40), life: 0.6, max: 0.6, size: rand(2.5, 5), color: k === 'rainbow' ? `hsl(${(T * 300) % 360},95%,65%)` : pick(TRAIL_COL[k]) });
+  const p = G.p, rib = G.trailRib || (G.trailRib = []), sc = G.scrollNow || 300;
+  for (const q of rib) { q.x -= sc * dt * 1.15; q.age += dt; }
+  while (rib.length && rib[0].age > 0.5) rib.shift();
+  if (p.dead || G.won) return;
+  rib.push({ x: p.x - 30 * p.scale, y: p.y + 4 * p.scale, age: 0 });
+  const boost = G.boosting > 0, burstN = (G.trailOnG && !p.onG) || (!G.trailOnG && p.onG) ? 9 : 0; G.trailOnG = p.onG; // 뛰는 순간·내려앉는 순간 팡
+  let n = (Math.random() < dt * (boost ? 40 : 22) ? 1 : 0) + burstN;
+  for (let i = 0; i < n; i++) {
+    const big = i > 0 || burstN > 0, a = big ? rand(Math.PI * 0.55, Math.PI * 1.45) : Math.PI + rand(-0.35, 0.35), sp = big ? rand(160, 340) : rand(120, 240);
+    const life = k === 'fire' ? rand(0.35, 0.55) : rand(0.6, 0.95);
+    fx.push({ k: 'trp', sh: k, x: p.x - 30 * p.scale, y: p.y + rand(-14, 14) * p.scale, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 + (k === 'fire' ? -40 : 0), life, max: life, size: rand(9, 15) * (big ? 1.1 : 1) * (k === 'fire' ? 1.2 : 1), rot: rand(0, 6.28), vr: rand(-7, 7), ph: rand(0, 6.28), col: trailCol(k, (Math.random() * 6) | 0) });
+  }
 }
-
+function trailShape(sh, x, y, s, rot, col) { // 꼬리 조각 하나(가게 미리보기도 같은 그림)
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = col;
+  if (sh === 'heart') { ctx.beginPath(); ctx.moveTo(0, s * 0.35); ctx.bezierCurveTo(-s * 1.1, -s * 0.35, -s * 0.45, -s * 1.05, 0, -s * 0.45); ctx.bezierCurveTo(s * 0.45, -s * 1.05, s * 1.1, -s * 0.35, 0, s * 0.35); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.ellipse(-s * 0.35, -s * 0.45, s * 0.16, s * 0.1, -0.6, 0, 6.28); ctx.fill(); }
+  else if (sh === 'sakura') { for (let i = 0; i < 5; i++) { ctx.rotate(1.2566); ctx.beginPath(); ctx.ellipse(0, -s * 0.48, s * 0.3, s * 0.5, 0, 0, 6.28); ctx.fill(); } ctx.fillStyle = '#ff8fb4'; ctx.beginPath(); ctx.arc(0, 0, s * 0.18, 0, 6.28); ctx.fill(); }
+  else if (sh === 'fire') { ctx.globalCompositeOperation = 'lighter'; ctx.beginPath(); ctx.moveTo(0, -s); ctx.quadraticCurveTo(s * 0.75, -s * 0.1, 0, s * 0.6); ctx.quadraticCurveTo(-s * 0.75, -s * 0.1, 0, -s); ctx.fill(); ctx.fillStyle = 'rgba(255,250,200,.85)'; ctx.beginPath(); ctx.ellipse(0, s * 0.15, s * 0.22, s * 0.32, 0, 0, 6.28); ctx.fill(); }
+  else if (sh === 'bubble') { ctx.globalAlpha *= 0.9; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, s * 0.14); ctx.beginPath(); ctx.arc(0, 0, s * 0.6, 0, 6.28); ctx.stroke(); ctx.fillStyle = 'rgba(200,240,255,.22)'; ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(-s * 0.22, -s * 0.22, s * 0.14, 0, 6.28); ctx.fill(); }
+  else { ctx.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? s * 0.32 : s; ctx.lineTo(Math.cos(i * 0.785) * r, Math.sin(i * 0.785) * r); } ctx.closePath(); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(0, 0, s * 0.2, 0, 6.28); ctx.fill(); } // 별(무지개·황금)
+  ctx.restore();
+}
+function drawTrailRibbon() { // 리본(몸 뒤) + 조각 — 거북이보다 먼저 그림
+  const k = save.trail; if (!k || k === 'none' || !G || REDUCE) return;
+  const rib = G.trailRib; if (rib && rib.length > 2) {
+    const n = rib.length, W0 = (k === 'fire' ? 40 : 34) * G.p.scale * (G.boosting > 0 ? 1.35 : 1);
+    const pt = (i, side) => { const q = rib[i], f = i / (n - 1), w = W0 * Math.pow(f, 0.8) * 0.5, wob = Math.sin(q.age * 22 - T * 9) * 6 * (1 - f); return [q.x, q.y + wob + side * w]; };
+    for (const [glow, al] of [[true, 0.45], [false, 0.95]]) {
+      ctx.save(); if (glow) { ctx.globalCompositeOperation = 'lighter'; ctx.filter = 'none'; }
+      for (let i = 1; i < n; i++) {
+        const a0 = pt(i - 1, -1), a1 = pt(i, -1), b1 = pt(i, 1), b0 = pt(i - 1, 1), f = i / (n - 1);
+        ctx.globalAlpha = al * Math.pow(f, 0.7) * (glow ? 1 : 0.85);
+        ctx.fillStyle = glow ? trailCol(k, i >> 1) : trailCol(k, (i >> 2) + 1);
+        ctx.beginPath(); ctx.moveTo(a0[0], a0[1] - (glow ? 5 : 0)); ctx.lineTo(a1[0], a1[1] - (glow ? 5 : 0)); ctx.lineTo(b1[0], b1[1] + (glow ? 5 : 0)); ctx.lineTo(b0[0], b0[1] + (glow ? 5 : 0)); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * G.p.scale; ctx.lineCap = 'round'; ctx.beginPath(); // 가운데 하얀 빛줄
+    for (let i = Math.floor(n * 0.35); i < n; i++) { const q = pt(i, 0); i === Math.floor(n * 0.35) ? ctx.moveTo(q[0], q[1]) : ctx.lineTo(q[0], q[1]); }
+    ctx.stroke(); ctx.restore();
+  }
+  for (const f of fx) if (f.k === 'trp') {
+    const lf = f.life / f.max, pop = Math.min(1, (1 - lf) * 8), s = f.size * (0.4 + 0.6 * pop) * (0.55 + 0.45 * lf);
+    ctx.save(); ctx.globalAlpha = Math.min(1, lf * 1.6);
+    trailShape(f.sh === 'gold' || f.sh === 'rainbow' ? 'star' : f.sh, f.x + Math.sin(f.ph + f.life * 9) * (f.sh === 'sakura' || f.sh === 'heart' ? 10 : 3), f.y, s, f.rot, f.col);
+    ctx.restore();
+  }
+}
 // ───────── 바다 패스 (한 달 30단계 · 무료/프리미엄) ─────────
 const PASS_TIERS = 30, PASS_XP = 250;
 function passReward(tier, prem) {

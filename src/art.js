@@ -203,10 +203,18 @@ function drawBackground(n, d) {
 }
 
 // ───────── 그리기: 캐릭터·적 ─────────
-function playerImg(k) { if (k == null) { const fi = typeof formImg === 'function' && formImg(); if (fi) return fi; k = save.skin; } return IMG[(save.face === 'lash' ? 'skinf_' : 'skin_') + k] || IMG.skin_basic; }
+const hatOff = () => !!save.noHat && (!save.skin || save.skin === 'basic') && !(typeof gearEq === 'function' && gearEq('form')); // 모자 벗은 기본 터틀이
+function playerImg(k) { if (k == null) { const fi = typeof formImg === 'function' && formImg(); if (fi) return fi; k = save.skin; if (hatOff()) { const nh = IMG[(save.face === 'lash' ? 'skinf_' : 'skin_') + 'nohat']; if (ready(nh)) return nh; } } return IMG[(save.face === 'lash' ? 'skinf_' : 'skin_') + k] || IMG.skin_basic; }
+// 치장(가방)을 앞모습 머리 위에 — 옷장·지도·첫 화면에서도 보이게(달릴 때만 보이던 것)
+function drawFrontDeco(x, y, h, alpha = 1) {
+  const d = typeof gearEq === 'function' && !save.hideDeco && gearEq('deco'); if (!d) return;
+  const lift = d.k === 'halo' ? -h * 0.06 + Math.sin(T * 3) * 2 : d.k === 'star' ? -h * 0.03 : 0;
+  drawGear(d, x + h * 0.02, y - h * (hatOff() ? 0.35 : 0.44) + lift, h * 0.3, alpha); // 모자 벗으면 머리에 바로
+}
 function drawTurtle(x, y, h, rot, alpha = 1) {
   const im = playerImg();
-  if (!drawImg(ready(im) ? im : null, x, y, h, rot, alpha)) {
+  if (drawImg(ready(im) ? im : null, x, y, h, rot, alpha)) { if (!rot) drawFrontDeco(x, y, h, alpha); }
+  else {
     ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha;
     ctx.fillStyle = '#d29a4a'; ctx.beginPath(); ctx.ellipse(-6, 6, 28, 22, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#8fd16a'; ctx.beginPath(); ctx.arc(18, -12, 16, 0, Math.PI * 2); ctx.fill();

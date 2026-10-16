@@ -13,7 +13,7 @@ function resize() {
   if (!(vw > 0 && vh > 0)) return; // 숨은 창·앱 시작 직후(크기 0): 계산이 깨져 게임이 멈추지 않게 크기가 생길 때까지 기다림
   PORTRAIT = isTouch && vh > vw * 1.05;
   W = PORTRAIT ? 960 : Math.round(Math.min(1280, Math.max(960, H * vw / vh)));
-  const dpr = LOWFX ? 1 : Math.min(window.devicePixelRatio || 1, DPR_CAP); // 폰도 화면 그대로 선명하게(최대 3배) — 느리면 2배 → 1배로 내려감
+  const dpr = Math.min(window.devicePixelRatio || 1, LOWFX ? 1.5 : DPR_CAP); // 폰도 화면 그대로 선명하게(최대 3배) — 느리면 2배 → 1.5배(1배는 너무 흐려서 안 내림)
   const s = Math.min(vw / W, vh / H);
   CSS_S = s;
   SAFE = isTouch && W > 1040 ? 34 : 0; // 노치(카메라 구멍) 쪽 여백
@@ -109,6 +109,7 @@ function today(off = 0) { const d = new Date(Date.now() - off * 864e5); return `
 const IMG = {};
 function load(key, src) { const im = new Image(); im.src = src; IMG[key] = im; return im; }
 SKINS.forEach((s) => { load('skin_' + s.k, `assets/skins/${s.k}.webp`); load('skinf_' + s.k, `assets/skins_f/${s.k}.webp`); });
+load('skin_nohat', 'assets/skins/nohat.webp'); load('skinf_nohat', 'assets/skins_f/nohat.webp'); // 옷장 「모자 벗기」(기본 터틀이)
 PETS.forEach((p) => load('pet_' + p.k, `assets/pets/${p.k}.webp`));
 SPRITES.forEach((k) => load('spr_' + k, `assets/sprites/${k}.webp`));
 ['princess:sprites/amelia.webp', 'egg:egg.png', 'comfort:comfort.png', 'cheer:cheer.png', 'hello:hello.png', 'side:side.webp', 'back:back.webp',

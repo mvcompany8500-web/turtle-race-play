@@ -172,7 +172,7 @@ function frame(now) {
   const dt = Math.min(0.05, raw); last = now; T += dt;
   if (state === 'play' && !LOWFX && raw < 0.5 && G && G.t > 2) { // 판 시작 2초(그림을 처음 그리며 푸는 동안)는 빼고 잼
     fpsAcc += raw; fpsN++;
-    if (fpsAcc > 3) { if (fpsN / fpsAcc < 40 && ++fpsSlow < 2) { /* 한 번은 봐줌: 두 번 연속 느릴 때만 */ } else if (fpsN / fpsAcc < 40 && DPR_CAP > 2 && (devicePixelRatio || 1) > 2) { DPR_CAP = 2; resize(); } else if (fpsN / fpsAcc < 40) { LOWFX = true; resize(); try { Object.defineProperty(ctx, 'shadowBlur', { get: () => 0, set() {}, configurable: true }); } catch (e) { /* 무시 */ } } if (fpsN / fpsAcc >= 40) fpsSlow = 0; fpsAcc = 0; fpsN = 0; } // 느린 폰: 번짐(shadowBlur)도 끔
+    if (fpsAcc > 3) { if (fpsN / fpsAcc < 40 && ++fpsSlow < 3) { /* 한 번은 봐줌: 두 번 연속 느릴 때만 */ } else if (fpsN / fpsAcc < 40 && DPR_CAP > 2 && (devicePixelRatio || 1) > 2) { DPR_CAP = 2; resize(); } else if (fpsN / fpsAcc < 40) { LOWFX = true; resize(); try { Object.defineProperty(ctx, 'shadowBlur', { get: () => 0, set() {}, configurable: true }); } catch (e) { /* 무시 */ } } if (fpsN / fpsAcc >= 40) fpsSlow = 0; fpsAcc = 0; fpsN = 0; } // 느린 폰: 번짐(shadowBlur)도 끔
   }
   requestAnimationFrame(frame); // 먼저 다음 프레임을 잡아 둠(한 프레임에서 오류가 나도 게임이 멈추지 않게)
   try { update(dt); render(); } catch (e) { if (!frame.errAt || T - frame.errAt > 5) { frame.errAt = T; console.error(e); } }

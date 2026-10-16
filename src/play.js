@@ -117,6 +117,7 @@ function bank(cleared) {
 
 // ───────── 효과 ─────────
 function burst(x, y, color, n, spd = 380) {
+  if (fx.length > 320) n = Math.ceil(n * (fx.length > 520 ? 0.2 : 0.5)); // 많이 터질 땐(커지기·질주로 연달아 부술 때) 알갱이를 줄여 끊김 없이
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, s = rand(spd * 0.2, spd), life = rand(0.3, 0.75);
     fx.push({ k: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, size: rand(2, 5.5), color });
@@ -173,9 +174,10 @@ function updateFx(dt) {
       if (f.k === 'flame') f.vy -= 60 * dt;
       if (f.k === 'chunk') { f.vy += 900 * dt; f.rot += f.vr * dt; f.vx *= 1 + dt * 2.2; f.vy *= 1 + dt * 2.2; }
       if (f.k === 'bub') f.vy -= 90 * dt;
+      if (f.k === 'trp') { f.rot += f.vr * dt; f.vy += (f.sh === 'fire' || f.sh === 'bubble' ? -160 : f.sh === 'sakura' ? 70 : -30) * dt; } // 꼬리 조각: 빙글 돌며 불꽃·물방울은 위로, 꽃잎은 살랑 내려감
     }
   }
-  for (let i = fx.length - 1; i >= 0; i--) if (fx[i].life <= 0) fx.splice(i, 1);
+  { let j = 0; for (let i = 0; i < fx.length; i++) if (fx[i].life > 0) fx[j++] = fx[i]; fx.length = j; } // 한 번에 정리(하나씩 빼면 많을 때 느림)
   for (const p of pops) { p.life -= dt; p.y -= (p.big ? 14 : 40) * dt; }
   for (let i = pops.length - 1; i >= 0; i--) if (pops[i].life <= 0) pops.splice(i, 1);
 }
@@ -263,7 +265,7 @@ function killEnemy(e, cause = 'boost') {
   e.dead = true; fxImg('spr_fx_poof', e.x, e.y, 50, 150, 0.45, { must: true });
   if (G.run && IMG['spr_' + e.type] && e.type !== 'eel') fxImg('spr_' + e.type, e.x, e.y, 70, 64, 0.9, { vx: rand(260, 420), vy: rand(-760, -560), g: 1900, spin: rand(8, 14) * (Math.random() < 0.5 ? -1 : 1), rot: 0, must: true }); // 만화처럼 빙글빙글 날아감
   if (cause === 'shot') shake = Math.max(shake, e.elite ? 10 : 5);
-  else { freeze = Math.max(freeze, 0.06); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035); }
+  else { freeze = Math.max(freeze, mightyNow() && G.chain >= 1 ? 0.012 : 0.06); shake = Math.max(shake, e.elite ? 18 : 12); zoomTo(1.035); } // 커지기·질주로 연달아 부술 땐 멈칫을 아주 짧게(뚝뚝 끊기는 느낌 없이 시원하게)
   const col = (ENEMIES[e.type] || {}).color || '#fff';
   if (SPR_H[e.type]) shatter('spr_' + e.type, e.x, e.y, e.r * SPR_H[e.type] * ES, 3, cause === 'stomp' ? 0.7 : 1);
   hitStar(e.x, e.y, false, true); runXp(4);
@@ -296,7 +298,7 @@ function chainKill(e) {
   if (c === 10) { earn('chain', 30); reaction(4, '전설의 거북이!!!'); pop(W / 2, H / 2 + 50, '진주 +30', C.yellow, 40, true); sfx.fever(); }
 }
 function sweepScreen(label) {
-  flash = 0.7; flashColor = '#ffffff'; shake = 30; freeze = 0.18; timeScale = 0.3; zoomTo(1.12);
+  flash = 0.6; flashColor = '#ffffff'; shake = 26; freeze = 0.07; timeScale = 0.6; zoomTo(1.1); // 짧고 굵게(길게 멈추면 렉처럼 느껴짐)
   ring(G.p.x, G.p.y, '#ffffff', W, 0.7, 18); ring(G.p.x, G.p.y, C.yellow, W * 0.7, 0.55, 10);
   reaction(3, label); burstRays(G.p.x, G.p.y, '#ffffff', 1.4, 30);
   sfx.bossHit(); sfx.fever(); haptic([60, 30, 60, 30, 160]);
@@ -906,7 +908,7 @@ function updatePlay(dt) {
   const bossFight = G.boss && !G.boss.dead;
   const whirling = E.whirl > 0;
   const scroll = cfg.speed * G.slowMul * (G.boosting > 0 || whirling ? 2.3 : 1) * (bossFight ? 0.55 : 1) * (p.dead ? 0.3 : 1) * (G.wallStop ? 0 : 1); // 벽에 막히면 멈춤
-  if (!G.bonus) G.dist += scroll * dt; // 보너스 바다 동안은 진행도가 멈춤(끝·보스가 안 끼어들게)
+  G.scrollNow = scroll; if (!G.bonus) G.dist += scroll * dt; // 보너스 바다 동안은 진행도가 멈춤(끝·보스가 안 끼어들게)
   updateBubbles(dt, scroll);
   p.scale = lerp(p.scale, E.giant > 0 ? 1.75 : 1, Math.min(1, dt * 8));
 
@@ -1518,6 +1520,7 @@ function drawWorld() {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 100 * p.scale, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
   if (E.whirl > 0) { ctx.save(); ctx.translate(p.x, p.y); for (let i = 0; i < 3; i++) { ctx.strokeStyle = `rgba(124,240,255,${0.7 - i * 0.2})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(0, -30 + i * 30, 60 - i * 8, 14, 0, G.t * 14 + i, G.t * 14 + i + 4.4); ctx.stroke(); } ctx.restore(); }
+  drawTrailRibbon();
   for (const f of fx) if (f.k === 'flame') {
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = f.life / f.max;
     ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x, f.y, f.size * (f.life / f.max), 0, Math.PI * 2); ctx.fill(); ctx.restore();
@@ -2030,7 +2033,7 @@ function spawnBreakable() {
 function smashBreak(o, byRam) {
   o.dead = true;
   const d = BREAK[o.k];
-  freeze = Math.max(freeze, byRam ? 0.06 : 0.02); shake = Math.max(shake, 14); zoomTo(1.03);
+  freeze = Math.max(freeze, byRam && !mightyNow() ? 0.06 : 0.015); shake = Math.max(shake, 14); zoomTo(1.03);
   for (let i = 0; i < 14; i++) { const a = Math.random() * Math.PI * 2, sp = rand(200, 620); fx.push({ k: 'chunk', x: o.x, y: o.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160, life: 0.9, max: 0.9, size: rand(8, 18), color: i % 3 ? d.col : '#ffffff', rot: rand(0, 6), vr: rand(-16, 16) }); }
   burst(o.x, o.y, d.col, 30, 520); ring(o.x, o.y, '#ffffff', 140, 0.4, 12);
   pop(o.x, o.y - 50, o.k === 'chest' ? '보물이다!' : o.k === 'jar' ? '쨍그랑!' : pick(['와장창!', '콰직!', '깨부숴!']), o.k === 'chest' ? C.yellow : '#ffffff', o.k === 'jar' ? 26 : 36, true);

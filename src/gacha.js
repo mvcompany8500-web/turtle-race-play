@@ -148,7 +148,7 @@ function drawAura(x, y, r, col, a = 1) {
 }
 // 달리는 터틀이 위: 치장(머리 꼭대기) · 무기(앞 손, 보스전) — run.js drawRunHero 에서 부름
 function drawGearOnHero(key, c, x, feet, h, rot, alpha) {
-  const d = gearEq('deco'), hx = (typeof HAT_AT !== 'undefined' ? HAT_AT : {})[key];
+  const d = !save.hideDeco && gearEq('deco'), hx = (typeof HAT_AT !== 'undefined' ? HAT_AT : {})[key];
   if (d && hx != null && c) {
     const w = (h * c.width) / c.height, cx = x + (hx - 0.5) * w * Math.cos(rot), cy = feet - h + (hx - 0.5) * w * Math.sin(rot);
     const s = h * (d.k === 'halo' ? 0.34 : 0.3), lift = d.k === 'halo' ? -h * 0.1 + Math.sin(T * 3) * 2 : d.k === 'star' ? -h * 0.06 : 0;
@@ -160,6 +160,13 @@ function drawGearOnHero(key, c, x, feet, h, rot, alpha) {
 
 // ───────── 상점 「신비한 조개」 · 「가방」 화면 ─────────
 const gacha = { rv: null, bagKind: 'form', sel: null };
+function bagBtn(x, y, w, h) { // 상점 위: 「가방」 바로 가기(변신·무기·치장·보스 유물 장착)
+  const on = shop.tab === 'bag';
+  flatPill(x, y, w, h, h / 2, on ? '#ffd54a' : '#2f7bff');
+  if (!drawImg(IMG.spr_g_dragon, x + 22, y + h / 2 - 1, h * 0.95, Math.sin(T * 2.5) * 0.06)) icon('e_gift', x + 22, y + h / 2, h * 0.7);
+  text('가방', x + 44, y + h / 2, 15, on ? '#5a3000' : '#ffffff', { align: 'left', stroke: false, maxW: w - 50 });
+  const mt = ctx.getTransform(); buttons.push({ x: (mt.a * x + mt.e) / K, y: (mt.d * y + mt.f) / K, w: w * mt.a / K, h: h * mt.d / K, on: () => { if (shop.tab !== 'bag') { shop.tab = 'bag'; shop.tabAt = T; shop.tabDir = 1; } sfx.click(); } });
+}
 function gachaBtn(x, y, w, h, onTap) { // 상점 위 가운데: 반짝이는 조개 단추(공짜가 있으면 빨간 점)
   const on = shop.tab === 'gacha' || shop.tab === 'bag';
   ctx.save();
@@ -295,9 +302,11 @@ function revealTap(rv) {
   const it = rv.list[rv.i], target = R_ORDER.indexOf(it.g.r);
   if (rv.open) { if ((performance.now() - rv.openT) / 1000 < 0.6) return; rv.i++; if (rv.i >= rv.list.length) { gacha.rv = null; confetti(30); return; } rv.open = false; rv.shown = 0; rv.taps = 0; rv.t0 = performance.now(); return; }
   rv.shakeT = performance.now(); rv.taps++;
-  if (rv.shown < target) { rv.shown++; snd('tick', 0.8, 0.9 + rv.shown * 0.18); haptic(15 + rv.shown * 12); if (rv.shown >= 3) { flash = 0.25; flashColor = RARITY[R_ORDER[rv.shown]].col; } return; }
-  rv.open = true; rv.openT = performance.now(); sfx.crack(); haptic([40, 30, 90]); flash = 0.5; flashColor = '#ffffff';
-  if (target >= 3) { confetti(80); burstRays(W / 2, H / 2, RARITY[it.g.r].col, 1.8, 30); snd('tada', 1); } else snd('tada', 0.7, 1.2);
+  if (rv.shown < target) { rv.shown++; if (!snd('gc_knock', 0.85, 0.92 + rv.shown * 0.04)) snd('tick', 0.8, 0.9 + rv.shown * 0.18); snd('gc_up', 0.45 + rv.shown * 0.12, 0.9 + rv.shown * 0.07, 0, 0.04); haptic(15 + rv.shown * 12); /* 두드림(묵직) + 등급 오름(위로 차오름) 두 겹 */ if (rv.shown >= 3) { flash = 0.25; flashColor = RARITY[R_ORDER[rv.shown]].col; } return; }
+  rv.open = true; rv.openT = performance.now(); haptic([40, 30, 90]); flash = 0.5; flashColor = '#ffffff';
+  if (!snd('gc_open', 1)) sfx.crack(); else snd('crack', 0.3, 0.9); // 쾅 열림 + 껍데기 갈라짐(작게) 겹쳐서
+  if (target >= 3) { confetti(80); burstRays(W / 2, H / 2, RARITY[it.g.r].col, 1.8, 30); snd('gc_legend', target >= 4 ? 1 : 0.85, 1, 0, 0.12); } // 전설·신화: 팡파레
+  else if (target === 2) snd('gc_up', 0.5, 1.15, 0, 0.1);
 }
 function drawRevealOne(rv, t) {
   const it = rv.list[rv.i], r = R_ORDER[rv.shown], col = RARITY[r].col;
@@ -333,7 +342,7 @@ function drawRevealGrid(rv, t) {
   text('신비한 조개 10번!', 480, 52, 30, '#ffffff', { lw: 6 });
   rv.list.forEach((o, i) => {
     const x = 144 + (i % 5) * 168, y = 170 + Math.floor(i / 5) * 190, k = clamp((t - i * step) / 0.3, 0, 1), g = o.g, col = RARITY[g.r].col;
-    if (k > 0 && !rv['snd' + i]) { rv['snd' + i] = 1; snd('tick', 0.6, 0.8 + R_ORDER.indexOf(g.r) * 0.2); if (['l', 'm'].includes(g.r)) { flash = 0.3; flashColor = col; haptic(60); } }
+    if (k > 0 && !rv['snd' + i]) { rv['snd' + i] = 1; if (!snd('gc_card', 0.55, 0.94 + R_ORDER.indexOf(g.r) * 0.05)) snd('tick', 0.6, 0.8 + R_ORDER.indexOf(g.r) * 0.2); if (['l', 'm'].includes(g.r)) { flash = 0.3; flashColor = col; haptic(60); snd('gc_legend', 0.75, 1, 1.5); } else if (g.r === 'e') snd('gc_up', 0.35, 1.2, 0.3); } // 카드 휙 + 좋은 것만 한 겹 더
     ctx.fillStyle = 'rgba(255,255,255,.06)'; rr(x - 72, y - 72, 144, 170, 18); ctx.fill();
     if (k <= 0) { drawImg(IMG.spr_clam_shut, x, y, 100); return; }
     ctx.strokeStyle = col; ctx.lineWidth = 3; rr(x - 72, y - 72, 144, 170, 18); ctx.stroke();

@@ -58,5 +58,5 @@ function i18nData() {
 const I18N_DATA = [() => WORLDS, () => STAGES, () => ENEMIES, () => ITEMS, () => BLESSINGS, () => DIFFS, () => SKINS, () => TREASURES, () => PETS, () => UPS, () => LV_PERKS,
   () => PRINCESS_LETTERS, () => ENDING_TALK, () => FIRST_GIFTS, () => INTRO, () => GEAR, () => RARITY, () => GEAR_KINDS, () => ABIL, () => ACH, () => AM_LINES, () => BOSS_DEF, () => BOSS_LINES,
   () => CHAPTERS, () => CLEAR_LINES, () => COLLECT, () => FEAT, () => GEM_PACKS, () => HIT_TIPS, () => MISSION_TYPES, () => NEED_TXT, () => PASS_PROD, () => POWER_RANKS, () => REACT_WORDS,
-  () => SPECIALS, () => STARTER, () => STORY_WHO, () => TAUNTS, () => TRAILS, () => WHO, () => EXCHANGE, () => BOOSTERS, () => BUDDY_ACTS, () => LETTERS];
+  () => SPECIALS, () => STARTER, () => STORY_WHO, () => TAUNTS, () => TRAILS, () => WHO, () => EXCHANGE, () => BOOSTERS, () => BUDDY_ACTS, () => LETTERS, () => DEX_DESC, () => DEX_CHARS];
 function setLang(l) { save.lang = l; persist(); location.reload(); }
