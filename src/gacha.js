@@ -260,7 +260,7 @@ function drawBagPage() {
     if (own && (g.r === 'l' || g.r === 'm')) drawAura(x + TW / 2, y + 46, 34, RARITY[g.r].col, 0.8);
     drawGear(g, x + TW / 2, y + 46, 54, own ? 1 : 0.3);
     if (!own) icon('e_lock', x + TW / 2, y + 48, 22, 0, 0.9);
-    text(g.name.replace(' 변신', ''), x + TW / 2, y + TH - 18, 13, own ? '#ffffff' : 'rgba(255,255,255,.5)', { body: true, stroke: false });
+    text(g.name.replace(/ 변신$| Form$/, ''), x + TW / 2, y + TH - 18, 13, own ? '#ffffff' : 'rgba(255,255,255,.5)', { body: true, stroke: false, maxW: TW - 8 });
     if (on) { ctx.fillStyle = C.ok; rr(x + TW - 46, y + 8, 38, 20, 10); ctx.fill(); text('장착', x + TW - 27, y + 18, 12, '#ffffff', { stroke: false }); }
     else if (own && gs.own[g.k] > 1) text(`×${gs.own[g.k]}`, x + TW - 12, y + 18, 12, 'rgba(255,255,255,.6)', { align: 'right', stroke: false });
     const mt = ctx.getTransform(); buttons.push({ x: (mt.a * x + mt.e) / K, y: (mt.d * y + mt.f) / K, w: TW * mt.a / K, h: TH * mt.d / K, on: () => { gacha.sel = g; sfx.click(); } });
@@ -339,8 +339,8 @@ function drawRevealGrid(rv, t) {
     ctx.strokeStyle = col; ctx.lineWidth = 3; rr(x - 72, y - 72, 144, 170, 18); ctx.stroke();
     if (R_ORDER.indexOf(g.r) >= 2) drawAura(x, y, 70, col, 0.9);
     drawGear(g, x, y, 92 * easeOutBack(k));
-    ctx.fillStyle = col; rr(x - 26, y + 50, 52, 20, 10); ctx.fill(); text(RARITY[g.r].name, x, y + 60, 12, g.r === 'c' ? '#26303a' : '#ffffff', { stroke: false });
-    text(g.name.replace(' 변신', ''), x, y + 84, 13, '#ffffff', { body: true, stroke: false });
+    ctx.font = `800 ${fs(12)}px ${FONT}`; const rw = Math.max(52, ctx.measureText(RARITY[g.r].name).width + 16); ctx.fillStyle = col; rr(x - rw / 2, y + 50, rw, 20, 10); ctx.fill(); text(RARITY[g.r].name, x, y + 60, 12, g.r === 'c' ? '#26303a' : '#ffffff', { stroke: false });
+    text(g.name.replace(/ 변신$| Form$/, ''), x, y + 84, 13, '#ffffff', { body: true, stroke: false, maxW: 120 });
     if (o.isNew && g.kind !== 'cur') { ctx.fillStyle = C.danger; rr(x + 30, y - 66, 38, 18, 9); ctx.fill(); text('NEW', x + 49, y - 57, 12, '#ffffff', { stroke: false }); }
     else if (o.shards) text(`조각 +${o.shards}`, x, y - 56, 12, '#9fe3ff', { stroke: false });
   });

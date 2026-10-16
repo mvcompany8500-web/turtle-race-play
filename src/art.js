@@ -597,7 +597,8 @@ function button(x, y, w, h, label, on, o = {}) {
   ctx.save();
   ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.translate(-(x + w / 2), -(y + h / 2));
   if (ctx.globalAlpha > 0.01) { flatShape(x, y, w, h, r, top, bot, dn, UI_INK, 3.5, !!label && kind !== 'off'); if (hover && kind !== 'off') { ctx.fillStyle = 'rgba(255,255,255,.12)'; rr(x, y + dn, w, h, r); ctx.fill(); } }
-  if (label) text(label, x + w / 2, y + h / 2 + dn, o.size || 20, fg, kind === 'yellow' || kind === 'off' ? { stroke: false, weight: 800 } : { stroke: UI_INK, lw: 3.5, weight: 800 });
+  let lsz = o.size || 20; if (label) { ctx.font = `800 ${fs(lsz)}px ${FONT}`; while (lsz > 11 && ctx.measureText(label).width > w - 16) { lsz--; ctx.font = `800 ${fs(lsz)}px ${FONT}`; } } // 글이 길면(영어 등) 단추 폭에 맞게 줄임
+  if (label) text(label, x + w / 2, y + h / 2 + dn, lsz, fg, kind === 'yellow' || kind === 'off' ? { stroke: false, weight: 800 } : { stroke: UI_INK, lw: 3.5, weight: 800 });
   ctx.restore();
   buttons.push({ x: hx, y: hy, w: hw, h: hh, on, key });
 }

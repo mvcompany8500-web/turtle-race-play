@@ -73,6 +73,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => INK.
 function text(s, x, y, size, color = '#fff', o = {}) {
   size = fs(Math.max(13, size));
   ctx.font = `${o.weight || (o.body ? 600 : 800)} ${size}px ${FONT}`;
+  if (o.maxW) { const w = ctx.measureText(s).width; if (w > o.maxW) { size *= o.maxW / w; ctx.font = `${o.weight || (o.body ? 600 : 800)} ${size}px ${FONT}`; } } /* 칸보다 길면(영어) 글자를 줄여 맞춤 */
   ctx.textAlign = o.align || 'center';
   ctx.textBaseline = 'middle';
   y += inkDy();
@@ -86,6 +87,7 @@ function text(s, x, y, size, color = '#fff', o = {}) {
   ctx.fillText(s, x, y);
 }
 function wrapText(s, maxW, size, body = true) {
+  if (typeof tr === 'function') s = tr(s); // 영어면 통째로 먼저 바꾼 뒤 줄 나눔
   ctx.font = `${body ? 600 : 800} ${fs(size)}px ${FONT}`;
   const words = s.split(' '), lines = []; let cur = '';
   for (const w of words) { // 한글은 낱말 중간에서 줄을 바꾸지 않는다

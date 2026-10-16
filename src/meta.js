@@ -490,7 +490,7 @@ function drawMap() {
     drawImg(IMG[ICON_ART[i]], cx, cy + bob, 58);
     ctx.save(); ctx.globalAlpha = 0; button(bx, by, 58, 64, '', on, {}); ctx.restore();
     if (i === 1) markSpot('shopBtn', cx, cy, 44);
-    text(label, cx, by + 64, 13, '#ffffff', { lw: 3 });
+    text(label, cx, by + 64, 13, "#ffffff", { lw: 3, maxW: 56 });
     const badge = i === 6 ? achReady() : i === 3 ? missionsReady() : i === 2 ? collectReady() : i === 5 ? passReady() : 0; // 도감 모으기·패스 받을 것도 빨간 점
     if (badge) { ctx.fillStyle = C.danger; ctx.beginPath(); ctx.arc(bx + 52, by + 6, 11, 0, Math.PI * 2); ctx.fill(); text(String(badge), bx + 52, by + 7, 13, '#fff', { stroke: false }); }
   });
@@ -708,8 +708,9 @@ function drawSettings() {
     const bw = names ? 160 : 120; // 켜짐 = 초록, 꺼짐 = 회색(상태가 한눈에)
     button(R0 - bw, y, bw, 42, names ? names[on ? 0 : 1] : on ? '켜짐' : '꺼짐', fn, { size: 15, kind: names ? 'primary' : on ? 'ok' : 'soft' });
   }));
-  text('나이', L0, 88 + 4 * 50 + 21, 18, C.text, { align: 'left', stroke: false }); // 바꾸려면 보호자 확인(아이가 혼자 어린이 모드를 끄지 못하게)
-  button(R0 - 200, 88 + 4 * 50, 200, 42, save.age == null ? '고르기' : kidMode() ? `${save.age}살 · 어린이 모드` : '13살 이상', () => withGate(() => { map.overlay = null; state = 'age'; stateT = 0; ageBack = 'map'; }), { size: 14, kind: kidMode() ? 'ok' : 'soft' });
+  text('나이', L0, 88 + 4 * 50 + 21, 18, C.text, { align: 'left', stroke: false });
+  button(R0 - 128, 88 + 4 * 50, 128, 42, isEN ? 'English' : '한국어', () => { sfx.click(); setLang(isEN ? 'ko' : 'en'); }, { size: 15, kind: 'primary' }); // 언어: 누르면 바뀌고 다시 켜짐(글자는 그 언어 그대로 보이게 사전에 안 넣음) // 바꾸려면 보호자 확인(아이가 혼자 어린이 모드를 끄지 못하게)
+  button(R0 - 128 - 10 - 176, 88 + 4 * 50, 176, 42, save.age == null ? '고르기' : kidMode() ? `${save.age}살 · 어린이 모드` : '13살 이상', () => withGate(() => { map.overlay = null; state = 'age'; stateT = 0; ageBack = 'map'; }), { size: 14, kind: kidMode() ? 'ok' : 'soft' });
   const grid = [
     [['꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }], ['확률 정보', () => { probOpen = true; sfx.click(); }], ['기록 지우기', askWipe]],
     [['저장하기', exportSave], ['불러오기', importSave], ['처음 화면', () => { map.overlay = null; state = 'title'; sfx.click(); }]], // 지도 → 처음 화면(게임 끄기도 거기)
@@ -940,6 +941,21 @@ function drawTitleBoss(R, CX = 560) {
   hit(ax - br, ay - br, br * 2, br * 2, () => { titleFx.am = T; snd('pop', 0.7, 1.3); haptic(15); });
   if (!freed) hit(kx - kh * 0.4, ky - kh * 0.5, kh * 0.8, kh * 0.7, () => { titleFx.king = T; snd('oof', 0.8, 0.7); haptic(30); });
 }
+// 영어 로고: 굵은 둥근 글자 + 남색 두꺼운 테 + 노랑→주황 + 흰 하이라이트 + 작은 거북 등껍질(한국어 로고 그림과 같은 느낌)
+function drawLogoEN(x, y, w) {
+  const word = 'TurtleRun'; let size = 80; ctx.font = `900 ${size}px ${FONT}`; size = size * (w * 0.9) / ctx.measureText(word).width; ctx.font = `900 ${size}px ${FONT}`;
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = size * 0.26; ctx.strokeStyle = '#13204a'; ctx.strokeText(word, x, y + size * 0.06);
+  ctx.lineWidth = size * 0.2; ctx.strokeText(word, x, y);
+  const g = ctx.createLinearGradient(0, y - size * 0.45, 0, y + size * 0.45); g.addColorStop(0, '#ffe65a'); g.addColorStop(0.55, '#ffc02e'); g.addColorStop(1, '#ff8a1f');
+  ctx.fillStyle = g; ctx.fillText(word, x, y);
+  ctx.save(); ctx.beginPath(); ctx.rect(x - w, y - size * 0.5, w * 2, size * 0.32); ctx.clip(); ctx.globalAlpha = 0.45; ctx.fillStyle = '#ffffff'; ctx.fillText(word, x, y); ctx.restore();
+  const tw = ctx.measureText(word).width, sx = x + tw / 2 + size * 0.1, sy = y - size * 0.55; // 등껍질
+  ctx.fillStyle = '#13204a'; ctx.beginPath(); ctx.ellipse(sx, sy, size * 0.3, size * 0.22, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5cc93a'; ctx.beginPath(); ctx.ellipse(sx, sy, size * 0.24, size * 0.16, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3e9a26'; for (const [dx, dy] of [[0, 0], [-0.1, -0.05], [0.1, 0.05]]) { ctx.beginPath(); ctx.arc(sx + dx * size, sy + dy * size, size * 0.05, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
 function drawTitle() {
   drawLoadBar();
   // 인기 게임식 첫 화면: 화면 가득 키 아트(코덱스) + 로고 그림 + 크게 빛나는 시작 단추
@@ -956,7 +972,8 @@ function drawTitle() {
   const lg = IMG.spr_title_logo_run, lw = 340, lb = lg && ready(lg) && typeof obox === 'function' ? obox(lg) : null, lh = lb ? lw * lb.h / lb.w : 90;
   const stack = lh + 12 + 34 + 52 + 76 + 18 + 40, top = Math.round((H - stack) / 2), ly = top + lh / 2, py = top + lh + 12, by0 = py + 34 + 52, ry = by0 + 76 + 18;
   { const bob = Math.sin(T * 2) * 4, ls = 1 + Math.sin(T * 3) * 0.015, pop = clamp(stateT / 0.5, 0, 1), e = pop < 1 ? easeOutBack(pop) : 1; // 처음엔 통 튀어나옴
-    if (lb) { ctx.save(); ctx.translate(CX, ly + bob); ctx.scale(ls * e, ls * e); ctx.rotate(Math.sin(T * 1.4) * 0.02); ctx.drawImage(lg, lb.x, lb.y, lb.w, lb.h, -lw / 2, -lh / 2, lw, lh); ctx.restore(); }
+    if (isEN) { ctx.save(); ctx.translate(CX, ly + bob); ctx.scale(ls * e, ls * e); ctx.rotate(Math.sin(T * 1.4) * 0.02); drawLogoEN(0, 0, lw); ctx.restore(); } // 영어: 코드로 그린 「TurtleRun」 로고(같은 사탕 글자)
+    else if (lb) { ctx.save(); ctx.translate(CX, ly + bob); ctx.scale(ls * e, ls * e); ctx.rotate(Math.sin(T * 1.4) * 0.02); ctx.drawImage(lg, lb.x, lb.y, lb.w, lb.h, -lw / 2, -lh / 2, lw, lh); ctx.restore(); }
     else text('터틀런', CX, ly, 76, C.yellow, { lw: 12 }); }
   ctx.font = `800 ${fs(18)}px ${FONT}`; const sw = ctx.measureText('아멜리아 공주 구출 대작전').width + 40;
   ctx.fillStyle = '#1d2a5a'; rr(CX - sw / 2, py, sw, 34, 17); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; rr(CX - sw / 2, py, sw, 34, 17); ctx.stroke();
@@ -984,6 +1001,10 @@ function drawTitle() {
   row.forEach(([lbl, fn], i) => button(x0R + i * (bwR + gapR), ry, bwR, 40, lbl, fn, { size: 14, kind: 'soft' }));
   if (iosGuide) drawIosGuide();
   eggBadge(36 - OX() + SAFE, 32, save.eggs, 30);
+  { // 오른쪽 위 언어 단추(지구 + 지금 언어) — 누르면 바뀌고 다시 켜짐
+    const lw2 = 116, lx2 = 960 + OX() - SAFE - 16 - lw2;
+    button(lx2, 12, lw2, 36, isEN ? '🌐 English' : '🌐 한국어', () => { sfx.click(); setLang(isEN ? 'ko' : 'en'); }, { size: 14, kind: 'soft' });
+  }
   if (quitAsk) drawQuitAsk();
 }
 
@@ -1167,9 +1188,9 @@ function drawShop() {
       // 위: 이름 + 단계 배지
       const badgeTxt = save.up[u.k] >= u.max ? 'MAX' : `Lv ${save.up[u.k]}/${u.max}`; ctx.font = `800 ${fs(13)}px ${FONT}`; const bwN = ctx.measureText(badgeTxt).width + 16;
       let nsz = 18; ctx.font = `800 ${fs(nsz)}px ${FONT}`; while (nsz > 13 && ctx.measureText(u.name).width > w - 90 - 14 - bwN - 8) { nsz--; ctx.font = `800 ${fs(nsz)}px ${FONT}`; } // 긴 이름은 배지와 안 겹치게 줄임
-      text(u.name, x + 90, y + 28, nsz, C.text, { align: 'left', stroke: false });
+      text(u.name, x + 90, y + 28, nsz, C.text, { align: 'left', stroke: false, maxW: w - 90 - 14 - bwN - 8 });
       ctx.save(); rr(x, y, w, h, 20); ctx.clip();
-      text(u.desc, x + 90, y + 54, 13, C.sub, { align: 'left', body: true, stroke: false });
+      text(u.desc, x + 90, y + 54, 13, C.sub, { align: 'left', body: true, stroke: false, maxW: w - 90 - 12 });
       const badge = maxed ? 'MAX' : `Lv ${lv}/${u.max}`;
       ctx.font = `800 ${fs(13)}px ${FONT}`; const bw = ctx.measureText(badge).width + 16;
       const bp = ut > 0.35 && ut < 0.65 ? 1 + 0.5 * (1 - (ut - 0.35) / 0.3) : 1; // 단계 숫자가 1.5배로 튀어나옴
@@ -1231,7 +1252,7 @@ function drawShop() {
       text('한 번만!', x + w / 2, y + 20, 13, C.danger, { stroke: false });
       drawImg(IMG.x_chest_gold_closed, x + w / 2, y + 54, 56);
       text(STARTER.name, x + w / 2, y + 84, 15, C.text, { stroke: false });
-      wrapText(STARTER.desc, w - 24, 13).slice(0, 2).forEach((l, k, a) => text(l, x + w / 2, y + 112 - (a.length - 1) * 8 + k * fs(13) * 1.25, 13, C.sub, { body: true, stroke: false })); // 카드 폭 안에서 두 줄까지
+      wrapText(STARTER.desc, w - 24, 13).slice(0, 2).forEach((l, k, a) => text(l, x + w / 2, y + 108 - (a.length - 1) * 8 + k * fs(13) * 1.2, 13, C.sub, { body: true, stroke: false })); // 카드 폭 안에서 두 줄까지
       button(x + 16, y + 134, w - 32, 34, save.starter ? '샀어요 ✓' : won(STARTER.won), buyStarter, { size: 14, kind: 'yellow', disabled: save.starter });
     });
     withRise(4, () => { // 보석 → 진주
@@ -1252,13 +1273,13 @@ function drawShop() {
       if (t) { drawImg(IMG['spr_tr_' + t.k], 104, y + 4, 62, Math.sin(T * 2 + i) * 0.08); text(t.name, 140, y - 14, 14, C.text, { align: 'left', body: true, stroke: false }); wrapText(t.desc, 100, 12).slice(0, 2).forEach((l, j) => text(l, 140, y + 8 + j * 18, 12, C.yellow, { align: 'left', body: true, stroke: false })); }
       else text('빈 칸', 155, y + 6, 14, C.mute, { body: true, stroke: false });
     }
-    text('2개까지 끼울 수 있어요', 155, 446, 12, C.sub, { body: true, stroke: false });
+    text('2개까지 끼울 수 있어요', 155, 446, 12, C.sub, { body: true, stroke: false, maxW: 230 });
     TREASURES.forEach((t, i) => withRise(i, () => {
       const x = 286 + (i % 4) * 160, y = 118 + Math.floor(i / 4) * 176, w = 150, h = 168, own = save.trs.includes(t.k), on = save.trEq.includes(t.k);
       panel(x, y, w, h, { sel: on, fill: on ? C.sel : t.gems && !own ? 'rgba(60,40,90,.9)' : undefined });
       drawImg(IMG['spr_tr_' + t.k], x + w / 2, y + 42, 56, Math.sin(T * 2 + i) * 0.06, own ? 1 : 0.55);
-      text(t.name, x + w / 2, y + 84, 14, C.text, { body: true, stroke: false });
-      text(t.desc, x + w / 2, y + 106, 12, C.yellow, { body: true, stroke: false });
+      text(t.name, x + w / 2, y + 84, 14, C.text, { body: true, stroke: false, maxW: w - 12 });
+      text(t.desc, x + w / 2, y + 106, 12, C.yellow, { body: true, stroke: false, maxW: w - 12 });
       const price = t.gems ? `보석 ${t.gems}` : `진주 ${t.cost}`, can = t.gems ? save.gems >= t.gems : save.eggs >= t.cost;
       button(x + 10, y + 132, w - 20, 30, on ? '빼기' : own ? '끼우기' : price, () => tapTreasure(t), { size: 13, kind: on ? 'soft' : own ? 'primary' : t.gems ? 'yellow' : 'primary', disabled: !own && !can });
     }));
