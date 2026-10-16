@@ -244,7 +244,7 @@ const haptic = (() => {
     while (recent.length && now - recent[0] > 1000) recent.shift();
     if (recent.length >= 4) return;
     last = now; recent.push(now);
-    try { if (navigator.vibrate) navigator.vibrate(p); else if (lbl) lbl.click(); } catch (e) { /* 무시 */ }
+    try { if (window.ReactNativeWebView) { const big = Array.isArray(p) ? p.reduce((x, y) => x + y, 0) > 150 : p >= 40; window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'haptic', kind: big ? 'big' : 'tap' })); } else if (navigator.vibrate) navigator.vibrate(p); else if (lbl) lbl.click(); } catch (e) { /* 무시 */ } // 앱 안이면 앱의 진짜 진동으로
   };
 })();
 function toast(s, color = '#ffffff') { toasts.push({ s, color, t: 2.8 }); }

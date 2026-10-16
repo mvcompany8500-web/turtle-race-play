@@ -292,6 +292,8 @@ function render() {
   drawBuyConfirm(); // 결제 확인 창은 맨 위
 }
 requestAnimationFrame(frame);
+// 앱(웹뷰) 안이면: 첫 화면이 그려진 뒤 「준비됨」을 알려 스플래시를 내림
+if (window.ReactNativeWebView) setTimeout(() => { try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'ready' })); } catch (e) { /* 무시 */ } }, 300);
 
 // 개발 확인용 (브라우저 콘솔)
 window.__turtle = {

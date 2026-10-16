@@ -715,7 +715,7 @@ function drawSettings() {
     [['저장하기', exportSave], ['불러오기', importSave], ['처음 화면', () => { map.overlay = null; state = 'title'; sfx.click(); }]], // 지도 → 처음 화면(게임 끄기도 거기)
   ];
   grid.forEach((row, r) => { const w2 = (R0 - L0 - 8 * (row.length - 1)) / row.length; row.forEach((c, k) => button(L0 + k * (w2 + 8), 346 + r * 48, w2, 40, c[0], c[1], { size: 14, kind: 'soft' })); }); // 줄마다 판 폭을 꽉 채워 나눔
-  [['이용약관', 'terms'], ['개인정보', 'privacy'], ['만든 사람', 'credits']].forEach(([lb, f], k) => button(L0 + k * (cw + 8), 448, cw, 34, lb, () => withGate(() => window.open(`legal/${f}.html`, '_blank')), { size: 13, kind: 'soft' })); // 판 아래 끝과 28 띄움
+  [['이용약관', 'terms'], ['개인정보', 'privacy'], ['만든 사람', 'credits']].forEach(([lb, f], k) => button(L0 + k * (cw + 8), 448, cw, 34, lb, () => withGate(() => { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'legal', doc: f })); else window.open(`legal/${f}.html`, '_blank'); }), { size: 13, kind: 'soft' })); // 판 아래 끝과 28 띄움
 }
 
 // ───────── 첫 이야기: 공주 납치 ─────────
