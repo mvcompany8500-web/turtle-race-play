@@ -1202,7 +1202,7 @@ function drawTurnPreview(x, y, size) {
 }
 function drawShop() {
   ctx.fillStyle = 'rgba(10,22,62,.6)'; ctx.fillRect(-OX(), 0, W, H);
-  if (shop.tab === 'up') { const pw = turtlePower(); text(`파워 ${pw.toLocaleString()} · ${powerRank(pw)}`, 446, 30, 15, '#ffd27a', { lw: 4, align: 'left' }); } // 키우면 바로 오르는 게 보이게
+  if (shop.tab === 'up') { const pw = turtlePower(); text(`파워 ${pw.toLocaleString()} · ${powerRank(pw)}`, 56, 476, 16, "#ffd27a", { lw: 4, align: "left", maxW: 440 }); } // 키우면 바로 오르는 게 보이게(아래 왼쪽 빈 곳 — 위는 가방 단추)
   // 시안: 왼쪽 위 제목 리본, 오른쪽 위 크림색 재화 칸(지도와 같은 부품)
   const stitle = shop.tab === 'gem' ? '보석 상점' : shop.tab === 'fx' ? '꾸밈 상점' : shop.tab === 'gacha' ? '뽑기' : shop.tab === 'bag' ? '가방' : '진주 상점', sL = -OX() + SAFE + 14, sR = 960 + OX() - SAFE - 14;
   if (!ribbon(sL + 120, 30, 240, stitle, 22)) text(stitle, 480, 34, 32, C.text, { stroke: false });
