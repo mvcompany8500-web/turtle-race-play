@@ -772,7 +772,7 @@ function drawSettings() {
   button(R0 - 128, 88 + 4 * 50, 128, 42, isEN ? 'English' : '한국어', () => { sfx.click(); setLang(isEN ? 'ko' : 'en'); }, { size: 15, kind: 'primary' }); // 언어: 누르면 바뀌고 다시 켜짐(글자는 그 언어 그대로 보이게 사전에 안 넣음) // 바꾸려면 보호자 확인(아이가 혼자 어린이 모드를 끄지 못하게)
   button(R0 - 128 - 10 - 176, 88 + 4 * 50, 176, 42, save.age == null ? '고르기' : kidMode() ? `${save.age}살 · 어린이 모드` : '13살 이상', () => withGate(() => { map.overlay = null; state = 'age'; stateT = 0; ageBack = 'map'; }), { size: 14, kind: kidMode() ? 'ok' : 'soft' });
   const grid = [
-    [['꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }], ['확률 정보', () => { probOpen = true; sfx.click(); }], ['기록 지우기', askWipe]],
+    [...(STANDALONE ? [] : [['꽉 찬 화면', () => { if (IS_IOS) { map.overlay = null; state = 'title'; iosGuide = true; } else goFullscreen(); }]]), ['확률 정보', () => { probOpen = true; sfx.click(); }], ['기록 지우기', askWipe]],
     [['저장하기', exportSave], ['불러오기', importSave], ['처음 화면', () => { map.overlay = null; state = 'title'; sfx.click(); }]], // 지도 → 처음 화면(게임 끄기도 거기)
   ];
   grid.forEach((row, r) => { const w2 = (R0 - L0 - 8 * (row.length - 1)) / row.length; row.forEach((c, k) => button(L0 + k * (w2 + 8), 346 + r * 48, w2, 40, c[0], c[1], { size: 14, kind: 'soft' })); }); // 줄마다 판 폭을 꽉 채워 나눔
@@ -923,7 +923,9 @@ function drawBuddy(x, y, size) {
   ctx.restore();
 }
 const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const STANDALONE = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+// 앱(아이폰·안드로이드 껍데기 웹뷰) 안이면 이미 꽉 찬 화면 — 사파리 「홈 화면에 추가」 안내·꽉 찬 화면 단추를 안 보임(애플 2.1, 10/17)
+const IN_APP = !!window.ReactNativeWebView;
+const STANDALONE = IN_APP || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
 let iosGuide = false;
 function startGame() {
   if (isTouch && !STANDALONE && !document.fullscreenElement) {
@@ -1056,7 +1058,7 @@ function drawTitle() {
   const row = [];
   if (save.introSeen) row.push(['첫 이야기', startIntro]);
   if (isTouch && !STANDALONE) row.push(['꽉 찬 화면', () => { if (IS_IOS) iosGuide = true; else goFullscreen(); }]);
-  row.push(['게임 끄기', () => { quitAsk = true; sfx.click(); }]);
+  if (!(IN_APP && IS_IOS)) row.push(['게임 끄기', () => { quitAsk = true; sfx.click(); }]); // 아이폰 앱은 스스로 끄는 단추를 두지 않음(애플)
   const bwR = 116, gapR = 10, totR = row.length * bwR + (row.length - 1) * gapR, x0R = CX - totR / 2;
   row.forEach(([lbl, fn], i) => button(x0R + i * (bwR + gapR), ry, bwR, 40, lbl, fn, { size: 14, kind: 'soft' }));
   if (iosGuide) drawIosGuide();
